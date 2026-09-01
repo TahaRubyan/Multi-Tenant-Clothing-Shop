@@ -10,6 +10,11 @@ import {
   UserCheck,
   Calendar,
   Truck,
+  ArrowRight,
+  TrendingUp,
+  TrendingDown,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 
 export const StockUpdationView = () => {
@@ -33,7 +38,7 @@ export const StockUpdationView = () => {
 
   // Filtered items based on search query
   const matchingProducts = products.filter((p) => {
-    if (!searchQuery.trim()) return false;
+    if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       p.fabricMaterial.toLowerCase().includes(q) ||
@@ -93,7 +98,7 @@ export const StockUpdationView = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedProduct) {
-      showToast('Please search and select a product first', 'warning');
+      showToast('Please search and select a garment item first', 'warning');
       return;
     }
 
@@ -132,14 +137,28 @@ export const StockUpdationView = () => {
     }
   };
 
+  // Stock Simulation calculation for non-technical users
+  const currentStockNum = selectedProduct ? parseFloat(selectedProduct.stock) || 0 : 0;
+  const inputDeltaNum = parseFloat(qtyInput) || 0;
+  const simulatedNewStock = activeSubTab === 'restock'
+    ? (currentStockNum + inputDeltaNum)
+    : Math.max(0, currentStockNum - inputDeltaNum);
+
   return (
     <div className="view-container stock-updation-view no-scroll-view">
+      {/* View Header */}
       <div className="view-header flex-between mb-2">
-        <h2>Stock Updation & Restock Entry</h2>
+        <div>
+          <h2>Stock Updation & Inventory Adjustments</h2>
+          <p className="view-subtitle">
+            Easily intake mill restocks or record damaged and defective garments with instant stock recalculation.
+          </p>
+        </div>
 
-        {/* High Contrast Interactive Sub-Navbar Tabs */}
+        {/* Visual Mode Selector Pills */}
         <div className="stock-subnav-header glass-card">
           <button
+            type="button"
             className={`stock-subnav-item ${activeSubTab === 'restock' ? 'active' : ''}`}
             onClick={() => {
               setActiveSubTab('restock');
@@ -150,9 +169,10 @@ export const StockUpdationView = () => {
               setInchInput('0');
             }}
           >
-            <PlusCircle size={16} /> Stock Restock Entry
+            <PlusCircle size={16} /> Restock Inventory (+)
           </button>
           <button
+            type="button"
             className={`stock-subnav-item ${activeSubTab === 'damage' ? 'active' : ''}`}
             onClick={() => {
               setActiveSubTab('damage');
@@ -163,35 +183,46 @@ export const StockUpdationView = () => {
               setInchInput('0');
             }}
           >
-            <AlertOctagon size={16} /> Damaged Log
+            <AlertOctagon size={16} /> Damaged Write-Off (-)
           </button>
         </div>
       </div>
 
       <div className="updation-vertical-layout">
-        {/* TOP CARD (X-AXIS): Entry Form */}
+        {/* TOP CARD: Intuitive Visual Form */}
         <div className="glass-card form-box-card-top mb-3">
-          <div className="form-card-title mb-2">
-            {activeSubTab === 'restock' ? (
-              <h3><PlusCircle size={18} className="text-success" /> Restock Inventory Entry</h3>
-            ) : (
-              <h3><AlertOctagon size={18} className="text-danger" /> Log Damaged / Defective Garment</h3>
-            )}
+          <div className="card-header-styled flex-between mb-3">
+            <div className="flex-align-center gap-2">
+              {activeSubTab === 'restock' ? (
+                <>
+                  <PlusCircle size={20} className="text-success" />
+                  <h3 className="mb-0">Add Incoming Mill Stock</h3>
+                </>
+              ) : (
+                <>
+                  <AlertOctagon size={20} className="text-danger" />
+                  <h3 className="mb-0">Record Defective / Damaged Fabric</h3>
+                </>
+              )}
+            </div>
+            <span className={`badge ${activeSubTab === 'restock' ? 'badge-sage' : 'badge-danger'}`}>
+              {activeSubTab === 'restock' ? 'Inventory Inward' : 'Inventory Outward'}
+            </span>
           </div>
 
           <form onSubmit={handleSubmit} className="updation-horizontal-form">
             <div className="form-grid-horizontal-vendor">
-              {/* Field 1: Search Bar with Live Floating Dropdown */}
+              {/* Field 1: Search Bar with Autocomplete */}
               <div className="form-group relative-container mb-0">
-                <label className="form-label mb-1">
-                  Search Item (Type suit, box, meter bolt, barcode - use ↓ key & Enter) *
+                <label className="form-label">
+                  1. Search & Select Garment Article *
                 </label>
                 <div className="input-with-icon">
                   <Search size={16} className="input-icon" />
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Type barcode or fabric name..."
+                    placeholder="Click to browse, type barcode, fabric name..."
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
@@ -218,71 +249,52 @@ export const StockUpdationView = () => {
                 </div>
 
                 {/* Floating Dropdown */}
-                {isDropdownOpen && searchQuery.trim() && (
+                {isDropdownOpen && (
                   <div className="search-results-dropdown">
-                    {matchingProducts.length === 0 ? (
-                      <div className="p-3 text-center text-muted text-sm">
-                        No matching garment items found.
-                      </div>
-                    ) : (
-                      matchingProducts.map((p, idx) => (
-                        <div
-                          key={p.id}
-                          ref={idx === selectedIndex ? selectedRowRef : null}
-                          className={`search-result-row ${idx === selectedIndex ? 'selected-row' : ''}`}
-                          onClick={() => handleSelectProduct(p)}
-                        >
-                          <div className="res-info">
-                            <div className="flex-align-center gap-2">
-                              <span className={`badge ${p.unitType === 'Meter' ? 'badge-warning' : p.unitType === 'Box' ? 'badge-info' : 'badge-sage'} badge-compact`}>
-                                {p.unitType || 'Suit'}
-                              </span>
-                              <span className="res-title">{p.fabricMaterial}</span>
-                            </div>
-                            <span className="res-sub">
-                              {p.barcode} • {p.fabricType} ({p.fabricColor})
-                            </span>
-                          </div>
-                          <div className="res-right">
-                            <span className="badge badge-info">
-                              Stock: {p.stock} {p.unitType === 'Meter' ? 'm' : ''}
-                            </span>
-                          </div>
+                    <div className="dropdown-header-note">
+                      {searchQuery ? `Matching Articles (${matchingProducts.length})` : `All Inventory Items (${products.length})`}
+                    </div>
+                    <div className="dropdown-items-scroll">
+                      {matchingProducts.length === 0 ? (
+                        <div className="p-3 text-center text-muted text-xs">
+                          No matching garment items found.
                         </div>
-                      ))
-                    )}
+                      ) : (
+                        matchingProducts.map((p, idx) => (
+                          <div
+                            key={p.id}
+                            ref={idx === selectedIndex ? selectedRowRef : null}
+                            className={`search-result-row ${idx === selectedIndex ? 'selected-row' : ''}`}
+                            onClick={() => handleSelectProduct(p)}
+                          >
+                            <div className="res-info">
+                              <div className="flex-align-center gap-2">
+                                <span className={`badge ${p.unitType === 'Meter' ? 'badge-warning' : p.unitType === 'Box' ? 'badge-info' : 'badge-sage'} badge-compact`}>
+                                  {p.unitType || 'Suit'}
+                                </span>
+                                <strong className="res-title text-main">{p.fabricMaterial}</strong>
+                              </div>
+                              <span className="res-sub font-mono">
+                                {p.barcode} • {p.fabricType} ({p.fabricColor})
+                              </span>
+                            </div>
+                            <div className="res-right">
+                              <span className="badge badge-info">
+                                Current Stock: {p.stock} {p.unitType === 'Meter' ? 'm' : 'pcs'}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Optional Field: Vendor Linkage */}
-              {activeSubTab === 'restock' && (
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">Vendor Partner (Optional)</label>
-                  <div className="input-with-icon">
-                    <Truck size={16} className="input-icon" />
-                    <select
-                      className="form-select font-weight-600"
-                      value={selectedVendorId}
-                      onChange={(e) => setSelectedVendorId(e.target.value)}
-                    >
-                      <option value="">-- No Vendor Linked --</option>
-                      {vendors.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.vendorName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* Field 2: Quantity / Meters & Inches Input */}
+              {/* Field 2: Quantity Input */}
               <div className="form-group mb-0">
-                <label className="form-label mb-1">
-                  {selectedProduct && selectedProduct.unitType === 'Meter'
-                    ? (activeSubTab === 'restock' ? 'Meters + Inches Added *' : 'Meters + Inches Removed *')
-                    : (activeSubTab === 'restock' ? 'Qty Added *' : 'Qty Removed *')}
+                <label className="form-label">
+                  2. {selectedProduct?.unitType === 'Meter' ? 'Meters + Inches *' : 'Quantity Count *'}
                 </label>
                 {selectedProduct && selectedProduct.unitType === 'Meter' ? (
                   <div className="meter-inch-inline-row">
@@ -317,7 +329,7 @@ export const StockUpdationView = () => {
                   <input
                     type="number"
                     min="1"
-                    className="form-input font-mono"
+                    className="form-input font-mono font-weight-700"
                     value={qtyInput}
                     onChange={(e) => setQtyInput(e.target.value)}
                     required
@@ -325,20 +337,44 @@ export const StockUpdationView = () => {
                 )}
               </div>
 
-              {/* Field 3: Log Reason / Note */}
+              {/* Field 3: Vendor Partner (Restock mode) */}
+              {activeSubTab === 'restock' && (
+                <div className="form-group mb-0">
+                  <label className="form-label">3. Supplier / Mill</label>
+                  <div className="input-with-icon">
+                    <Truck size={16} className="input-icon" />
+                    <select
+                      className="form-select font-weight-600"
+                      value={selectedVendorId}
+                      onChange={(e) => setSelectedVendorId(e.target.value)}
+                    >
+                      <option value="">-- Direct Purchase --</option>
+                      {vendors.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.vendorName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Field 4: Reason / Note */}
               <div className="form-group mb-0">
-                <label className="form-label mb-1">Log Reason / Reference Note *</label>
+                <label className="form-label">
+                  {activeSubTab === 'restock' ? '4. Invoice / Note *' : '3. Defect Reason *'}
+                </label>
                 <input
                   type="text"
                   className="form-input"
                   value={reasonInput}
                   onChange={(e) => setReasonInput(e.target.value)}
-                  placeholder={activeSubTab === 'restock' ? 'e.g. Mill shipment restock' : 'e.g. Dye stain end piece'}
+                  placeholder={activeSubTab === 'restock' ? 'e.g. Mill shipment intake' : 'e.g. Dye stain weave defect'}
                   required
                 />
               </div>
 
-              {/* Field 4: Action Button */}
+              {/* Field 5: Action Button */}
               <div className="form-group mb-0 flex-end-button">
                 <button
                   type="submit"
@@ -346,7 +382,7 @@ export const StockUpdationView = () => {
                 >
                   {activeSubTab === 'restock' ? (
                     <>
-                      <CheckCircle2 size={17} /> Confirm Entry
+                      <CheckCircle2 size={17} /> Save Restock
                     </>
                   ) : (
                     <>
@@ -357,47 +393,74 @@ export const StockUpdationView = () => {
               </div>
             </div>
 
-            {/* Selected Product Banner Callout - Item Details Downside Title */}
+            {/* Visual Live Calculation Card for Non-Technical Users */}
             {selectedProduct && (
-              <div className={`item-detail-banner-callout glass-card mt-2 ${activeSubTab === 'damage' ? 'border-danger-callout' : ''}`}>
-                <div className="banner-title-row">
-                  <h4>{selectedProduct.fabricMaterial}</h4>
-                  <span className={`badge ${selectedProduct.unitType === 'Meter' ? 'badge-warning' : selectedProduct.unitType === 'Box' ? 'badge-info' : 'badge-sage'}`}>
-                    {selectedProduct.unitType || 'Suit'} • {selectedProduct.fabricType}
-                  </span>
-                </div>
-                <div className="banner-downside-details font-mono text-xs">
-                  <span>Barcode: <strong>{selectedProduct.barcode}</strong></span>
-                  <span>Color: <strong>{selectedProduct.fabricColor}</strong></span>
-                  <span>Available Stock: <strong>{selectedProduct.stock} {selectedProduct.unitType === 'Meter' ? 'meters' : 'units'}</strong></span>
-                  <span>Wholesale COGS: <strong>Rs. {selectedProduct.wholesalePrice.toLocaleString()}</strong></span>
-                  <span>Retail Price: <strong>Rs. {selectedProduct.retailPrice.toLocaleString()} {selectedProduct.unitType === 'Meter' ? '/ meter' : ''}</strong></span>
+              <div className={`live-stock-calc-banner glass-card mt-3 ${activeSubTab === 'damage' ? 'damage-banner' : 'restock-banner'}`}>
+                <div className="calc-steps-row flex-between">
+                  <div className="calc-step-item">
+                    <span className="calc-step-label">Selected Item</span>
+                    <strong className="calc-step-value">{selectedProduct.fabricMaterial}</strong>
+                    <span className="text-xs text-muted font-mono">{selectedProduct.barcode} • {selectedProduct.fabricColor}</span>
+                  </div>
+
+                  <div className="calc-step-item text-center">
+                    <span className="calc-step-label">Current Stock</span>
+                    <strong className="calc-step-value font-mono">{selectedProduct.stock} {selectedProduct.unitType === 'Meter' ? 'm' : 'pcs'}</strong>
+                  </div>
+
+                  <div className="calc-step-arrow">
+                    <ArrowRight size={20} className={activeSubTab === 'restock' ? 'text-success' : 'text-danger'} />
+                  </div>
+
+                  <div className="calc-step-item text-center">
+                    <span className="calc-step-label">
+                      {activeSubTab === 'restock' ? 'Adjustment (+)' : 'Deduction (-)'}
+                    </span>
+                    <strong className={`calc-step-value font-mono ${activeSubTab === 'restock' ? 'text-success' : 'text-danger'}`}>
+                      {activeSubTab === 'restock' ? `+${qtyInput}` : `-${qtyInput}`} {selectedProduct.unitType === 'Meter' ? 'm' : 'pcs'}
+                    </strong>
+                  </div>
+
+                  <div className="calc-step-arrow">
+                    <ArrowRight size={20} className={activeSubTab === 'restock' ? 'text-success' : 'text-danger'} />
+                  </div>
+
+                  <div className="calc-step-item text-right">
+                    <span className="calc-step-label">New Total Available Stock</span>
+                    <strong className="calc-step-value font-mono text-primary text-base">
+                      {simulatedNewStock} {selectedProduct.unitType === 'Meter' ? 'meters' : 'units'}
+                    </strong>
+                  </div>
                 </div>
               </div>
             )}
           </form>
         </div>
 
-        {/* BOTTOM CARD (X-AXIS DOWNSIDE): History Log Table */}
+        {/* BOTTOM CARD: History Log Table */}
         <div className="glass-card table-box-card-bottom">
-          <div className="table-card-title mb-2">
-            {activeSubTab === 'restock' ? (
-              <h3><History size={18} className="text-primary" /> Stock Restock History Log</h3>
-            ) : (
-              <h3><History size={18} className="text-danger" /> Damaged Items Log</h3>
-            )}
+          <div className="card-header-styled flex-between mb-2">
+            <div className="flex-align-center gap-2">
+              <History size={18} className={activeSubTab === 'restock' ? 'text-primary' : 'text-danger'} />
+              <h3 className="mb-0">
+                {activeSubTab === 'restock' ? 'Recent Stock Restock History' : 'Damaged Garments Write-Off Log'}
+              </h3>
+            </div>
+            <span className="badge badge-sage">
+              {activeSubTab === 'restock' ? `${stockLog.length} Entries` : `${damageLog.length} Entries`}
+            </span>
           </div>
 
-          <div className="stock-table-container">
-            <table className="data-table updation-history-table">
+          <div className="table-responsive-clean">
+            <table className="clean-ledger-table">
               <thead>
                 <tr>
-                  <th style={{ width: '130px' }}>Barcode</th>
-                  <th>Item Details</th>
-                  <th style={{ width: '100px' }} className="text-center">Qty / Length</th>
-                  <th style={{ width: '180px' }}>Logged By</th>
-                  <th style={{ width: '160px' }}>Date & Time</th>
-                  <th style={{ width: '220px' }}>Reason / Note</th>
+                  <th style={{ width: '15%' }}>Barcode</th>
+                  <th style={{ width: '32%' }}>Item / Fabric Description</th>
+                  <th style={{ width: '14%' }} className="text-center">Quantity</th>
+                  <th style={{ width: '15%' }}>Logged By</th>
+                  <th style={{ width: '14%' }}>Date & Time</th>
+                  <th>Reason / Note</th>
                 </tr>
               </thead>
               <tbody>
@@ -409,30 +472,22 @@ export const StockUpdationView = () => {
                   ) : (
                     stockLog.map((log) => (
                       <tr key={log.id}>
-                        <td className="font-mono text-highlight font-weight-600">{log.barcode}</td>
-                        <td className="item-details-stacked-cell">
-                          <div className="item-title font-weight-600">
-                            [{log.unitType || 'Suit'}] {log.itemName}
-                          </div>
-                          <div className="item-sub-detail text-subtle text-xs">
-                            {log.type ? `${log.type} Fabric` : 'Garment Material'}
+                        <td className="font-mono text-highlight font-weight-600 white-space-nowrap">{log.barcode}</td>
+                        <td>
+                          <div className="flex-column">
+                            <span className="font-weight-600 text-main">[{log.unitType || 'Suit'}] {log.itemName}</span>
+                            <small className="text-muted text-xs">{log.type || 'Textiles'}</small>
                           </div>
                         </td>
-                        <td className="text-center font-mono text-success font-weight-800">
+                        <td className="text-center font-mono text-success font-weight-800 white-space-nowrap">
                           +{log.qtyAdded} {log.unitType === 'Meter' ? 'm' : ''}
                         </td>
-                        <td>
-                          <div className="user-log-pill">
-                            <UserCheck size={13} className="text-primary mr-1" />
-                            <span>{log.loggedBy || 'System Admin'}</span>
+                        <td className="text-xs white-space-nowrap">
+                          <div className="flex-align-center gap-1">
+                            <UserCheck size={12} className="text-primary" /> {log.loggedBy || 'Admin'}
                           </div>
                         </td>
-                        <td className="font-mono text-subtle text-xs">
-                          <div className="flex-center-left gap-1">
-                            <Calendar size={12} />
-                            <span>{log.dateLogged}</span>
-                          </div>
-                        </td>
+                        <td className="font-mono text-subtle text-xs white-space-nowrap">{log.dateLogged}</td>
                         <td className="text-muted text-xs">{log.reason}</td>
                       </tr>
                     ))
@@ -445,30 +500,22 @@ export const StockUpdationView = () => {
                   ) : (
                     damageLog.map((log) => (
                       <tr key={log.id}>
-                        <td className="font-mono text-highlight font-weight-600">{log.barcode}</td>
-                        <td className="item-details-stacked-cell">
-                          <div className="item-title font-weight-600">
-                            [{log.unitType || 'Suit'}] {log.itemName}
-                          </div>
-                          <div className="item-sub-detail text-subtle text-xs">
-                            {log.type ? `${log.type} Fabric` : 'Garment Material'}
+                        <td className="font-mono text-highlight font-weight-600 white-space-nowrap">{log.barcode}</td>
+                        <td>
+                          <div className="flex-column">
+                            <span className="font-weight-600 text-main">[{log.unitType || 'Suit'}] {log.itemName}</span>
+                            <small className="text-muted text-xs">{log.type || 'Textiles'}</small>
                           </div>
                         </td>
-                        <td className="text-center font-mono text-danger font-weight-800">
+                        <td className="text-center font-mono text-danger font-weight-800 white-space-nowrap">
                           -{log.qtyRemoved} {log.unitType === 'Meter' ? 'm' : ''}
                         </td>
-                        <td>
-                          <div className="user-log-pill">
-                            <UserCheck size={13} className="text-danger mr-1" />
-                            <span>{log.loggedBy || 'System Admin'}</span>
+                        <td className="text-xs white-space-nowrap">
+                          <div className="flex-align-center gap-1">
+                            <UserCheck size={12} className="text-danger" /> {log.loggedBy || 'Admin'}
                           </div>
                         </td>
-                        <td className="font-mono text-subtle text-xs">
-                          <div className="flex-center-left gap-1">
-                            <Calendar size={12} />
-                            <span>{log.dateLogged}</span>
-                          </div>
-                        </td>
+                        <td className="font-mono text-subtle text-xs white-space-nowrap">{log.dateLogged}</td>
                         <td className="text-muted text-xs">{log.reason}</td>
                       </tr>
                     ))

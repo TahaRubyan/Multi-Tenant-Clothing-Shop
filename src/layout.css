@@ -202,13 +202,14 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0.65rem 0.85rem;
+  padding: 0.7rem 0.95rem;
   border-radius: var(--radius-md);
   background: transparent;
   border: 1px solid transparent;
+  border-left: 3px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s ease-in-out;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: left;
 }
 
@@ -220,25 +221,36 @@
 
 .nav-label {
   font-size: 0.88rem;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .sidebar-item:hover {
-  background: var(--bg-primary);
-  color: var(--text-main);
-  border-color: var(--border-color);
+  background: #ffffff;
+  color: var(--accent-primary);
+  border-color: rgba(45, 106, 79, 0.25);
+  border-left: 3px solid var(--accent-sand);
+  transform: translateX(3px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-item:hover .nav-icon {
+  color: var(--accent-primary);
+  transform: scale(1.05);
 }
 
 .sidebar-item.active {
   background: var(--bg-tertiary);
   color: var(--accent-primary);
-  border-color: var(--border-color);
+  border-color: rgba(45, 106, 79, 0.3);
+  border-left: 4px solid var(--accent-primary);
   font-weight: 700;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 3px 10px rgba(45, 106, 79, 0.12);
 }
 
 .sidebar-item.active .nav-icon {
   color: var(--accent-primary);
+  transform: scale(1.08);
 }
 
 .sidebar-badge {

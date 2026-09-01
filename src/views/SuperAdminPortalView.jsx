@@ -17,18 +17,20 @@ import {
   Database,
   Server,
   X,
+  ExternalLink,
 } from 'lucide-react';
 
 export const SuperAdminPortalView = () => {
   const {
-    tenants,
+    tenants = [],
     addTenant,
     toggleTenantStatus,
     deleteTenant,
     switchTenant,
-    allProducts,
-    allSalesLogs,
-    users,
+    allProducts = [],
+    allSalesLogs = [],
+    users = [],
+    setActiveTab,
     showToast,
   } = usePOS();
 
@@ -106,16 +108,16 @@ export const SuperAdminPortalView = () => {
     }
 
     const createdTenant = addTenant({
-      name: shopName,
-      tagline,
-      ownerName,
-      phone,
-      city,
-      address,
+      name: shopName.trim(),
+      tagline: tagline.trim(),
+      ownerName: ownerName.trim(),
+      phone: phone.trim(),
+      city: city.trim(),
+      address: address.trim(),
       shopType,
       modules,
-      adminUsername,
-      adminPassword,
+      adminUsername: adminUsername.trim(),
+      adminPassword: adminPassword.trim(),
     });
 
     showToast(`Successfully created new client shop: ${shopName}`, 'success');
@@ -130,20 +132,26 @@ export const SuperAdminPortalView = () => {
   };
 
   return (
-    <div className="view-container super-admin-view">
+    <div className="view-container super-admin-view scrollable-panel">
       <div className="view-header flex-between mb-3">
         <div>
-          <div className="flex-align-center gap-2">
+          <div className="flex-align-center gap-2 mb-1">
             <span className="badge badge-amber font-mono font-weight-800">SaaS Master Controller</span>
-            <h2>Multi-Tenant Enterprise Platform Management</h2>
+            <span className="badge badge-sage">Multi-Tenant Cloud Mesh</span>
           </div>
+          <h2>Multi-Tenant Enterprise Platform Management</h2>
           <p className="view-subtitle">
             Onboard new cloth & garment shop clients, configure enabled business modules, and monitor tenant infrastructure.
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-          <Plus size={16} /> Onboard New Client Shop
-        </button>
+        <div className="flex-align-center gap-2">
+          <button className="btn btn-secondary" onClick={() => setActiveTab('dashboard')}>
+            <Store size={15} /> Open Active POS Terminal
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+            <Plus size={16} /> Onboard New Client Shop
+          </button>
+        </div>
       </div>
 
       {/* Top Platform KPI Metrics */}
@@ -154,8 +162,8 @@ export const SuperAdminPortalView = () => {
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Active Client Tenants</span>
-            <span className="kpi-value">{tenants.length} Shops</span>
-            <span className="kpi-sub positive">● Pakistan Multi-Tenant Mesh</span>
+            <span className="kpi-value">{(tenants || []).length} Shops</span>
+            <span className="kpi-sub positive">● Multi-Tenant Mesh</span>
           </div>
         </div>
 
@@ -165,8 +173,8 @@ export const SuperAdminPortalView = () => {
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Total Catalog SKUs</span>
-            <span className="kpi-value">{allProducts.length} Items</span>
-            <span className="kpi-sub neutral">Suits, Meters & Apparel Variants</span>
+            <span className="kpi-value">{(allProducts || []).length} Items</span>
+            <span className="kpi-sub neutral">Suits, Meters & Variants</span>
           </div>
         </div>
 
@@ -176,7 +184,7 @@ export const SuperAdminPortalView = () => {
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Total Invoices Logged</span>
-            <span className="kpi-value">{allSalesLogs.length} Orders</span>
+            <span className="kpi-value">{(allSalesLogs || []).length} Orders</span>
             <span className="kpi-sub positive">100% Tenant-Isolated</span>
           </div>
         </div>
@@ -194,30 +202,29 @@ export const SuperAdminPortalView = () => {
       </div>
 
       {/* Tenants Management Table Card */}
-      <div className="glass-card table-panel-full">
-        <div className="panel-header flex-between mb-3">
+      <div className="glass-card table-panel-full mb-4">
+        <div className="card-header-styled flex-between mb-3">
           <div className="flex-align-center gap-2">
             <Building2 size={20} className="text-primary" />
-            <h3>Registered Shop Clients Directory</h3>
-            <span className="badge badge-sage">{tenants.length} Active Tenants</span>
+            <h3 className="mb-0">Registered Shop Clients Directory</h3>
           </div>
+          <span className="badge badge-sage">{(tenants || []).length} Active Tenants</span>
         </div>
 
-        <div className="table-responsive">
-          <table className="data-table">
+        <div className="table-responsive-clean">
+          <table className="clean-ledger-table">
             <thead>
               <tr>
-                <th>Client Shop Name</th>
-                <th>Shop Type / Specialization</th>
-                <th>Owner & Contact</th>
-                <th>City & Address</th>
-                <th>Enabled Modules</th>
-                <th>Status</th>
-                <th className="text-right">Actions</th>
+                <th style={{ width: '22%' }}>Client Shop Name</th>
+                <th style={{ width: '18%' }}>Shop Type</th>
+                <th style={{ width: '18%' }}>Owner & Contact</th>
+                <th style={{ width: '16%' }}>City & Location</th>
+                <th style={{ width: '14%' }}>Status</th>
+                <th style={{ width: '12%' }} className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {tenants.map((t) => (
+              {(tenants || []).map((t) => (
                 <tr key={t.id}>
                   <td>
                     <div className="shop-title-cell">
@@ -253,14 +260,6 @@ export const SuperAdminPortalView = () => {
                     </div>
                   </td>
                   <td>
-                    <div className="module-badges-list">
-                      {t.modules?.unstitched_fabric && <span className="badge badge-sage badge-compact">Fabric (m)</span>}
-                      {t.modules?.ready_made_apparel && <span className="badge badge-warning badge-compact">Apparel Grid</span>}
-                      {t.modules?.vendor_ledger && <span className="badge badge-info badge-compact">Vendors</span>}
-                      {t.modules?.promotional_engine && <span className="badge badge-amber badge-compact">Promos</span>}
-                    </div>
-                  </td>
-                  <td>
                     <span className={`badge ${t.status === 'active' ? 'badge-success' : 'badge-danger'}`}>
                       {t.status === 'active' ? '● Active' : '○ Suspended'}
                     </span>
@@ -268,10 +267,12 @@ export const SuperAdminPortalView = () => {
                   <td className="text-right">
                     <div className="flex-align-center justify-end gap-2">
                       <button
+                        type="button"
                         className="btn btn-sm btn-primary"
                         onClick={() => {
                           switchTenant(t.id);
-                          showToast(`Switched terminal context to: ${t.name}`, 'success');
+                          setActiveTab('dashboard');
+                          showToast(`Switched to terminal: ${t.name}`, 'success');
                         }}
                         title="Enter this shop terminal"
                       >
@@ -279,14 +280,7 @@ export const SuperAdminPortalView = () => {
                       </button>
 
                       <button
-                        className={`btn btn-sm btn-icon ${t.status === 'active' ? 'btn-secondary' : 'btn-success'}`}
-                        onClick={() => toggleTenantStatus(t.id)}
-                        title={t.status === 'active' ? 'Suspend Tenant' : 'Activate Tenant'}
-                      >
-                        <Power size={13} />
-                      </button>
-
-                      <button
+                        type="button"
                         className="btn btn-sm btn-danger btn-icon"
                         onClick={() => {
                           if (window.confirm(`Delete tenant "${t.name}"?`)) {
@@ -313,10 +307,10 @@ export const SuperAdminPortalView = () => {
           <div className="modal-content modal-lg">
             <div className="modal-header">
               <div className="modal-title">
-                <Store size={22} className="text-primary" />
-                <h3>Onboard New Client Shop Tenant</h3>
+                <Store size={20} className="text-primary" />
+                <h3 className="mb-0">Onboard New Client Shop Tenant</h3>
               </div>
-              <button className="btn-close" onClick={() => setShowAddModal(false)}>
+              <button type="button" className="btn-close" onClick={() => setShowAddModal(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -324,7 +318,7 @@ export const SuperAdminPortalView = () => {
             <form onSubmit={handleAddTenantSubmit} className="modal-body">
               <div className="form-grid-2col mb-3">
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Shop / Business Name *</label>
+                  <label className="form-label">Shop / Business Name *</label>
                   <input
                     type="text"
                     className="form-input font-weight-700"
@@ -336,7 +330,7 @@ export const SuperAdminPortalView = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Brand Tagline / Slogan</label>
+                  <label className="form-label">Brand Tagline / Slogan</label>
                   <input
                     type="text"
                     className="form-input"
@@ -349,7 +343,7 @@ export const SuperAdminPortalView = () => {
 
               <div className="form-grid-3col mb-3">
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Owner Full Name *</label>
+                  <label className="form-label">Owner Full Name *</label>
                   <input
                     type="text"
                     className="form-input"
@@ -361,7 +355,7 @@ export const SuperAdminPortalView = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Phone Number *</label>
+                  <label className="form-label">Phone Number *</label>
                   <input
                     type="text"
                     className="form-input"
@@ -373,7 +367,7 @@ export const SuperAdminPortalView = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">City / Region *</label>
+                  <label className="form-label">City / Region *</label>
                   <input
                     type="text"
                     className="form-input"
@@ -385,7 +379,7 @@ export const SuperAdminPortalView = () => {
               </div>
 
               <div className="form-group mb-3">
-                <label className="form-label mb-1">Market Address</label>
+                <label className="form-label">Market Address</label>
                 <input
                   type="text"
                   className="form-input"
@@ -396,7 +390,7 @@ export const SuperAdminPortalView = () => {
               </div>
 
               <div className="form-group mb-3">
-                <label className="form-label mb-1">Shop Type / Business Template *</label>
+                <label className="form-label">Shop Type / Business Template *</label>
                 <select
                   className="form-select font-weight-600"
                   value={shopType}
@@ -409,63 +403,12 @@ export const SuperAdminPortalView = () => {
                 </select>
               </div>
 
-              {/* Active Business Module Checkboxes */}
-              <div className="form-group mb-4">
-                <label className="form-label mb-2">Configure Enabled Business Modules</label>
-                <div className="permissions-checkbox-matrix">
-                  <label className={`perm-checkbox-item ${modules.unstitched_fabric ? 'active' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={modules.unstitched_fabric}
-                      onChange={() => handleModuleToggle('unstitched_fabric')}
-                    />
-                    <span>Unstitched Fabric (Suits, Boxes, Meters & Inches)</span>
-                  </label>
-
-                  <label className={`perm-checkbox-item ${modules.ready_made_apparel ? 'active' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={modules.ready_made_apparel}
-                      onChange={() => handleModuleToggle('ready_made_apparel')}
-                    />
-                    <span>Ready-Made Apparel (Shirts, Trousers, Size Grid)</span>
-                  </label>
-
-                  <label className={`perm-checkbox-item ${modules.vendor_ledger ? 'active' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={modules.vendor_ledger}
-                      onChange={() => handleModuleToggle('vendor_ledger')}
-                    />
-                    <span>Vendor Ledger & Accounts Payable</span>
-                  </label>
-
-                  <label className={`perm-checkbox-item ${modules.promotional_engine ? 'active' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={modules.promotional_engine}
-                      onChange={() => handleModuleToggle('promotional_engine')}
-                    />
-                    <span>Promotional & Bulk Discount Engine</span>
-                  </label>
-
-                  <label className={`perm-checkbox-item ${modules.analytics ? 'active' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={modules.analytics}
-                      onChange={() => handleModuleToggle('analytics')}
-                    />
-                    <span>Financial Analytics & Profit Reports</span>
-                  </label>
-                </div>
-              </div>
-
               {/* Initial Shop Admin Credentials */}
               <div className="glass-card p-3 mb-4">
                 <h4 className="sub-heading mb-2"><Users size={15} /> Create Shop Owner Admin Credentials</h4>
                 <div className="form-grid-2col">
                   <div className="form-group mb-0">
-                    <label className="form-label mb-1">Admin Username *</label>
+                    <label className="form-label">Admin Username *</label>
                     <input
                       type="text"
                       className="form-input font-mono"
@@ -477,7 +420,7 @@ export const SuperAdminPortalView = () => {
                   </div>
 
                   <div className="form-group mb-0">
-                    <label className="form-label mb-1">Admin Password *</label>
+                    <label className="form-label">Admin Password *</label>
                     <input
                       type="password"
                       className="form-input font-mono"
@@ -489,7 +432,7 @@ export const SuperAdminPortalView = () => {
                 </div>
               </div>
 
-              <div className="modal-actions">
+              <div className="modal-actions flex-between pt-2">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
                   Cancel
                 </button>
