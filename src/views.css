@@ -1549,11 +1549,33 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0.85rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
   background: var(--bg-card);
   border: 1.5px solid var(--border-color-strong);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+}
+
+.custom-date-inputs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-primary);
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.custom-date-inputs input[type="date"] {
+  padding: 0.25rem 0.45rem;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  background: #ffffff;
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--radius-sm);
+  max-width: 140px;
 }
 
 .date-pill-group {
@@ -1563,7 +1585,7 @@
 }
 
 .date-pill {
-  padding: 0.25rem 0.65rem;
+  padding: 0.3rem 0.75rem;
   font-size: 0.76rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -2033,3 +2055,232 @@
     padding: 1.5rem;
   }
 }
+
+/* =======================================================
+   1.8" x 0.9" PROFESSIONAL THERMAL BARCODE LABEL STYLES
+   ======================================================= */
+.thermal-barcode-label-18x09 {
+  width: 240px;
+  height: 120px;
+  background: #ffffff;
+  border: 1.5px solid #0f172a;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  color: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0.5rem auto;
+}
+
+.tbl-header-brand {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 0.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tbl-item-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #000000;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.1rem;
+}
+
+.tbl-spec-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #334155;
+  margin: 0.1rem 0;
+}
+
+.tbl-category-tag {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.tbl-color-size {
+  max-width: 140px;
+}
+
+.tbl-barcode-svg-wrapper {
+  width: 100%;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tbl-barcode-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tbl-sku-code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #000000;
+  margin-top: -0.1rem;
+}
+
+.tbl-footer-price {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-top: 1px solid #000000;
+  padding-top: 0.1rem;
+  color: #000000;
+  letter-spacing: 0.02em;
+}
+
+/* Scrollable Form & Panel Support */
+.scrollable-form-panel {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  padding-right: 0.4rem;
+}
+
+.scrollable-panel {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+/* Percentage-based Line & Overall Discount Inputs */
+.item-disc-percent-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.item-disc-percent-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.4rem;
+  width: 65px;
+}
+
+.item-disc-percent-input input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.item-disc-percent-input .percent-sign {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-subtle);
+}
+
+.line-disc-calc {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #d97706;
+}
+
+/* Inline Add Category Button */
+.btn-add-inline-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.btn-add-inline-cat:hover {
+  background: var(--bg-tertiary);
+  text-decoration: underline;
+}
+
+/* Digital Payment Settlement Callout */
+.digital-payment-info-box {
+  background: rgba(45, 106, 79, 0.08);
+  border: 1.5px solid rgba(45, 106, 79, 0.25);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.85rem;
+}
+
+/* Interactive KPI Card Hover Effects */
+.kpi-interactive-card {
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.kpi-interactive-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(45, 106, 79, 0.14);
+  border-color: var(--accent-primary);
+}
+
+.kpi-interactive-card:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 106, 79, 0.1);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 6px 20px rgba(45, 106, 79, 0.12);
+  border-color: rgba(45, 106, 79, 0.3);
+}
+
+.btn-action-pulse {
+  animation: pulse-soft 2.5s infinite;
+}
+
+@keyframes pulse-soft {
+  0% { box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(45, 106, 79, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(45, 106, 79, 0); }
+}
+
+.dropdown-header-note {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-subtle);
+  padding: 0.35rem 0.65rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.dropdown-items-scroll {
+  max-height: 260px;
+  overflow-y: auto;
+}
+

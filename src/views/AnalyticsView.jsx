@@ -11,6 +11,7 @@ import {
   X,
   Printer,
   Filter,
+  Percent,
 } from 'lucide-react';
 
 export const AnalyticsView = () => {
@@ -56,6 +57,7 @@ export const AnalyticsView = () => {
   const totalRevenue = filteredSalesLogs.reduce((sum, s) => sum + s.netTotal, 0);
   const totalGrossProfit = filteredSalesLogs.reduce((sum, s) => sum + s.grossProfit, 0);
   const totalOrders = filteredSalesLogs.length;
+  const grossProfitMargin = totalRevenue > 0 ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1) : '0';
 
   // Best Selling Fabrics Table Data
   const fabricSalesMap = {};
@@ -88,7 +90,7 @@ export const AnalyticsView = () => {
     }
     dailySummaryMap[dateOnly].orderCount += 1;
     dailySummaryMap[dateOnly].subtotal += sale.subtotal;
-    dailySummaryMap[dateOnly].discount += sale.wholeSaleDiscount;
+    dailySummaryMap[dateOnly].discount += (sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0);
     dailySummaryMap[dateOnly].netRevenue += sale.netTotal;
     dailySummaryMap[dateOnly].grossProfit += sale.grossProfit;
   });
@@ -98,7 +100,12 @@ export const AnalyticsView = () => {
     <div className="view-container analytics-view no-scroll-view">
       {/* Header & Sub-Navbar */}
       <div className="view-header flex-between mb-2">
-        <h2>Analytics & Reports</h2>
+        <div>
+          <h2>Analytics & Financial Reports</h2>
+          <p className="view-subtitle">
+            Track gross margins, daily cashier turnovers, and fabric sales performance across periods.
+          </p>
+        </div>
 
         <div className="flex-align-center gap-3">
           {/* Sub-Navbar Navigation Header Tabs */}
@@ -119,11 +126,11 @@ export const AnalyticsView = () => {
               className={`stock-subnav-item ${activeAnalyticsSection === 'detailed' ? 'active' : ''}`}
               onClick={() => setActiveAnalyticsSection('detailed')}
             >
-              <FileText size={16} /> Sales Log
+              <FileText size={16} /> Sales Invoices Log
             </button>
           </div>
 
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>
+          <button className="btn btn-secondary btn-sm hover-lift" onClick={() => window.print()}>
             <Printer size={15} /> Print PDF Report
           </button>
         </div>
@@ -132,7 +139,7 @@ export const AnalyticsView = () => {
       {/* Date Quick Filter Bar & Top KPI Summary Pills */}
       <div className="analytics-top-summary-grid mb-3">
         <div className="glass-card date-filter-card">
-          <div className="flex-align-center gap-2">
+          <div className="flex-align-center gap-2 flex-wrap">
             <Filter size={15} className="text-muted" />
             <span className="filter-label">Filter Period:</span>
             <div className="date-pill-group">
@@ -170,7 +177,7 @@ export const AnalyticsView = () => {
           </div>
 
           {dateFilterMode === 'custom' && (
-            <div className="flex-align-center gap-2 custom-date-inputs">
+            <div className="custom-date-inputs">
               <input
                 type="date"
                 className="form-input form-input-sm"
@@ -193,7 +200,7 @@ export const AnalyticsView = () => {
           <div className="summary-pill glass-card hover-lift">
             <DollarSign size={20} className="text-primary" />
             <div className="pill-info">
-              <span className="pill-label">Total Revenue</span>
+              <span className="pill-label">Total Net Revenue</span>
               <span className="pill-value font-mono text-primary">
                 Rs. {totalRevenue.toLocaleString()}
               </span>
@@ -205,7 +212,7 @@ export const AnalyticsView = () => {
             <div className="pill-info">
               <span className="pill-label">Gross Profit</span>
               <span className="pill-value font-mono text-success">
-                Rs. {totalGrossProfit.toLocaleString()}
+                Rs. {totalGrossProfit.toLocaleString()} ({grossProfitMargin}%)
               </span>
             </div>
           </div>
@@ -214,7 +221,7 @@ export const AnalyticsView = () => {
             <ShoppingBag size={20} className="text-amber" />
             <div className="pill-info">
               <span className="pill-label">Orders Settled</span>
-              <span className="pill-value font-mono">{totalOrders} Sales</span>
+              <span className="pill-value font-mono">{totalOrders} Invoices</span>
             </div>
           </div>
         </div>
@@ -239,7 +246,7 @@ export const AnalyticsView = () => {
           </div>
           <div className="pdf-stat-card">
             <span className="lbl">GROSS PROFIT</span>
-            <strong className="val">Rs. {totalGrossProfit.toLocaleString()}</strong>
+            <strong className="val">Rs. {totalGrossProfit.toLocaleString()} ({grossProfitMargin}%)</strong>
           </div>
           <div className="pdf-stat-card">
             <span className="lbl">ORDERS SETTLED</span>
@@ -337,7 +344,7 @@ export const AnalyticsView = () => {
                     <td className="font-mono text-xs">{sale.dateTime}</td>
                     <td>{sale.salesman}</td>
                     <td className="font-mono">Rs. {sale.subtotal.toLocaleString()}</td>
-                    <td className="font-mono text-amber">-Rs. {sale.wholeSaleDiscount.toLocaleString()}</td>
+                    <td className="font-mono text-amber">-Rs. {(sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0)}.toLocaleString()</td>
                     <td className="font-mono font-weight-700">Rs. {sale.netTotal.toLocaleString()}</td>
                     <td className="font-mono font-weight-700">Rs. {sale.grossProfit.toLocaleString()}</td>
                     <td className="font-mono">{sale.paymentMethod}</td>
@@ -474,13 +481,13 @@ export const AnalyticsView = () => {
                       <td className="font-mono text-xs">{sale.dateTime}</td>
                       <td className="font-weight-600 truncate-cell" title={sale.salesman}>{sale.salesman}</td>
                       <td className="font-mono">Rs. {sale.subtotal.toLocaleString()}</td>
-                      <td className="font-mono text-amber">-Rs. {sale.wholeSaleDiscount.toLocaleString()}</td>
+                      <td className="font-mono text-amber">-Rs. {((sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0)).toLocaleString()}</td>
                       <td className="font-mono text-success font-weight-700">Rs. {sale.netTotal.toLocaleString()}</td>
                       <td className="font-mono text-primary font-weight-700">Rs. {sale.grossProfit.toLocaleString()}</td>
                       <td><span className="badge badge-info badge-compact">{sale.paymentMethod}</span></td>
                       <td className="text-center no-print-col">
                         <button
-                          className="btn btn-secondary btn-sm action-btn-pill"
+                          className="btn btn-secondary btn-sm action-btn-pill hover-lift"
                           onClick={() => setSelectedInvoice(sale)}
                         >
                           Details <ChevronRight size={13} />
@@ -558,7 +565,7 @@ export const AnalyticsView = () => {
 
               <div className="drawer-financials-summary mt-3 font-mono">
                 <div className="d-row"><span>Subtotal:</span> <span>Rs. {selectedInvoice.subtotal.toLocaleString()}</span></div>
-                <div className="d-row"><span>Discount:</span> <span>-Rs. {selectedInvoice.wholeSaleDiscount.toLocaleString()}</span></div>
+                <div className="d-row"><span>Discount:</span> <span>-Rs. {((selectedInvoice.wholeSaleDiscount || 0) + (selectedInvoice.storewideDiscount || 0)).toLocaleString()}</span></div>
                 <div className="d-row d-bold border-top pt-1 mt-1"><span>NET TOTAL:</span> <span>Rs. {selectedInvoice.netTotal.toLocaleString()}</span></div>
                 <div className="d-row text-success"><span>Gross Profit:</span> <span>Rs. {selectedInvoice.grossProfit.toLocaleString()}</span></div>
               </div>

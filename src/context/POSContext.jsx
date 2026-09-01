@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   INITIAL_TENANTS,
   INITIAL_PRODUCTS,
-  INITIAL_USERS,
   INITIAL_ROLES,
+  INITIAL_USERS,
   INITIAL_VENDORS,
   INITIAL_PROMOTIONAL_DISCOUNTS,
   INITIAL_SHOP_SETTINGS,
@@ -14,13 +14,14 @@ import {
 
 const POSContext = createContext();
 
-const getStoredOrDefault = (key, fallback) => {
+const getStoredOrDefault = (key, defaultVal) => {
   try {
     const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
+    if (saved) return JSON.parse(saved);
+  } catch (err) {
+    console.error(`Error reading ${key} from localStorage:`, err);
   }
+  return defaultVal;
 };
 
 export const POSProvider = ({ children }) => {
@@ -45,6 +46,23 @@ export const POSProvider = ({ children }) => {
   // Shop Settings
   const [shopSettings, setShopSettings] = useState(() => getStoredOrDefault('pos_shopSettings', INITIAL_SHOP_SETTINGS));
 
+  // Apparel Categories List (Dynamic Category Addition)
+  const DEFAULT_APPAREL_CATEGORIES = [
+    'Formal Shirt',
+    'Casual Shirt',
+    'Dress Trouser',
+    'Denim Jeans',
+    'Polo Shirt',
+    'Kurta',
+    'Waistcoat',
+    'Shalwar Kameez',
+    'Blazer / Coat',
+    'Ladies Pret',
+  ];
+  const [apparelCategories, setApparelCategories] = useState(() =>
+    getStoredOrDefault('pos_apparel_categories', DEFAULT_APPAREL_CATEGORIES)
+  );
+
   // Multi-Tenant Data Stores
   const [allProducts, setAllProducts] = useState(() => getStoredOrDefault('pos_products', INITIAL_PRODUCTS));
   const [allVendors, setAllVendors] = useState(() => getStoredOrDefault('pos_vendors', INITIAL_VENDORS));
@@ -54,17 +72,15 @@ export const POSProvider = ({ children }) => {
   const [allDamageLog, setAllDamageLog] = useState(() => getStoredOrDefault('pos_damageLog', MOCK_DAMAGED_ITEMS));
 
   // Navigation state
-  const [activeTab, setActiveTab] = useState(() => {
-    return currentUser?.isSuperAdmin ? 'super-admin-portal' : 'dashboard';
-  });
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   // Sync to localStorage
   useEffect(() => { localStorage.setItem('pos_tenants', JSON.stringify(tenants)); }, [tenants]);
   useEffect(() => { localStorage.setItem('pos_currentTenant', JSON.stringify(currentTenant)); }, [currentTenant]);
   useEffect(() => { localStorage.setItem('pos_roles', JSON.stringify(roles)); }, [roles]);
   useEffect(() => { localStorage.setItem('pos_users', JSON.stringify(users)); }, [users]);
-  useEffect(() => { localStorage.setItem('pos_currentUser', JSON.stringify(currentUser)); }, [currentUser]);
   useEffect(() => { localStorage.setItem('pos_shopSettings', JSON.stringify(shopSettings)); }, [shopSettings]);
+  useEffect(() => { localStorage.setItem('pos_apparel_categories', JSON.stringify(apparelCategories)); }, [apparelCategories]);
   useEffect(() => { localStorage.setItem('pos_products', JSON.stringify(allProducts)); }, [allProducts]);
   useEffect(() => { localStorage.setItem('pos_vendors', JSON.stringify(allVendors)); }, [allVendors]);
   useEffect(() => { localStorage.setItem('pos_discountRules', JSON.stringify(allDiscountRules)); }, [allDiscountRules]);
@@ -79,10 +95,22 @@ export const POSProvider = ({ children }) => {
         ...prev,
         shopName: currentTenant.name,
         shopPhone: currentTenant.phone,
-        shopLocation: currentTenant.address,
+        shopLocation: currentTenant.address || currentTenant.city,
       }));
     }
   }, [currentTenant]);
+
+  // Add Custom Apparel Category
+  const addApparelCategory = (categoryName) => {
+    const trimmed = categoryName?.trim();
+    if (!trimmed) return false;
+    if (!apparelCategories.includes(trimmed)) {
+      setApparelCategories(prev => [...prev, trimmed]);
+      showToast(`Added new category: "${trimmed}"`, 'success');
+      return true;
+    }
+    return false;
+  };
 
   // TENANT-ISOLATED DATA VIEWS (ROW-LEVEL FILTERING)
   const currentTenantId = currentTenant?.id || 'tenant-gents-101';
@@ -240,6 +268,7 @@ export const POSProvider = ({ children }) => {
       ...newSettings,
       currencySymbol: 'Rs.',
     }));
+    showToast('Shop profile settings updated successfully', 'success');
   };
 
   // Vendor Management & Ledgers
@@ -497,7 +526,7 @@ export const POSProvider = ({ children }) => {
 
   // Cart State for POS
   const [cart, setCart] = useState([]);
-  const [wholeSaleDiscount, setWholeSaleDiscount] = useState(0);
+  const [wholeSaleDiscountPercent, setWholeSaleDiscountPercent] = useState(0);
 
   const addToCart = (product, initialQty = 1, selectedVariant = null) => {
     const isVariant = Boolean(selectedVariant);
@@ -508,15 +537,26 @@ export const POSProvider = ({ children }) => {
     const stockToUse = isVariant ? selectedVariant.stock : product.stock;
 
     const promo = getMatchingPromosForProduct(product, barcodeToUse);
+    const promoPercent = promo ? promo.discountPercent : 0;
+    const initialLineTotal = retailPriceToUse * initialQty;
+    const initialDiscountAmt = Math.round(initialLineTotal * (promoPercent / 100));
 
     setCart(prev => {
       const existing = prev.find(item => item.cartItemId === cartItemId && !item.isReturn);
       if (existing) {
-        return prev.map(item =>
-          item.cartItemId === cartItemId && !item.isReturn
-            ? { ...item, qty: item.qty + initialQty }
-            : item
-        );
+        return prev.map(item => {
+          if (item.cartItemId === cartItemId && !item.isReturn) {
+            const newQty = item.qty + initialQty;
+            const updatedLineVal = item.unitPrice * newQty;
+            const updatedDiscAmt = Math.round(updatedLineVal * ((item.itemDiscountPercent || 0) / 100));
+            return {
+              ...item,
+              qty: newQty,
+              itemDiscount: updatedDiscAmt,
+            };
+          }
+          return item;
+        });
       }
       return [
         ...prev,
@@ -529,12 +569,13 @@ export const POSProvider = ({ children }) => {
           fabricType: product.fabricType || product.apparelCategory || 'Apparel',
           fabricColor: isVariant ? `${selectedVariant.color} (${selectedVariant.size})` : product.fabricColor,
           variantDetails: isVariant ? { size: selectedVariant.size, color: selectedVariant.color, sku: selectedVariant.sku } : null,
-          unitType: product.unitType || 'Suit',
+          unitType: isVariant ? 'Piece' : (product.unitType || 'Suit'),
           unitPrice: retailPriceToUse,
           wholesalePrice: wholesalePriceToUse,
           stock: stockToUse,
           qty: initialQty,
-          itemDiscount: promo ? Math.round(retailPriceToUse * (promo.discountPercent / 100)) : 0,
+          itemDiscountPercent: promoPercent,
+          itemDiscount: initialDiscountAmt,
           promoTag: promo ? `${promo.discountPercent}% OFF ${promo.title}` : null,
           isReturn: false,
         },
@@ -548,7 +589,10 @@ export const POSProvider = ({ children }) => {
         .map(item => {
           if (item.cartItemId === cartItemId && item.isReturn === isReturn) {
             const newQty = item.qty + delta;
-            return newQty > 0 ? { ...item, qty: newQty } : null;
+            if (newQty <= 0) return null;
+            const lineVal = item.unitPrice * newQty;
+            const discAmt = Math.round(lineVal * ((item.itemDiscountPercent || 0) / 100));
+            return { ...item, qty: newQty, itemDiscount: discAmt };
           }
           return item;
         })
@@ -565,7 +609,11 @@ export const POSProvider = ({ children }) => {
       prev
         .map(item => {
           if (item.cartItemId === cartItemId && item.isReturn === isReturn) {
-            return totalMeters > 0 ? { ...item, qty: parseFloat(totalMeters.toFixed(4)) } : null;
+            if (totalMeters <= 0) return null;
+            const newQty = parseFloat(totalMeters.toFixed(4));
+            const lineVal = item.unitPrice * newQty;
+            const discAmt = Math.round(lineVal * ((item.itemDiscountPercent || 0) / 100));
+            return { ...item, qty: newQty, itemDiscount: discAmt };
           }
           return item;
         })
@@ -584,11 +632,19 @@ export const POSProvider = ({ children }) => {
     );
   };
 
-  const setItemDiscount = (cartItemId, discountVal, isReturn = false) => {
+  // Set line-item discount in percentage (%)
+  const setItemDiscountPercent = (cartItemId, percentVal, isReturn = false) => {
+    const p = Math.max(0, Math.min(100, parseFloat(percentVal) || 0));
     setCart(prev =>
       prev.map(item => {
         if (item.cartItemId === cartItemId && item.isReturn === isReturn) {
-          return { ...item, itemDiscount: Math.max(0, parseFloat(discountVal) || 0) };
+          const lineVal = item.unitPrice * item.qty;
+          const calculatedDiscAmt = Math.round(lineVal * (p / 100));
+          return {
+            ...item,
+            itemDiscountPercent: p,
+            itemDiscount: calculatedDiscAmt,
+          };
         }
         return item;
       })
@@ -601,10 +657,10 @@ export const POSProvider = ({ children }) => {
 
   const clearCart = () => {
     setCart([]);
-    setWholeSaleDiscount(0);
+    setWholeSaleDiscountPercent(0);
   };
 
-  const completeSale = (paymentMethod, amountReceived) => {
+  const completeSale = (paymentMethod, amountReceivedInput = null) => {
     if (cart.length === 0) return null;
 
     let subtotal = 0;
@@ -627,9 +683,22 @@ export const POSProvider = ({ children }) => {
       storewideDiscountVal = Math.round(subtotal * (storewidePromo.discountPercent / 100));
     }
 
-    const netTotal = Math.max(0, subtotal - storewideDiscountVal - wholeSaleDiscount);
+    const wholeDiscPercentNum = parseFloat(wholeSaleDiscountPercent) || 0;
+    const wholeSaleDiscAmt = Math.round(subtotal * (wholeDiscPercentNum / 100));
+
+    const netTotal = Math.max(0, subtotal - storewideDiscountVal - wholeSaleDiscAmt);
     const grossProfit = netTotal - totalWholesaleCost;
-    const changeReturned = Math.max(0, (parseFloat(amountReceived) || netTotal) - netTotal);
+
+    // Change Return Logic based on Payment Method:
+    // Cash: allows calculating change return.
+    // Card & Mobile Banking: exact amount settled, change return is 0.
+    const isCash = paymentMethod === 'Cash';
+    const amountReceived = isCash
+      ? (parseFloat(amountReceivedInput) || netTotal)
+      : netTotal;
+    const changeReturned = isCash
+      ? Math.max(0, amountReceived - netTotal)
+      : 0;
 
     const now = new Date();
     const receiptNumber = `INV-${now.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -642,10 +711,11 @@ export const POSProvider = ({ children }) => {
       salesmanId: currentUser ? currentUser.id : 'u-0',
       subtotal,
       storewideDiscount: storewideDiscountVal,
-      wholeSaleDiscount: parseFloat(wholeSaleDiscount) || 0,
+      wholeSaleDiscount: wholeSaleDiscAmt,
+      wholeSaleDiscountPercent: wholeDiscPercentNum,
       netTotal,
       grossProfit,
-      amountReceived: parseFloat(amountReceived) || netTotal,
+      amountReceived,
       changeReturned,
       paymentMethod,
       items: cart.map(i => ({
@@ -656,6 +726,7 @@ export const POSProvider = ({ children }) => {
         qty: i.qty,
         unitPrice: i.unitPrice,
         wholesalePrice: i.wholesalePrice,
+        itemDiscountPercent: i.itemDiscountPercent || 0,
         itemDiscount: i.itemDiscount || 0,
         total: (i.unitPrice * i.qty) - (i.itemDiscount || 0),
         isReturn: i.isReturn,
@@ -770,6 +841,8 @@ export const POSProvider = ({ children }) => {
         setActiveTab,
         shopSettings,
         updateShopSettings,
+        apparelCategories,
+        addApparelCategory,
         products,
         allProducts,
         addProduct,
@@ -791,11 +864,11 @@ export const POSProvider = ({ children }) => {
         updateCartQty,
         setCartItemMetersAndInches,
         toggleCartReturn,
-        setItemDiscount,
+        setItemDiscountPercent,
         removeFromCart,
         clearCart,
-        wholeSaleDiscount,
-        setWholeSaleDiscount,
+        wholeSaleDiscountPercent,
+        setWholeSaleDiscountPercent,
         salesLogs,
         completeSale,
         stockLog,

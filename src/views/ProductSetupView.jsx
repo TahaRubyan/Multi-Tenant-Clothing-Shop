@@ -15,10 +15,18 @@ import {
   Trash2,
   Tag,
   Boxes,
+  PlusCircle,
 } from 'lucide-react';
 
 export const ProductSetupView = () => {
-  const { addProduct, shopSettings, hasModule, showToast } = usePOS();
+  const {
+    addProduct,
+    shopSettings,
+    hasModule,
+    showToast,
+    apparelCategories,
+    addApparelCategory,
+  } = usePOS();
 
   // Mode: 'unstitched' (Suits/Meters/Boxes) vs 'apparel' (Ready-Made Shirts/Trousers/Pants)
   const [productType, setProductType] = useState(() => {
@@ -42,6 +50,9 @@ export const ProductSetupView = () => {
 
   // APPAREL VARIANT STATE
   const [apparelCategory, setApparelCategory] = useState('Formal Shirt');
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+
   const [apparelBrand, setApparelBrand] = useState('');
   const [apparelColor, setApparelColor] = useState('White');
   const [apparelBaseWholesale, setApparelBaseWholesale] = useState('');
@@ -61,8 +72,7 @@ export const ProductSetupView = () => {
 
   const [printBarcodeModalData, setPrintBarcodeModalData] = useState(null);
 
-  const fabricPresets = ['Lawn', 'Cotton', 'Wash & Wear', 'Silk', 'Khaddar', 'Karandi', 'Chiffon', 'Velvet', 'Jacquard', 'Linen', 'Wool'];
-  const apparelPresets = ['Formal Shirt', 'Casual Oxford Shirt', 'Dress Trouser', 'Chino Trouser', 'Denim Jeans', 'Kurta Shalwar', 'Waistcoat', 'T-Shirt', 'Jacket'];
+  const fabricPresets = ['Lawn', 'Cotton', 'Wash & Wear', 'Silk', 'Khaddar', 'Karandi', 'Chiffon', 'Velvet', 'Jacquard', 'Linen', 'Wool', 'Boski'];
 
   const effectiveFabricType = isCustomFabric ? (customFabricType || 'Custom Fabric') : fabricTypeSelect;
 
@@ -90,7 +100,7 @@ export const ProductSetupView = () => {
     setSelectedSizes(updatedSizes);
 
     // Rebuild variant rows
-    const prefix = apparelCategory.includes('Shirt') ? 'SHT' : apparelCategory.includes('Trouser') ? 'TRS' : 'JNS';
+    const prefix = apparelCategory.includes('Shirt') ? 'SHT' : apparelCategory.includes('Trouser') ? 'TRS' : apparelCategory.includes('Jeans') ? 'JNS' : 'APP';
     const colorCode = (apparelColor || 'VAR').substring(0, 3).toUpperCase();
 
     const newRows = updatedSizes.map((sz, idx) => {
@@ -113,6 +123,17 @@ export const ProductSetupView = () => {
     setVariantRows(prev =>
       prev.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
     );
+  };
+
+  const handleAddCustomCategory = (e) => {
+    e.preventDefault();
+    if (!newCategoryInput.trim()) return;
+    const added = addApparelCategory(newCategoryInput.trim());
+    if (added) {
+      setApparelCategory(newCategoryInput.trim());
+    }
+    setNewCategoryInput('');
+    setShowAddCategoryModal(false);
   };
 
   const handleSaveProduct = (e) => {
@@ -227,8 +248,8 @@ export const ProductSetupView = () => {
       </div>
 
       <form onSubmit={handleSaveProduct} className="setup-2col-workspace">
-        {/* LEFT COLUMN: Input Form Fields */}
-        <div className="glass-card setup-form-card flex-1">
+        {/* LEFT COLUMN: Input Form Fields with Independent Scrollbar */}
+        <div className="glass-card setup-form-card flex-1 scrollable-form-panel">
           {productType === 'unstitched' ? (
             /* UNSTITCHED FABRIC SETUP */
             <>
@@ -411,13 +432,23 @@ export const ProductSetupView = () => {
 
               <div className="form-grid-3col gap-2">
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Apparel Category *</label>
+                  <div className="flex-between mb-1">
+                    <label className="form-label mb-0">Apparel Category *</label>
+                    <button
+                      type="button"
+                      className="btn-add-inline-cat"
+                      onClick={() => setShowAddCategoryModal(true)}
+                      title="Add Custom Apparel Category"
+                    >
+                      <PlusCircle size={14} /> Add New
+                    </button>
+                  </div>
                   <select
                     className="form-select font-weight-700"
                     value={apparelCategory}
                     onChange={(e) => setApparelCategory(e.target.value)}
                   >
-                    {apparelPresets.map((cat) => (
+                    {apparelCategories.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
@@ -564,63 +595,80 @@ export const ProductSetupView = () => {
           )}
         </div>
 
-        {/* RIGHT COLUMN: Thermal Sticker Preview & Action Buttons */}
+        {/* RIGHT COLUMN: 1.8" x 0.9" Thermal Barcode Sticker Preview & Action Buttons */}
         <div className="glass-card setup-preview-side-card">
-          <div className="preview-label mb-2 text-center">
-            <Barcode size={16} /> Barcode Tag Preview
+          <div className="preview-label mb-2 text-center flex-align-center justify-center gap-1">
+            <Barcode size={16} />
+            <span>Thermal Barcode Label (1.8" × 0.9")</span>
           </div>
 
-          <div className="barcode-sticker-2x15">
-            <div className="sticker-shop">{shopSettings.shopName}</div>
-            <div className="sticker-title">{fabricMaterial || 'Garment Item'}</div>
-            <div className="sticker-variant">
-              <span className={`badge ${productType === 'apparel' ? 'badge-warning' : unitType === 'Meter' ? 'badge-warning' : unitType === 'Box' ? 'badge-info' : 'badge-sage'} mr-1`}>
-                {productType === 'apparel' ? apparelCategory : unitType}
-              </span>
-              {productType === 'apparel' ? (apparelColor || 'Standard') : `${effectiveFabricType} • ${fabricColor || 'Color'}`}
+          {/* Professional 1.8" x 0.9" Thermal Barcode Sticker (Standard Ratio) */}
+          <div className="thermal-barcode-label-18x09">
+            <div className="tbl-header-brand">
+              <span>{shopSettings.shopName || 'SHAAN GENTS CLOTH'}</span>
             </div>
             
-            {/* SVG Black & White Barcode Stripes */}
-            <div className="sticker-lines-svg">
-              <svg viewBox="0 0 200 45" className="barcode-svg-pattern">
-                <rect x="0" y="0" width="200" height="45" fill="#ffffff" />
-                <rect x="5" y="0" width="4" height="45" fill="#000000" />
-                <rect x="12" y="0" width="2" height="45" fill="#000000" />
-                <rect x="18" y="0" width="6" height="45" fill="#000000" />
-                <rect x="27" y="0" width="3" height="45" fill="#000000" />
-                <rect x="33" y="0" width="5" height="45" fill="#000000" />
-                <rect x="42" y="0" width="2" height="45" fill="#000000" />
-                <rect x="47" y="0" width="4" height="45" fill="#000000" />
-                <rect x="54" y="0" width="7" height="45" fill="#000000" />
-                <rect x="64" y="0" width="3" height="45" fill="#000000" />
-                <rect x="70" y="0" width="5" height="45" fill="#000000" />
-                <rect x="78" y="0" width="2" height="45" fill="#000000" />
-                <rect x="83" y="0" width="6" height="45" fill="#000000" />
-                <rect x="92" y="0" width="4" height="45" fill="#000000" />
-                <rect x="99" y="0" width="2" height="45" fill="#000000" />
-                <rect x="104" y="0" width="5" height="45" fill="#000000" />
-                <rect x="112" y="0" width="3" height="45" fill="#000000" />
-                <rect x="118" y="0" width="6" height="45" fill="#000000" />
-                <rect x="127" y="0" width="2" height="45" fill="#000000" />
-                <rect x="132" y="0" width="5" height="45" fill="#000000" />
-                <rect x="140" y="0" width="3" height="45" fill="#000000" />
-                <rect x="146" y="0" width="7" height="45" fill="#000000" />
-                <rect x="156" y="0" width="2" height="45" fill="#000000" />
-                <rect x="161" y="0" width="4" height="45" fill="#000000" />
-                <rect x="168" y="0" width="6" height="45" fill="#000000" />
-                <rect x="177" y="0" width="3" height="45" fill="#000000" />
-                <rect x="183" y="0" width="5" height="45" fill="#000000" />
-                <rect x="191" y="0" width="4" height="45" fill="#000000" />
+            <div className="tbl-item-title truncate-cell">
+              {fabricMaterial || (productType === 'apparel' ? 'Formal Shirt' : 'Lawn Fabric')}
+            </div>
+
+            <div className="tbl-spec-row">
+              <span className="tbl-category-tag">
+                {productType === 'apparel' ? apparelCategory : (unitType || 'Suit')}
+              </span>
+              <span className="tbl-color-size truncate-cell">
+                {productType === 'apparel'
+                  ? `${variantRows[0]?.size || 'M'} • ${apparelColor || 'Standard'}`
+                  : `${effectiveFabricType} • ${fabricColor || 'Standard'}`}
+              </span>
+            </div>
+
+            {/* Sharp Vector Barcode Stripes */}
+            <div className="tbl-barcode-svg-wrapper">
+              <svg viewBox="0 0 220 38" className="tbl-barcode-svg">
+                <rect x="0" y="0" width="220" height="38" fill="#ffffff" />
+                <rect x="6" y="0" width="4" height="38" fill="#000000" />
+                <rect x="14" y="0" width="2" height="38" fill="#000000" />
+                <rect x="20" y="0" width="6" height="38" fill="#000000" />
+                <rect x="30" y="0" width="3" height="38" fill="#000000" />
+                <rect x="36" y="0" width="5" height="38" fill="#000000" />
+                <rect x="45" y="0" width="2" height="38" fill="#000000" />
+                <rect x="50" y="0" width="4" height="38" fill="#000000" />
+                <rect x="57" y="0" width="7" height="38" fill="#000000" />
+                <rect x="68" y="0" width="3" height="38" fill="#000000" />
+                <rect x="74" y="0" width="5" height="38" fill="#000000" />
+                <rect x="83" y="0" width="2" height="38" fill="#000000" />
+                <rect x="88" y="0" width="6" height="38" fill="#000000" />
+                <rect x="97" y="0" width="4" height="38" fill="#000000" />
+                <rect x="105" y="0" width="2" height="38" fill="#000000" />
+                <rect x="110" y="0" width="5" height="38" fill="#000000" />
+                <rect x="118" y="0" width="3" height="38" fill="#000000" />
+                <rect x="124" y="0" width="6" height="38" fill="#000000" />
+                <rect x="134" y="0" width="2" height="38" fill="#000000" />
+                <rect x="139" y="0" width="5" height="38" fill="#000000" />
+                <rect x="147" y="0" width="3" height="38" fill="#000000" />
+                <rect x="153" y="0" width="7" height="38" fill="#000000" />
+                <rect x="163" y="0" width="2" height="38" fill="#000000" />
+                <rect x="168" y="0" width="4" height="38" fill="#000000" />
+                <rect x="175" y="0" width="6" height="38" fill="#000000" />
+                <rect x="185" y="0" width="3" height="38" fill="#000000" />
+                <rect x="191" y="0" width="5" height="38" fill="#000000" />
+                <rect x="200" y="0" width="4" height="38" fill="#000000" />
+                <rect x="208" y="0" width="3" height="38" fill="#000000" />
               </svg>
             </div>
-            <div className="sticker-code-num">{productType === 'apparel' ? variantRows[0]?.sku || 'APP-VAR-001' : customBarcode}</div>
-            <div className="sticker-price font-mono">
-              PRICE: Rs. {parseFloat((productType === 'apparel' ? apparelBaseRetail : retailPrice) || 0).toLocaleString()} {unitType === 'Meter' && productType === 'unstitched' ? '/ meter' : ''}
+
+            <div className="tbl-sku-code font-mono">
+              {productType === 'apparel' ? variantRows[0]?.sku || 'SHT-BLU-M' : customBarcode}
+            </div>
+
+            <div className="tbl-footer-price font-mono">
+              PRICE: Rs. {parseFloat((productType === 'apparel' ? apparelBaseRetail : retailPrice) || 0).toLocaleString()} {unitType === 'Meter' && productType === 'unstitched' ? '/ m' : ''}
             </div>
           </div>
 
           <div className="side-card-actions">
-            <button type="submit" className="btn btn-primary btn-block">
+            <button type="submit" className="btn btn-primary btn-block hover-lift">
               <Save size={18} /> Save & Print Tag
             </button>
             <button type="button" className="btn btn-secondary btn-block" onClick={handleFullClear}>
@@ -629,6 +677,45 @@ export const ProductSetupView = () => {
           </div>
         </div>
       </form>
+
+      {/* Quick Modal to Add Custom Apparel Category */}
+      {showAddCategoryModal && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-sm">
+            <div className="modal-header">
+              <div className="modal-title">
+                <PlusCircle size={20} className="text-primary" />
+                <h3>Add New Apparel Category</h3>
+              </div>
+              <button className="btn-close" onClick={() => setShowAddCategoryModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleAddCustomCategory} className="modal-body">
+              <div className="form-group mb-3">
+                <label className="form-label mb-1">Category Name (e.g. Blazer, Sherwani, Tracksuit):</label>
+                <input
+                  type="text"
+                  className="form-input font-weight-600"
+                  placeholder="Type new category..."
+                  value={newCategoryInput}
+                  onChange={(e) => setNewCategoryInput(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddCategoryModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Add Category
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Barcode Print Confirmation Modal */}
       {printBarcodeModalData && (
@@ -670,47 +757,57 @@ export const ProductSetupView = () => {
 
               <div className="tags-grid-preview">
                 {Array.from({ length: Math.min(4, printBarcodeModalData.qtyToPrint) }).map((_, i) => (
-                  <div key={i} className="barcode-sticker-2x15 printable-sticker">
-                    <div className="sticker-shop">{shopSettings.shopName}</div>
-                    <div className="sticker-title">{printBarcodeModalData.product.fabricMaterial}</div>
-                    <div className="sticker-variant">
-                      [{printBarcodeModalData.product.unitType}] {printBarcodeModalData.product.fabricType} • {printBarcodeModalData.product.fabricColor}
+                  <div key={i} className="thermal-barcode-label-18x09 printable-sticker">
+                    <div className="tbl-header-brand">
+                      <span>{shopSettings.shopName}</span>
                     </div>
-                    <div className="sticker-lines-svg">
-                      <svg viewBox="0 0 200 45" className="barcode-svg-pattern">
-                        <rect x="0" y="0" width="200" height="45" fill="#ffffff" />
-                        <rect x="5" y="0" width="4" height="45" fill="#000000" />
-                        <rect x="12" y="0" width="2" height="45" fill="#000000" />
-                        <rect x="18" y="0" width="6" height="45" fill="#000000" />
-                        <rect x="27" y="0" width="3" height="45" fill="#000000" />
-                        <rect x="33" y="0" width="5" height="45" fill="#000000" />
-                        <rect x="42" y="0" width="2" height="45" fill="#000000" />
-                        <rect x="47" y="0" width="4" height="45" fill="#000000" />
-                        <rect x="54" y="0" width="7" height="45" fill="#000000" />
-                        <rect x="64" y="0" width="3" height="45" fill="#000000" />
-                        <rect x="70" y="0" width="5" height="45" fill="#000000" />
-                        <rect x="78" y="0" width="2" height="45" fill="#000000" />
-                        <rect x="83" y="0" width="6" height="45" fill="#000000" />
-                        <rect x="92" y="0" width="4" height="45" fill="#000000" />
-                        <rect x="99" y="0" width="2" height="45" fill="#000000" />
-                        <rect x="104" y="0" width="5" height="45" fill="#000000" />
-                        <rect x="112" y="0" width="3" height="45" fill="#000000" />
-                        <rect x="118" y="0" width="6" height="45" fill="#000000" />
-                        <rect x="127" y="0" width="2" height="45" fill="#000000" />
-                        <rect x="132" y="0" width="5" height="45" fill="#000000" />
-                        <rect x="140" y="0" width="3" height="45" fill="#000000" />
-                        <rect x="146" y="0" width="7" height="45" fill="#000000" />
-                        <rect x="156" y="0" width="2" height="45" fill="#000000" />
-                        <rect x="161" y="0" width="4" height="45" fill="#000000" />
-                        <rect x="168" y="0" width="6" height="45" fill="#000000" />
-                        <rect x="177" y="0" width="3" height="45" fill="#000000" />
-                        <rect x="183" y="0" width="5" height="45" fill="#000000" />
-                        <rect x="191" y="0" width="4" height="45" fill="#000000" />
+                    <div className="tbl-item-title truncate-cell">
+                      {printBarcodeModalData.product.fabricMaterial}
+                    </div>
+                    <div className="tbl-spec-row">
+                      <span className="tbl-category-tag">
+                        {printBarcodeModalData.product.apparelCategory || printBarcodeModalData.product.unitType}
+                      </span>
+                      <span className="tbl-color-size truncate-cell">
+                        {printBarcodeModalData.product.fabricType} • {printBarcodeModalData.product.fabricColor}
+                      </span>
+                    </div>
+                    <div className="tbl-barcode-svg-wrapper">
+                      <svg viewBox="0 0 220 38" className="tbl-barcode-svg">
+                        <rect x="0" y="0" width="220" height="38" fill="#ffffff" />
+                        <rect x="6" y="0" width="4" height="38" fill="#000000" />
+                        <rect x="14" y="0" width="2" height="38" fill="#000000" />
+                        <rect x="20" y="0" width="6" height="38" fill="#000000" />
+                        <rect x="30" y="0" width="3" height="38" fill="#000000" />
+                        <rect x="36" y="0" width="5" height="38" fill="#000000" />
+                        <rect x="45" y="0" width="2" height="38" fill="#000000" />
+                        <rect x="50" y="0" width="4" height="38" fill="#000000" />
+                        <rect x="57" y="0" width="7" height="38" fill="#000000" />
+                        <rect x="68" y="0" width="3" height="38" fill="#000000" />
+                        <rect x="74" y="0" width="5" height="38" fill="#000000" />
+                        <rect x="83" y="0" width="2" height="38" fill="#000000" />
+                        <rect x="88" y="0" width="6" height="38" fill="#000000" />
+                        <rect x="97" y="0" width="4" height="38" fill="#000000" />
+                        <rect x="105" y="0" width="2" height="38" fill="#000000" />
+                        <rect x="110" y="0" width="5" height="38" fill="#000000" />
+                        <rect x="118" y="0" width="3" height="38" fill="#000000" />
+                        <rect x="124" y="0" width="6" height="38" fill="#000000" />
+                        <rect x="134" y="0" width="2" height="38" fill="#000000" />
+                        <rect x="139" y="0" width="5" height="38" fill="#000000" />
+                        <rect x="147" y="0" width="3" height="38" fill="#000000" />
+                        <rect x="153" y="0" width="7" height="38" fill="#000000" />
+                        <rect x="163" y="0" width="2" height="38" fill="#000000" />
+                        <rect x="168" y="0" width="4" height="38" fill="#000000" />
+                        <rect x="175" y="0" width="6" height="38" fill="#000000" />
+                        <rect x="185" y="0" width="3" height="38" fill="#000000" />
+                        <rect x="191" y="0" width="5" height="38" fill="#000000" />
+                        <rect x="200" y="0" width="4" height="38" fill="#000000" />
+                        <rect x="208" y="0" width="3" height="38" fill="#000000" />
                       </svg>
                     </div>
-                    <div className="sticker-code-num">{printBarcodeModalData.product.barcode}</div>
-                    <div className="sticker-price font-mono">
-                      PRICE: Rs. {printBarcodeModalData.product.retailPrice.toLocaleString()} {printBarcodeModalData.product.unitType === 'Meter' ? '/ meter' : ''}
+                    <div className="tbl-sku-code font-mono">{printBarcodeModalData.product.barcode}</div>
+                    <div className="tbl-footer-price font-mono">
+                      PRICE: Rs. {printBarcodeModalData.product.retailPrice.toLocaleString()} {printBarcodeModalData.product.unitType === 'Meter' ? '/ m' : ''}
                     </div>
                   </div>
                 ))}

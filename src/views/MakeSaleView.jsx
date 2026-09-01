@@ -20,6 +20,7 @@ import {
   Check,
   Percent,
   Shirt,
+  Sparkles,
 } from 'lucide-react';
 
 export const MakeSaleView = () => {
@@ -30,11 +31,11 @@ export const MakeSaleView = () => {
     updateCartQty,
     setCartItemMetersAndInches,
     toggleCartReturn,
-    setItemDiscount,
+    setItemDiscountPercent,
     removeFromCart,
     clearCart,
-    wholeSaleDiscount,
-    setWholeSaleDiscount,
+    wholeSaleDiscountPercent,
+    setWholeSaleDiscountPercent,
     completeSale,
     getActiveStorewideDiscount,
     shopSettings,
@@ -42,12 +43,15 @@ export const MakeSaleView = () => {
   } = usePOS();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [amountReceived, setAmountReceived] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [paymentMethod, setPaymentMethod] = useState('Cash'); // 'Cash' | 'Card' | 'Mobile Banking'
   const [completedSaleData, setCompletedSaleData] = useState(null);
 
   const selectedRowRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // Flattened searchable items list (Master Products + Variant SKUs)
   const flattenedSearchItems = [];
@@ -64,7 +68,7 @@ export const MakeSaleView = () => {
           masterBarcode: p.barcode,
           fabricMaterial: p.fabricMaterial,
           fabricType: p.apparelCategory || p.fabricType || 'Apparel',
-          fabricColor: `${v.color} - ${v.size}`,
+          fabricColor: `${v.color} - Size ${v.size}`,
           retailPrice: v.retailPrice,
           wholesalePrice: v.wholesalePrice,
           stock: v.stock,
@@ -90,17 +94,21 @@ export const MakeSaleView = () => {
     }
   });
 
-  const searchResults = searchQuery.trim()
-    ? flattenedSearchItems.filter((item) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          item.barcode.toLowerCase().includes(q) ||
-          item.fabricMaterial.toLowerCase().includes(q) ||
-          item.fabricType.toLowerCase().includes(q) ||
-          item.fabricColor.toLowerCase().includes(q) ||
-          (item.unitType && item.unitType.toLowerCase().includes(q))
-        );
-      })
+  // When focused or search query typed: if empty query, show ALL items; otherwise filter by name, barcode, SKU
+  const searchResults = isSearchFocused
+    ? searchQuery.trim()
+      ? flattenedSearchItems.filter((item) => {
+          const q = searchQuery.toLowerCase();
+          return (
+            item.barcode.toLowerCase().includes(q) ||
+            item.masterBarcode.toLowerCase().includes(q) ||
+            item.fabricMaterial.toLowerCase().includes(q) ||
+            item.fabricType.toLowerCase().includes(q) ||
+            item.fabricColor.toLowerCase().includes(q) ||
+            (item.unitType && item.unitType.toLowerCase().includes(q))
+          );
+        })
+      : flattenedSearchItems
     : [];
 
   // Scroll active item into view within search dropdown
@@ -113,8 +121,24 @@ export const MakeSaleView = () => {
     }
   }, [selectedIndex]);
 
+  // Handle clicking outside of search dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(e.target)
+      ) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleKeyDown = (e) => {
-    if (searchResults.length === 0) return;
+    if (!isSearchFocused || searchResults.length === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -129,31 +153,39 @@ export const MakeSaleView = () => {
         addToCart(targetItem.product, targetItem.unitType === 'Meter' ? 4.0 : 1, targetItem.variant);
         setSearchQuery('');
         setSelectedIndex(0);
+        setIsSearchFocused(false);
       }
+    } else if (e.key === 'Escape') {
+      setIsSearchFocused(false);
     }
   };
 
   const handleBarcodeSubmit = (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      setIsSearchFocused(true);
+      return;
+    }
 
     const queryLower = searchQuery.trim().toLowerCase();
     const matchedItem = flattenedSearchItems.find(
       (it) =>
         it.barcode.toLowerCase() === queryLower ||
         it.masterBarcode.toLowerCase() === queryLower ||
-        it.fabricMaterial.toLowerCase().includes(queryLower)
+        it.fabricMaterial.toLowerCase() === queryLower
     );
 
     if (matchedItem) {
       addToCart(matchedItem.product, matchedItem.unitType === 'Meter' ? 4.0 : 1, matchedItem.variant);
       setSearchQuery('');
       setSelectedIndex(0);
+      setIsSearchFocused(false);
     } else if (searchResults.length > 0) {
       const itemToAdd = searchResults[selectedIndex] || searchResults[0];
       addToCart(itemToAdd.product, itemToAdd.unitType === 'Meter' ? 4.0 : 1, itemToAdd.variant);
       setSearchQuery('');
       setSelectedIndex(0);
+      setIsSearchFocused(false);
     } else {
       showToast(`No item found matching: "${searchQuery}"`, 'danger');
     }
@@ -171,10 +203,19 @@ export const MakeSaleView = () => {
     ? Math.round(cartSubtotal * (activeStorewidePromo.discountPercent / 100))
     : 0;
 
-  const wholeDiscNum = parseFloat(wholeSaleDiscount) || 0;
-  const cartNetTotal = Math.max(0, cartSubtotal - storewideDiscountAmt - wholeDiscNum);
-  const amountRecNum = parseFloat(amountReceived) || cartNetTotal;
-  const changeReturned = Math.max(0, amountRecNum - cartNetTotal);
+  const wholeDiscPercentNum = parseFloat(wholeSaleDiscountPercent) || 0;
+  const wholeSaleDiscountAmt = Math.round(cartSubtotal * (wholeDiscPercentNum / 100));
+
+  const cartNetTotal = Math.max(0, cartSubtotal - storewideDiscountAmt - wholeSaleDiscountAmt);
+
+  // Cash vs Digital Payment Calculation
+  const isCash = paymentMethod === 'Cash';
+  const amountRecNum = isCash
+    ? (parseFloat(amountReceived) || cartNetTotal)
+    : cartNetTotal;
+  const changeReturned = isCash
+    ? Math.max(0, amountRecNum - cartNetTotal)
+    : 0;
 
   const handleCheckout = () => {
     if (cart.length === 0) {
@@ -182,12 +223,12 @@ export const MakeSaleView = () => {
       return;
     }
 
-    const saleResult = completeSale(paymentMethod, amountRecNum);
+    const saleResult = completeSale(paymentMethod, isCash ? amountRecNum : cartNetTotal);
     if (saleResult) {
       setCompletedSaleData(saleResult);
       confetti({
-        particleCount: 80,
-        spread: 70,
+        particleCount: 90,
+        spread: 75,
         origin: { y: 0.6 },
       });
       showToast('Order saved & sale completed successfully!', 'success');
@@ -211,12 +252,15 @@ export const MakeSaleView = () => {
           <div className="search-barcode-input-group">
             <Search size={22} className="search-icon-accent" />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Search fabric name, suit, box, meter bolt, shirt size, or scan barcode..."
+              placeholder="Click to browse all items, search fabric name, suit, box, meter bolt, shirt size, or scan barcode..."
               value={searchQuery}
+              onFocus={() => setIsSearchFocused(true)}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setSelectedIndex(0);
+                setIsSearchFocused(true);
               }}
               onKeyDown={handleKeyDown}
               autoFocus
@@ -239,50 +283,57 @@ export const MakeSaleView = () => {
           </div>
         </form>
 
-        {/* Search Results Dropdown List */}
-        {searchResults.length > 0 && (
-          <div className="search-results-dropdown glass-card">
-            {searchResults.map((it, idx) => (
-              <div
-                key={`${it.id}-${it.barcode}-${idx}`}
-                ref={idx === selectedIndex ? selectedRowRef : null}
-                className={`search-result-row ${idx === selectedIndex ? 'selected-row' : ''}`}
-                onClick={() => {
-                  addToCart(it.product, it.unitType === 'Meter' ? 4.0 : 1, it.variant);
-                  setSearchQuery('');
-                  setSelectedIndex(0);
-                }}
-                onMouseEnter={() => setSelectedIndex(idx)}
-              >
-                <div className="res-info">
-                  <div className="flex-align-center gap-2">
-                    <span className={`badge ${
-                      it.isVariant
-                        ? 'badge-warning'
-                        : it.unitType === 'Meter'
-                        ? 'badge-warning'
-                        : it.unitType === 'Box'
-                        ? 'badge-info'
-                        : 'badge-sage'
-                    }`}>
-                      {it.isVariant ? (it.variant?.size || 'Apparel') : (it.unitType || 'Suit')}
+        {/* Search Results Dropdown List (Lists ALL items when focused, filtered while typing) */}
+        {isSearchFocused && searchResults.length > 0 && (
+          <div ref={dropdownRef} className="search-results-dropdown glass-card">
+            <div className="dropdown-header-note flex-between">
+              <span>{searchQuery ? `Matching Items (${searchResults.length})` : `All Inventory Catalog (${searchResults.length} items)`}</span>
+              <small className="text-muted">Use ↑ ↓ arrows and Enter to select</small>
+            </div>
+            <div className="dropdown-items-scroll">
+              {searchResults.map((it, idx) => (
+                <div
+                  key={`${it.id}-${it.barcode}-${idx}`}
+                  ref={idx === selectedIndex ? selectedRowRef : null}
+                  className={`search-result-row ${idx === selectedIndex ? 'selected-row' : ''}`}
+                  onClick={() => {
+                    addToCart(it.product, it.unitType === 'Meter' ? 4.0 : 1, it.variant);
+                    setSearchQuery('');
+                    setSelectedIndex(0);
+                    setIsSearchFocused(false);
+                  }}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                >
+                  <div className="res-info">
+                    <div className="flex-align-center gap-2">
+                      <span className={`badge ${
+                        it.isVariant
+                          ? 'badge-warning'
+                          : it.unitType === 'Meter'
+                          ? 'badge-warning'
+                          : it.unitType === 'Box'
+                          ? 'badge-info'
+                          : 'badge-sage'
+                      } badge-compact`}>
+                        {it.isVariant ? (it.variant?.size || 'Apparel') : (it.unitType || 'Suit')}
+                      </span>
+                      <span className="res-title">{it.fabricMaterial}</span>
+                    </div>
+                    <span className="res-sub">
+                      {it.barcode} • {it.fabricType} • {it.fabricColor} • Stock: <strong>{it.stock} {it.unitType === 'Meter' ? 'm' : 'pcs'}</strong>
                     </span>
-                    <span className="res-title">{it.fabricMaterial}</span>
                   </div>
-                  <span className="res-sub">
-                    {it.barcode} • {it.fabricType} • {it.fabricColor} • Stock: {it.stock} {it.unitType === 'Meter' ? 'm' : 'pcs'}
-                  </span>
+                  <div className="res-right">
+                    <span className="res-price">
+                      Rs. {it.retailPrice.toLocaleString()} {it.unitType === 'Meter' ? '/ m' : ''}
+                    </span>
+                    <button className="btn btn-secondary btn-sm">
+                      <Plus size={14} /> Add
+                    </button>
+                  </div>
                 </div>
-                <div className="res-right">
-                  <span className="res-price">
-                    Rs. {it.retailPrice.toLocaleString()} {it.unitType === 'Meter' ? '/ m' : ''}
-                  </span>
-                  <button className="btn btn-secondary btn-sm">
-                    <Plus size={14} /> Add
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -314,20 +365,20 @@ export const MakeSaleView = () => {
               <div className="empty-cart-display">
                 <ShoppingCart size={48} className="text-subtle mb-3" />
                 <h4>No Items Added to Sale Order</h4>
-                <p className="text-muted">Use the search bar above or scan a barcode tag to add suit, box, meter bolt, or apparel items.</p>
+                <p className="text-muted">Click the search bar above to browse full stock or scan a barcode tag.</p>
               </div>
             ) : (
               <table className="cart-data-table">
                 <thead>
                   <tr>
-                    <th>Item Description</th>
-                    <th>Barcode</th>
-                    <th>Rate / Unit</th>
-                    <th className="text-center">Sale Quantity</th>
-                    <th>Discount</th>
-                    <th>Mode</th>
-                    <th className="text-right">Line Total</th>
-                    <th className="text-center">Action</th>
+                    <th style={{ minWidth: '220px' }}>Item Description</th>
+                    <th style={{ width: '130px' }}>Barcode / SKU</th>
+                    <th style={{ width: '110px' }}>Rate / Unit</th>
+                    <th style={{ width: '150px' }} className="text-center">Sale Quantity</th>
+                    <th style={{ width: '120px' }}>Discount (%)</th>
+                    <th style={{ width: '95px' }}>Mode</th>
+                    <th style={{ width: '125px' }} className="text-right">Line Total</th>
+                    <th style={{ width: '60px' }} className="text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -335,6 +386,7 @@ export const MakeSaleView = () => {
                     const isMeter = item.unitType === 'Meter';
                     const split = isMeter ? getMeterAndInchSplit(item.qty) : null;
                     const isVariant = Boolean(item.variantDetails);
+                    const lineGross = item.unitPrice * item.qty;
 
                     return (
                       <tr
@@ -367,7 +419,7 @@ export const MakeSaleView = () => {
                             )}
                           </div>
                         </td>
-                        <td className="font-mono text-highlight">{item.barcode}</td>
+                        <td className="font-mono text-highlight font-weight-600">{item.barcode}</td>
                         <td className="font-mono">
                           Rs. {item.unitPrice.toLocaleString()} {isMeter ? '/ m' : ''}
                         </td>
@@ -414,7 +466,7 @@ export const MakeSaleView = () => {
                                 </div>
                               </div>
                               <div className="meter-qty-sub text-xs text-subtle font-mono mt-1">
-                                Total: {item.qty} m ({split.meters}m {split.inches}in)
+                                Total: {item.qty} m
                               </div>
                             </div>
                           ) : (
@@ -438,15 +490,24 @@ export const MakeSaleView = () => {
                           )}
                         </td>
                         <td>
-                          <div className="item-disc-input">
-                            <span>Rs.</span>
-                            <input
-                              type="number"
-                              min="0"
-                              value={item.itemDiscount || ''}
-                              onChange={(e) => setItemDiscount(item.cartItemId, e.target.value, item.isReturn)}
-                              placeholder="0"
-                            />
+                          {/* Percentage-Based Line Discount Input with Auto-Calculated Rupee deduction */}
+                          <div className="item-disc-percent-wrapper">
+                            <div className="item-disc-percent-input">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={item.itemDiscountPercent || ''}
+                                onChange={(e) => setItemDiscountPercent(item.cartItemId, e.target.value, item.isReturn)}
+                                placeholder="0"
+                              />
+                              <span className="percent-sign">%</span>
+                            </div>
+                            {item.itemDiscount > 0 && (
+                              <span className="text-xs font-mono text-amber line-disc-calc">
+                                -Rs. {item.itemDiscount.toLocaleString()}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td>
@@ -459,7 +520,7 @@ export const MakeSaleView = () => {
                           </button>
                         </td>
                         <td className="text-right font-mono font-weight-700">
-                          {item.isReturn ? '-' : ''}Rs. {((item.unitPrice * item.qty) - (item.itemDiscount || 0)).toLocaleString()}
+                          {item.isReturn ? '-' : ''}Rs. {(lineGross - (item.itemDiscount || 0)).toLocaleString()}
                         </td>
                         <td className="text-center">
                           <button
@@ -492,23 +553,30 @@ export const MakeSaleView = () => {
 
             {storewideDiscountAmt > 0 && (
               <div className="t-row text-warning font-weight-600">
-                <span>Storewide Sale ({activeStorewidePromo.discountPercent}%)</span>
+                <span>Storewide Promo ({activeStorewidePromo.discountPercent}%)</span>
                 <span className="font-mono">-Rs. {storewideDiscountAmt.toLocaleString()}</span>
               </div>
             )}
 
+            {/* Percentage-Based Overall Wholesale Discount */}
             <div className="t-row whole-discount-box">
-              <span>Wholesale Discount</span>
+              <div className="flex-column">
+                <span>Wholesale Discount (%)</span>
+                {wholeSaleDiscountAmt > 0 && (
+                  <span className="text-xs font-mono text-amber">-Rs. {wholeSaleDiscountAmt.toLocaleString()}</span>
+                )}
+              </div>
               <div className="discount-input-field">
                 <Tag size={14} className="text-muted" />
-                <span>Rs.</span>
                 <input
                   type="number"
                   min="0"
-                  value={wholeSaleDiscount || ''}
-                  onChange={(e) => setWholeSaleDiscount(e.target.value)}
+                  max="100"
+                  value={wholeSaleDiscountPercent || ''}
+                  onChange={(e) => setWholeSaleDiscountPercent(e.target.value)}
                   placeholder="0"
                 />
+                <span className="font-weight-700 text-subtle">%</span>
               </div>
             </div>
 
@@ -556,31 +624,41 @@ export const MakeSaleView = () => {
             </div>
           </div>
 
-          {/* Amount Calculation inputs */}
-          <div className="calc-inputs-grid">
-            <div className="calc-group">
-              <label className="form-label">Amount Received (Rs.)</label>
-              <input
-                type="number"
-                className="form-input font-mono calc-input"
-                value={amountReceived}
-                onChange={(e) => setAmountReceived(e.target.value)}
-                placeholder={cartNetTotal.toString()}
-              />
-            </div>
+          {/* Cash Payment: Amount Received & Change Returned */}
+          {isCash ? (
+            <div className="calc-inputs-grid">
+              <div className="calc-group">
+                <label className="form-label">Amount Received (Rs.)</label>
+                <input
+                  type="number"
+                  className="form-input font-mono calc-input"
+                  value={amountReceived}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                  placeholder={cartNetTotal.toString()}
+                />
+              </div>
 
-            <div className="calc-group">
-              <label className="form-label">Change Returned</label>
-              <div className="change-returned-badge font-mono">
-                Rs. {changeReturned.toLocaleString()}
+              <div className="calc-group">
+                <label className="form-label">Change Returned</label>
+                <div className="change-returned-badge font-mono">
+                  Rs. {changeReturned.toLocaleString()}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="digital-payment-info-box mb-3">
+              <div className="flex-align-center gap-2 text-success font-weight-600 text-xs">
+                <CheckCircle2 size={15} />
+                <span>Exact Net Amount Settled via {paymentMethod} (Rs. {cartNetTotal.toLocaleString()})</span>
+              </div>
+              <small className="text-muted text-xs mt-1 block">Digital settlement requires no cash change return.</small>
+            </div>
+          )}
 
           {/* Save Order & Print Receipt Button */}
           <button
             type="button"
-            className="btn btn-primary btn-checkout-primary"
+            className="btn btn-primary btn-checkout-primary hover-lift"
             disabled={cart.length === 0}
             onClick={handleCheckout}
           >
@@ -655,11 +733,13 @@ export const MakeSaleView = () => {
                   <div className="r-row"><span>Storewide Sale Promo:</span> <span>-Rs. {completedSaleData.storewideDiscount.toLocaleString()}</span></div>
                 )}
                 {completedSaleData.wholeSaleDiscount > 0 && (
-                  <div className="r-row"><span>Whole Sale Discount:</span> <span>-Rs. {completedSaleData.wholeSaleDiscount.toLocaleString()}</span></div>
+                  <div className="r-row"><span>Wholesale Discount ({completedSaleData.wholeSaleDiscountPercent || 0}%):</span> <span>-Rs. {completedSaleData.wholeSaleDiscount.toLocaleString()}</span></div>
                 )}
                 <div className="r-row r-bold"><span>NET TOTAL:</span> <span>Rs. {completedSaleData.netTotal.toLocaleString()}</span></div>
                 <div className="r-row"><span>Amount Tendered:</span> <span>Rs. {completedSaleData.amountReceived.toLocaleString()}</span></div>
-                <div className="r-row"><span>Change Returned:</span> <span>Rs. {completedSaleData.changeReturned.toLocaleString()}</span></div>
+                {completedSaleData.paymentMethod === 'Cash' && (
+                  <div className="r-row"><span>Change Returned:</span> <span>Rs. {completedSaleData.changeReturned.toLocaleString()}</span></div>
+                )}
               </div>
 
               <div className="receipt-divider">================================</div>
