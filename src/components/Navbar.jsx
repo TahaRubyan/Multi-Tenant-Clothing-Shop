@@ -6,13 +6,12 @@ import {
   Clock,
   ShieldCheck,
   Store,
-  RefreshCw,
   MapPin,
-  Wifi,
+  Sparkles,
 } from 'lucide-react';
 
 export const Navbar = () => {
-  const { currentUser, logout, currentTenant, setShowShopSwitcher, isSuperAdmin } = usePOS();
+  const { currentUser, logout, currentTenant, shopSettings, setShowShopSwitcher } = usePOS();
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
 
@@ -28,6 +27,9 @@ export const Navbar = () => {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const activeShopTitle = shopSettings.shopName || currentTenant?.name || 'SHAAN Gents Cloth House';
+  const activeShopLocation = shopSettings.shopLocation || currentTenant?.city || 'Azam Cloth Market, Lahore';
 
   return (
     <header className="navbar-container">
@@ -54,7 +56,7 @@ export const Navbar = () => {
           </div>
           <div className="center-brand-titles">
             <div className="flex-align-center justify-center gap-2">
-              <h2 className="navbar-shop-title">{currentTenant?.name || 'SHAAN POS'}</h2>
+              <h2 className="navbar-shop-title">{activeShopTitle}</h2>
               {isMultiShopOwner && (
                 <button
                   className="btn-switch-shop-header"
@@ -66,7 +68,7 @@ export const Navbar = () => {
               )}
             </div>
             <span className="navbar-shop-subheading">
-              <MapPin size={11} /> {currentTenant?.city || 'Pakistan'} • Multi-Tenant Enterprise
+              <MapPin size={11} /> {activeShopLocation} • Multi-Tenant Enterprise
             </span>
           </div>
         </div>

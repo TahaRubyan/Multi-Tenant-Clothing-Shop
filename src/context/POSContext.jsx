@@ -14,8 +14,17 @@ import {
 
 const POSContext = createContext();
 
+const POS_DATA_VERSION = 'v3.5_full_pakistan_textiles_demo';
+
 const getStoredOrDefault = (key, defaultVal) => {
   try {
+    const currentVer = localStorage.getItem('pos_dataset_version');
+    if (currentVer !== POS_DATA_VERSION) {
+      // Automatic migration: Force load fresh rich mock dataset on version upgrade
+      localStorage.setItem('pos_dataset_version', POS_DATA_VERSION);
+      localStorage.setItem(key, JSON.stringify(defaultVal));
+      return defaultVal;
+    }
     const saved = localStorage.getItem(key);
     if (saved) return JSON.parse(saved);
   } catch (err) {
@@ -98,7 +107,26 @@ export const POSProvider = ({ children }) => {
         shopLocation: currentTenant.address || currentTenant.city,
       }));
     }
-  }, [currentTenant]);
+  }, [currentTenant?.id]);
+
+  // Restore Complete Fresh Rich Demo Dataset
+  const resetToDemoData = () => {
+    localStorage.setItem('pos_dataset_version', POS_DATA_VERSION);
+    setTenants(INITIAL_TENANTS);
+    setCurrentTenant(INITIAL_TENANTS[0]);
+    setRoles(INITIAL_ROLES);
+    setUsers(INITIAL_USERS);
+    setShopSettings(INITIAL_SHOP_SETTINGS);
+    setApparelCategories(DEFAULT_APPAREL_CATEGORIES);
+    setAllProducts(INITIAL_PRODUCTS);
+    setAllVendors(INITIAL_VENDORS);
+    setAllDiscountRules(INITIAL_PROMOTIONAL_DISCOUNTS);
+    setAllSalesLogs(MOCK_SALES_LOG);
+    setAllStockLog(MOCK_STOCK_UPDATES);
+    setAllDamageLog(MOCK_DAMAGED_ITEMS);
+    clearCart();
+    showToast('Loaded full Pakistani textile catalog (40+ items, vendors & logs)!', 'success');
+  };
 
   // Add Custom Apparel Category
   const addApparelCategory = (categoryName) => {
@@ -262,13 +290,29 @@ export const POSProvider = ({ children }) => {
     setRoles(prev => prev.filter(r => r.id !== roleId && !r.isSystem));
   };
 
+  // Synchronized Shop Settings Update (Atomically updates shopSettings, currentTenant, and tenants array)
   const updateShopSettings = (newSettings) => {
-    setShopSettings(prev => ({
-      ...prev,
+    const updatedSettings = {
+      ...shopSettings,
       ...newSettings,
       currencySymbol: 'Rs.',
-    }));
-    showToast('Shop profile settings updated successfully', 'success');
+    };
+    setShopSettings(updatedSettings);
+
+    if (currentTenant) {
+      const updatedTenant = {
+        ...currentTenant,
+        name: newSettings.shopName || currentTenant.name,
+        phone: newSettings.shopPhone || currentTenant.phone,
+        address: newSettings.shopLocation || currentTenant.address,
+      };
+      setCurrentTenant(updatedTenant);
+      setTenants(prev =>
+        prev.map(t => (t.id === currentTenant.id ? updatedTenant : t))
+      );
+    }
+
+    showToast('Shop profile updated & header title synchronized!', 'success');
   };
 
   // Vendor Management & Ledgers
@@ -689,9 +733,7 @@ export const POSProvider = ({ children }) => {
     const netTotal = Math.max(0, subtotal - storewideDiscountVal - wholeSaleDiscAmt);
     const grossProfit = netTotal - totalWholesaleCost;
 
-    // Change Return Logic based on Payment Method:
-    // Cash: allows calculating change return.
-    // Card & Mobile Banking: exact amount settled, change return is 0.
+    // Change Return Logic based on Payment Method
     const isCash = paymentMethod === 'Cash';
     const amountReceived = isCash
       ? (parseFloat(amountReceivedInput) || netTotal)
@@ -841,6 +883,7 @@ export const POSProvider = ({ children }) => {
         setActiveTab,
         shopSettings,
         updateShopSettings,
+        resetToDemoData,
         apparelCategories,
         addApparelCategory,
         products,

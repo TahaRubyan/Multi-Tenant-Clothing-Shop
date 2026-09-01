@@ -2284,3 +2284,115 @@
   overflow-y: auto;
 }
 
+/* =======================================================
+   EXECUTIVE SETTINGS & PERMISSIONS CHIP GRID STYLES
+   ======================================================= */
+.settings-profile-layout {
+  height: 100%;
+}
+
+.preview-receipt-box {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.info-box-compact {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.user-avatar-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1.5px solid var(--accent-primary);
+}
+
+.permissions-chip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.perm-chip-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.perm-chip-card:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+}
+
+.perm-chip-card.active {
+  background: rgba(45, 106, 79, 0.08);
+  border-color: var(--accent-primary);
+}
+
+.perm-chip-title {
+  font-size: 0.78rem;
+  color: var(--text-main);
+}
+
+.perm-chip-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+
+/* =======================================================
+   EXECUTIVE DISCOUNT PRESETS & HIGHLIGHT STYLES
+   ======================================================= */
+.discount-preset-pills-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.discount-preset-btn {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.discount-preset-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.discount-preset-btn.active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 6px rgba(45, 106, 79, 0.2);
+}
+
+.summary-pill.highlight-pill {
+  background: rgba(197, 168, 128, 0.12);
+  border-color: var(--accent-sand);
+}
+
+
