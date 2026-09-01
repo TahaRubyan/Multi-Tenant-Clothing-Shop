@@ -83,14 +83,14 @@ export const DiscountsView = () => {
     }
 
     addDiscountRule({
-      title,
+      title: title.trim(),
       type,
       discountPercent,
-      targetBrand: type === 'brand' ? targetBrand : '',
-      targetBarcode: type === 'article' ? targetBarcode : '',
+      targetBrand: type === 'brand' ? targetBrand.trim() : '',
+      targetBarcode: type === 'article' ? targetBarcode.trim() : '',
       startDate,
       endDate,
-      description: description || `${discountPercent}% OFF Promotional Offer`,
+      description: description.trim() || `${discountPercent}% OFF Promotional Offer`,
     });
 
     showToast(`Created promotional offer: "${title}"`, 'success');
@@ -151,14 +151,16 @@ export const DiscountsView = () => {
       <div className="discounts-workspace-grid">
         {/* LEFT COLUMN: Campaign Creation Studio */}
         <div className="glass-card discount-form-panel scrollable-panel">
-          <div className="card-title mb-3">
-            <Tag size={18} className="text-primary" />
-            <h3>Launch Promotional Campaign</h3>
+          <div className="card-header-styled flex-between mb-3">
+            <div className="flex-align-center gap-2">
+              <Tag size={18} className="text-primary" />
+              <h3 className="mb-0">Launch Promotional Campaign</h3>
+            </div>
           </div>
 
           <form onSubmit={handleCreateRule}>
             <div className="form-group mb-3">
-              <label className="form-label mb-1">Campaign Title *</label>
+              <label className="form-label">Campaign Title *</label>
               <input
                 type="text"
                 className="form-input font-weight-600"
@@ -201,7 +203,7 @@ export const DiscountsView = () => {
               </div>
 
               <div className="form-group mb-0">
-                <label className="form-label mb-1">Discount % OFF *</label>
+                <label className="form-label">Discount % OFF *</label>
                 <div className="input-with-icon">
                   <Percent size={16} className="input-icon" />
                   <input
@@ -219,24 +221,26 @@ export const DiscountsView = () => {
             </div>
 
             {/* Quick Percentage Presets */}
-            <div className="discount-preset-pills-row mb-3">
-              <span className="text-xs text-muted font-weight-600 mr-1">Quick Presets:</span>
-              {quickDiscountPresets.map((pct) => (
-                <button
-                  key={pct}
-                  type="button"
-                  className={`discount-preset-btn ${parseFloat(discountPercent) === pct ? 'active' : ''}`}
-                  onClick={() => setDiscountPercent(pct.toString())}
-                >
-                  {pct}%
-                </button>
-              ))}
+            <div className="discount-preset-box mb-3">
+              <div className="discount-preset-pills-row">
+                <span className="text-xs text-muted font-weight-600">Quick Presets:</span>
+                {quickDiscountPresets.map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    className={`discount-preset-btn ${parseFloat(discountPercent) === pct ? 'active' : ''}`}
+                    onClick={() => setDiscountPercent(pct.toString())}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Target Selectors based on Type */}
             {type === 'brand' && (
               <div className="form-group mb-3">
-                <label className="form-label mb-1">Target Brand / Fabric Name *</label>
+                <label className="form-label">Target Brand / Fabric Name *</label>
                 <div className="input-with-icon">
                   <Layers size={16} className="input-icon" />
                   <input
@@ -253,7 +257,7 @@ export const DiscountsView = () => {
 
             {type === 'article' && (
               <div className="form-group mb-3 relative-container">
-                <label className="form-label mb-1">Search & Select Target Article *</label>
+                <label className="form-label">Search & Select Target Article *</label>
                 <div className="input-with-icon">
                   <Search size={16} className="input-icon" />
                   <input
@@ -313,7 +317,7 @@ export const DiscountsView = () => {
 
             <div className="form-grid-2col mb-3">
               <div className="form-group mb-0">
-                <label className="form-label mb-1">Campaign Start Date *</label>
+                <label className="form-label">Campaign Start Date *</label>
                 <input
                   type="date"
                   className="form-input font-mono"
@@ -324,7 +328,7 @@ export const DiscountsView = () => {
               </div>
 
               <div className="form-group mb-0">
-                <label className="form-label mb-1">Campaign End Date *</label>
+                <label className="form-label">Campaign End Date *</label>
                 <input
                   type="date"
                   className="form-input font-mono"
@@ -336,7 +340,7 @@ export const DiscountsView = () => {
             </div>
 
             <div className="form-group mb-4">
-              <label className="form-label mb-1">Promo Description / Customer Banner</label>
+              <label className="form-label">Promo Description / Customer Banner</label>
               <input
                 type="text"
                 className="form-input"
@@ -354,10 +358,12 @@ export const DiscountsView = () => {
 
         {/* RIGHT COLUMN: Active & Managed Campaigns List */}
         <div className="glass-card discount-list-panel">
-          <div className="card-title mb-3">
-            <Percent size={18} className="text-amber" />
-            <h3>Active & Scheduled Campaigns</h3>
-            <span className="badge badge-sage ml-auto">{discountRules.length} Total</span>
+          <div className="card-header-styled flex-between mb-3">
+            <div className="flex-align-center gap-2">
+              <Percent size={18} className="text-amber" />
+              <h3 className="mb-0">Active & Scheduled Campaigns</h3>
+            </div>
+            <span className="badge badge-sage">{discountRules.length} Total</span>
           </div>
 
           <div className="discount-cards-scroll-container">
@@ -366,16 +372,17 @@ export const DiscountsView = () => {
             ) : (
               discountRules.map((rule) => (
                 <div key={rule.id} className={`promo-card-item ${rule.isActive ? 'active-promo' : 'inactive-promo'}`}>
-                  <div className="promo-item-header">
+                  <div className="promo-item-header flex-between">
                     <div className="flex-align-center gap-2">
                       <span className="badge badge-warning font-mono font-weight-800 text-sm">
                         {rule.discountPercent}% OFF
                       </span>
-                      <strong className="promo-title">{rule.title}</strong>
+                      <strong className="promo-title text-main">{rule.title}</strong>
                     </div>
 
                     <div className="flex-align-center gap-2">
                       <button
+                        type="button"
                         className={`btn btn-sm ${rule.isActive ? 'btn-success' : 'btn-secondary'}`}
                         onClick={() => toggleDiscountRule(rule.id)}
                         title={rule.isActive ? 'Deactivate Campaign' : 'Activate Campaign'}
@@ -384,6 +391,7 @@ export const DiscountsView = () => {
                       </button>
 
                       <button
+                        type="button"
                         className="btn btn-danger btn-sm btn-icon"
                         onClick={() => {
                           deleteDiscountRule(rule.id);
@@ -396,7 +404,7 @@ export const DiscountsView = () => {
                     </div>
                   </div>
 
-                  <div className="promo-item-details font-mono text-xs mt-2">
+                  <div className="promo-item-details font-mono text-xs mt-2 flex-between">
                     <span className="badge badge-info badge-compact">
                       Scope: {rule.type.toUpperCase()}
                       {rule.targetBrand ? ` (${rule.targetBrand})` : ''}
@@ -424,15 +432,15 @@ export const DiscountsView = () => {
             <div className="modal-header">
               <div className="modal-title">
                 <PlusCircle size={20} className="text-primary" />
-                <h3>Add Custom Promotion Type</h3>
+                <h3 className="mb-0">Add Custom Promotion Type</h3>
               </div>
-              <button className="btn-close" onClick={() => setShowAddTypeModal(false)}>
+              <button type="button" className="btn-close" onClick={() => setShowAddTypeModal(false)}>
                 <X size={18} />
               </button>
             </div>
             <form onSubmit={handleAddCustomType} className="modal-body">
               <div className="form-group mb-3">
-                <label className="form-label mb-1">Type Identifier (e.g. clearance, flash_deal, weekend_special):</label>
+                <label className="form-label">Type Identifier (e.g. clearance, flash_deal, weekend_special):</label>
                 <input
                   type="text"
                   className="form-input font-weight-600"
@@ -443,7 +451,7 @@ export const DiscountsView = () => {
                   required
                 />
               </div>
-              <div className="modal-actions">
+              <div className="modal-actions flex-between pt-2">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddTypeModal(false)}>
                   Cancel
                 </button>

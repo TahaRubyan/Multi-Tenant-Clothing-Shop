@@ -12,15 +12,11 @@ import {
   Plus,
   Lock,
   Building,
-  FileText,
-  CreditCard,
-  CheckCircle2,
-  Scissors,
   RotateCcw,
-  Sparkles,
-  Layers,
-  Tag,
-  Eye,
+  CheckCircle2,
+  FileText,
+  UserCheck,
+  Key,
 } from 'lucide-react';
 
 export const SettingsView = () => {
@@ -63,13 +59,13 @@ export const SettingsView = () => {
   ]);
 
   const availablePermissions = [
-    { key: 'make_sale', label: 'Make a Sale (POS Checkout)', desc: 'Front-desk point of sale and cash register' },
-    { key: 'product_setup', label: 'Product Setup & Barcodes', desc: 'Add garments, meter bolts and print 1.8x0.9 tags' },
-    { key: 'check_stock', label: 'Check Stock Inventory', desc: 'Browse catalog, variant SKU matrix and low stock' },
-    { key: 'stock_updation', label: 'Stock Restock & Damage Write-offs', desc: 'Intake mill shipments and log damaged fabric' },
-    { key: 'vendor_ledger', label: 'Vendor Directory & Ledgers', desc: 'Manage wholesale suppliers, invoices and payments' },
-    { key: 'discounts', label: 'Promotional Discounts Engine', desc: 'Create storewide, brand and SKU % campaigns' },
-    { key: 'analytics', label: 'Financial Analytics & Reports', desc: 'View revenue, gross profit margins and PDF export' },
+    { key: 'make_sale', label: 'Make a Sale (POS Checkout)', desc: 'Front-desk point of sale and cash register checkout' },
+    { key: 'product_setup', label: 'Product Setup & Barcodes', desc: 'Add garments, meter bolts and print 1.8x0.9 thermal tags' },
+    { key: 'check_stock', label: 'Check Stock Inventory', desc: 'Browse catalog, variant SKU matrix and low stock alerts' },
+    { key: 'stock_updation', label: 'Stock Restock & Damage', desc: 'Intake mill shipments and log damaged fabric write-offs' },
+    { key: 'vendor_ledger', label: 'Vendor Directory & Ledgers', desc: 'Manage wholesale suppliers, invoices and payment logs' },
+    { key: 'discounts', label: 'Promotional Discounts Engine', desc: 'Create storewide, brand and SKU % promotional campaigns' },
+    { key: 'analytics', label: 'Financial Analytics & Reports', desc: 'View revenue, gross profit margins and export printable PDF' },
     { key: 'settings', label: 'Store Profile & Access Roles', desc: 'Manage shop branding, staff accounts and system config' },
   ];
 
@@ -92,8 +88,8 @@ export const SettingsView = () => {
     }
 
     addUser({
-      username: newUsername,
-      fullName: newFullName,
+      username: newUsername.trim(),
+      fullName: newFullName.trim(),
       role: newRole,
       password: newPassword,
     });
@@ -134,8 +130,8 @@ export const SettingsView = () => {
     }
 
     addRole({
-      roleName,
-      description: roleDescription || 'Custom staff role',
+      roleName: roleName.trim(),
+      description: roleDescription.trim() || 'Custom staff role',
       permissions: selectedPermissions,
     });
 
@@ -148,7 +144,7 @@ export const SettingsView = () => {
   return (
     <div className="view-container settings-view no-scroll-view">
       {/* Header & Sub-Navigation */}
-      <div className="view-header flex-between mb-2">
+      <div className="view-header flex-between mb-3">
         <div>
           <h2>System Settings & Store Administration</h2>
           <p className="view-subtitle">
@@ -156,7 +152,7 @@ export const SettingsView = () => {
           </p>
         </div>
 
-        {/* Dedicated Sub-Navigation Tabs */}
+        {/* Sub-Navigation Tabs */}
         <div className="stock-subnav-header glass-card">
           <button
             className={`stock-subnav-item ${activeSettingsTab === 'shop_profile' ? 'active' : ''}`}
@@ -173,20 +169,26 @@ export const SettingsView = () => {
         </div>
       </div>
 
-      {/* SUB-PAGE 1: SHOP PROFILE */}
+      {/* SUB-PAGE 1: SHOP PROFILE (Clean Enterprise Form Layout) */}
       {activeSettingsTab === 'shop_profile' && (
-        <div className="settings-profile-layout scrollable-panel">
-          <div className="form-grid-2col gap-4">
-            {/* Left: Form Card */}
-            <div className="glass-card settings-card">
-              <div className="card-title mb-3">
-                <Store size={18} className="text-primary" />
-                <h3>Shop Branding & Business Details</h3>
+        <div className="settings-single-card-layout scrollable-panel">
+          <div className="glass-card settings-card enterprise-form-card">
+            <div className="card-header-styled mb-4">
+              <div className="flex-align-center gap-2">
+                <Store size={22} className="text-primary" />
+                <div>
+                  <h3 className="mb-0">Shop Profile & Business Details</h3>
+                  <small className="text-muted">
+                    Information saved here synchronizes across the Top Header, Barcode Labels, Receipts, and Reports.
+                  </small>
+                </div>
               </div>
+            </div>
 
-              <form onSubmit={handleSaveShopDetails}>
-                <div className="form-group mb-3">
-                  <label className="form-label mb-1">Shop / Outlet Name *</label>
+            <form onSubmit={handleSaveShopDetails}>
+              <div className="form-grid-2col mb-4">
+                <div className="form-group mb-0">
+                  <label className="form-label">Shop / Outlet Name *</label>
                   <input
                     type="text"
                     className="form-input font-weight-700"
@@ -197,36 +199,25 @@ export const SettingsView = () => {
                   />
                 </div>
 
-                <div className="form-grid-2col mb-3">
-                  <div className="form-group mb-0">
-                    <label className="form-label mb-1">Official Phone *</label>
-                    <div className="input-with-icon">
-                      <Phone size={16} className="input-icon" />
-                      <input
-                        type="text"
-                        className="form-input font-mono"
-                        value={shopPhone}
-                        onChange={(e) => setShopPhone(e.target.value)}
-                        placeholder="e.g. +92 300 4567890"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group mb-0">
-                    <label className="form-label mb-1">Tax Registration / NTN</label>
+                <div className="form-group mb-0">
+                  <label className="form-label">Official Contact Phone *</label>
+                  <div className="input-with-icon">
+                    <Phone size={16} className="input-icon" />
                     <input
                       type="text"
                       className="form-input font-mono"
-                      value={taxNumber}
-                      onChange={(e) => setTaxNumber(e.target.value)}
-                      placeholder="e.g. NTN-8492048-2"
+                      value={shopPhone}
+                      onChange={(e) => setShopPhone(e.target.value)}
+                      placeholder="e.g. +92 300 4567890"
+                      required
                     />
                   </div>
                 </div>
+              </div>
 
-                <div className="form-group mb-3">
-                  <label className="form-label mb-1">Market Address & City *</label>
+              <div className="form-grid-2col mb-4">
+                <div className="form-group mb-0">
+                  <label className="form-label">Market Address & City *</label>
                   <div className="input-with-icon">
                     <MapPin size={16} className="input-icon" />
                     <input
@@ -234,87 +225,60 @@ export const SettingsView = () => {
                       className="form-input"
                       value={shopLocation}
                       onChange={(e) => setShopLocation(e.target.value)}
-                      placeholder="e.g. Shop #14, Gate #3, Azam Market, Lahore"
+                      placeholder="e.g. Shop #14, Gate #3, Azam Market, Lahore, Pakistan"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="form-group mb-3">
-                  <label className="form-label mb-1">Receipt Footer Note / Return Policy</label>
-                  <textarea
-                    className="form-input"
-                    rows="2"
-                    value={receiptFooterNote}
-                    onChange={(e) => setReceiptFooterNote(e.target.value)}
-                    placeholder="e.g. Exchanges accepted within 14 days with original receipt."
-                  />
-                </div>
-
-                <div className="form-group mb-4">
-                  <label className="form-label mb-1">System Currency (Locked)</label>
+                <div className="form-group mb-0">
+                  <label className="form-label">Tax Registration / NTN</label>
                   <input
                     type="text"
                     className="form-input font-mono"
-                    value="Pakistani Rupee (PKR - Rs.)"
-                    disabled
+                    value={taxNumber}
+                    onChange={(e) => setTaxNumber(e.target.value)}
+                    placeholder="e.g. NTN-8492048-2"
                   />
                 </div>
-
-                <div className="flex-between pt-2">
-                  <button type="submit" className="btn btn-primary">
-                    <Save size={16} /> Save Shop Profile
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={resetToDemoData}
-                    title="Reload Full 40+ Item Pakistani Textile Dataset"
-                  >
-                    <RotateCcw size={15} /> Reload Demo Data
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Right: Live Preview Header & Letterhead Card */}
-            <div className="glass-card settings-card">
-              <div className="card-title mb-3">
-                <Eye size={18} className="text-primary" />
-                <h3>Live Storefront Preview</h3>
               </div>
 
-              <div className="preview-receipt-box p-3 glass-card mb-3">
-                <div className="text-center mb-3">
-                  <Scissors size={24} className="text-primary mb-1" />
-                  <h3 className="font-weight-800 text-main mb-0">{shopName || 'SHAAN Gents Cloth House'}</h3>
-                  <p className="text-xs text-muted mb-0">{shopLocation || 'Azam Cloth Market, Lahore'}</p>
-                  <p className="text-xs text-muted">Tel: {shopPhone || '+92 300 4567890'} • NTN: {taxNumber || 'N/A'}</p>
-                  <div className="receipt-divider my-2">================================</div>
-                </div>
-
-                <div className="font-mono text-xs text-muted mb-2">
-                  <div>Sample Invoice #: <strong>INV-2026-9001</strong></div>
-                  <div>Terminal Context: <strong>Active Online</strong></div>
-                  <div>Currency: <strong>Rs. (PKR)</strong></div>
-                </div>
-
-                <div className="receipt-divider my-2">--------------------------------</div>
-                <div className="text-xs text-center text-muted font-italic">
-                  "{receiptFooterNote || 'Thank you for shopping with us.'}"
-                </div>
+              <div className="form-group mb-4">
+                <label className="form-label">Thermal Receipt Footer Policy / Thank You Note</label>
+                <textarea
+                  className="form-input"
+                  rows="3"
+                  value={receiptFooterNote}
+                  onChange={(e) => setReceiptFooterNote(e.target.value)}
+                  placeholder="e.g. Thank you for shopping at SHAAN Textiles. Returns and exchanges accepted within 14 days with original receipt."
+                />
               </div>
 
-              <div className="info-box-compact p-3 glass-card">
-                <div className="flex-align-center gap-2 text-success font-weight-700 text-xs mb-1">
-                  <CheckCircle2 size={16} />
-                  <span>Real-time System Synchronization</span>
-                </div>
-                <p className="text-muted text-xs mb-0">
-                  Updating this profile automatically synchronizes your Top Navbar Header, Thermal POS Receipts, 1.8" x 0.9" Barcode Labels, and Printable PDF Reports.
-                </p>
+              <div className="form-group mb-4">
+                <label className="form-label">System Currency (Locked)</label>
+                <input
+                  type="text"
+                  className="form-input font-mono"
+                  value="Pakistani Rupee (PKR - Rs.)"
+                  disabled
+                />
               </div>
-            </div>
+
+              <div className="flex-between pt-3 border-top-divider">
+                <button type="submit" className="btn btn-primary">
+                  <Save size={16} /> Save Shop Profile
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={resetToDemoData}
+                  title="Reload 40+ Item Pakistani Textile Dataset"
+                >
+                  <RotateCcw size={15} /> Reload Demo Data
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -324,17 +288,19 @@ export const SettingsView = () => {
         <div className="user-accounts-workspace-scrollable scrollable-panel">
           {/* TOP SECTION: User Creation & Existing Accounts */}
           <div className="form-grid-2col gap-4 mb-4">
-            {/* Create User Form */}
+            {/* Left: Create User Form */}
             <div className="glass-card settings-card">
-              <div className="card-title mb-3">
-                <UserPlus size={18} className="text-primary" />
-                <h3>Add Staff / Cashier Account</h3>
+              <div className="card-header-styled mb-3">
+                <div className="flex-align-center gap-2">
+                  <UserPlus size={18} className="text-primary" />
+                  <h3 className="mb-0">Add Staff / Cashier Account</h3>
+                </div>
               </div>
 
               <form onSubmit={handleCreateUser}>
                 <div className="form-grid-2col mb-3">
                   <div className="form-group mb-0">
-                    <label className="form-label mb-1">Username *</label>
+                    <label className="form-label">Username *</label>
                     <input
                       type="text"
                       className="form-input font-mono"
@@ -346,7 +312,7 @@ export const SettingsView = () => {
                   </div>
 
                   <div className="form-group mb-0">
-                    <label className="form-label mb-1">Full Name *</label>
+                    <label className="form-label">Full Name *</label>
                     <input
                       type="text"
                       className="form-input font-weight-600"
@@ -360,7 +326,7 @@ export const SettingsView = () => {
 
                 <div className="form-grid-2col mb-4">
                   <div className="form-group mb-0">
-                    <label className="form-label mb-1">Role Assigned *</label>
+                    <label className="form-label">Role Assigned *</label>
                     <select
                       className="form-select font-weight-600"
                       value={newRole}
@@ -375,7 +341,7 @@ export const SettingsView = () => {
                   </div>
 
                   <div className="form-group mb-0">
-                    <label className="form-label mb-1">Password *</label>
+                    <label className="form-label">Password *</label>
                     <input
                       type="password"
                       className="form-input font-mono"
@@ -393,22 +359,24 @@ export const SettingsView = () => {
               </form>
             </div>
 
-            {/* Existing Accounts Table */}
+            {/* Right: Existing Accounts Table */}
             <div className="glass-card settings-card">
-              <div className="card-title mb-3">
-                <Users size={18} className="text-amber" />
-                <h3>Existing Staff Accounts</h3>
-                <span className="badge badge-sage ml-auto">{users.length} Users</span>
+              <div className="card-header-styled flex-between mb-3">
+                <div className="flex-align-center gap-2">
+                  <Users size={18} className="text-amber" />
+                  <h3 className="mb-0">Existing Staff Accounts</h3>
+                </div>
+                <span className="badge badge-sage">{users.length} Users</span>
               </div>
 
-              <div className="table-responsive" style={{ maxHeight: '210px', overflowY: 'auto' }}>
-                <table className="data-table">
+              <div className="table-responsive-clean" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                <table className="clean-staff-table">
                   <thead>
                     <tr>
-                      <th>Full Name</th>
-                      <th>Username</th>
-                      <th>Role</th>
-                      <th className="text-right">Action</th>
+                      <th style={{ width: '42%' }}>Full Name</th>
+                      <th style={{ width: '25%' }}>Username</th>
+                      <th style={{ width: '20%' }}>Role</th>
+                      <th style={{ width: '13%' }} className="text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -417,18 +385,19 @@ export const SettingsView = () => {
                         <td>
                           <div className="flex-align-center gap-2">
                             <img src={u.avatar} alt="" className="user-avatar-sm" />
-                            <span className="font-weight-600">{u.fullName}</span>
+                            <span className="font-weight-600 text-main">{u.fullName}</span>
                           </div>
                         </td>
                         <td className="font-mono text-highlight">{u.username}</td>
                         <td>
-                          <span className={`badge ${u.role === 'Admin' || u.role === 'Super Admin' ? 'badge-amber' : 'badge-sage'}`}>
+                          <span className={`badge ${u.role === 'Admin' || u.role === 'Super Admin' ? 'badge-amber' : 'badge-sage'} badge-compact`}>
                             {u.role}
                           </span>
                         </td>
-                        <td className="text-right">
+                        <td className="text-center">
                           <button
-                            className="btn btn-danger btn-icon"
+                            type="button"
+                            className="btn btn-danger btn-sm btn-icon"
                             onClick={() => handleDeleteUser(u)}
                             disabled={u.id === currentUser?.id}
                             title={u.id === currentUser?.id ? 'Cannot delete current account' : 'Delete Account'}
@@ -446,9 +415,11 @@ export const SettingsView = () => {
 
           {/* BOTTOM SECTION: Custom Role & Granular Permissions Management */}
           <div className="glass-card settings-card full-width-card mb-4">
-            <div className="card-title mb-2">
-              <ShieldCheck size={20} className="text-primary" />
-              <h3>Role & Granular Permission Authorities</h3>
+            <div className="card-header-styled flex-between mb-2">
+              <div className="flex-align-center gap-2">
+                <ShieldCheck size={20} className="text-primary" />
+                <h3 className="mb-0">Role & Granular Permission Authorities</h3>
+              </div>
               <span className="badge badge-sage">Access Control Matrix</span>
             </div>
             <p className="text-muted text-xs mb-3">
@@ -458,11 +429,14 @@ export const SettingsView = () => {
             <div className="form-grid-2col gap-4">
               {/* Create Custom Role Form */}
               <div className="create-role-box glass-card p-3">
-                <h4 className="sub-heading mb-3"><Plus size={16} /> Create Custom Staff Role</h4>
+                <div className="flex-align-center gap-2 mb-3">
+                  <Plus size={16} className="text-primary" />
+                  <h4 className="sub-heading mb-0">Create Custom Staff Role</h4>
+                </div>
 
                 <form onSubmit={handleCreateRoleSubmit}>
                   <div className="form-group mb-3">
-                    <label className="form-label mb-1">Role Title / Name *</label>
+                    <label className="form-label">Role Title / Name *</label>
                     <input
                       type="text"
                       className="form-input font-weight-600"
@@ -474,7 +448,7 @@ export const SettingsView = () => {
                   </div>
 
                   <div className="form-group mb-3">
-                    <label className="form-label mb-1">Role Description</label>
+                    <label className="form-label">Role Description</label>
                     <input
                       type="text"
                       className="form-input"
@@ -518,18 +492,22 @@ export const SettingsView = () => {
 
               {/* List of Defined Roles */}
               <div className="defined-roles-box">
-                <h4 className="sub-heading mb-3"><Lock size={16} /> Defined System & Staff Roles</h4>
+                <div className="flex-align-center gap-2 mb-3">
+                  <Lock size={16} className="text-amber" />
+                  <h4 className="sub-heading mb-0">Defined System & Staff Roles</h4>
+                </div>
 
                 <div className="roles-cards-list" style={{ maxHeight: '380px', overflowY: 'auto' }}>
                   {roles.map((r) => (
                     <div key={r.id} className="role-card-item glass-card mb-2 p-3">
-                      <div className="role-header">
-                        <div>
+                      <div className="role-header flex-between">
+                        <div className="flex-align-center gap-2">
                           <strong className="role-title-text">{r.roleName}</strong>
-                          {r.isSystem && <span className="badge badge-amber badge-compact ml-2">System Role</span>}
+                          {r.isSystem && <span className="badge badge-amber badge-compact">System Role</span>}
                         </div>
                         {!r.isSystem && (
                           <button
+                            type="button"
                             className="btn btn-danger btn-sm btn-icon"
                             onClick={() => {
                               deleteRole(r.id);

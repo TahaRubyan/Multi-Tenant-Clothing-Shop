@@ -15,6 +15,7 @@ import {
   Package,
   Receipt,
   X,
+  FileText,
 } from 'lucide-react';
 
 export const VendorLedgerView = () => {
@@ -59,11 +60,11 @@ export const VendorLedgerView = () => {
     }
 
     const newVen = addVendor({
-      vendorName,
-      contactPerson,
-      phone,
-      city,
-      address,
+      vendorName: vendorName.trim(),
+      contactPerson: contactPerson.trim(),
+      phone: phone.trim(),
+      city: city.trim(),
+      address: address.trim(),
       openingBalance,
     });
 
@@ -91,7 +92,7 @@ export const VendorLedgerView = () => {
       amountPaid: amt,
       paymentMethod,
       dueDate,
-      referenceNote,
+      referenceNote: referenceNote.trim(),
     });
 
     if (success) {
@@ -182,7 +183,7 @@ export const VendorLedgerView = () => {
                   <div className="vendor-item-top">
                     <strong className="vendor-name-title">{v.vendorName}</strong>
                     <span className={`badge ${due > 0 ? 'badge-danger' : 'badge-sage'} badge-compact`}>
-                      {due > 0 ? `Due: Rs. ${due.toLocaleString()}` : 'Settled'}
+                      {due > 0 ? `DUE: Rs. ${due.toLocaleString()}` : 'SETTLED'}
                     </span>
                   </div>
                   <div className="vendor-item-sub">
@@ -196,13 +197,13 @@ export const VendorLedgerView = () => {
         </div>
 
         {/* RIGHT COLUMN: Detailed Vendor Ledger Sheet */}
-        <div className="glass-card vendor-ledger-sheet">
+        <div className="glass-card vendor-ledger-sheet scrollable-panel">
           {selectedVendor ? (
             <>
               {/* Top Banner Callout */}
-              <div className="vendor-sheet-banner">
+              <div className="vendor-sheet-banner mb-3">
                 <div className="banner-left">
-                  <h3>{selectedVendor.vendorName}</h3>
+                  <h3 className="vendor-title-heading mb-1">{selectedVendor.vendorName}</h3>
                   <div className="vendor-meta-pills">
                     <span><Building2 size={13} /> {selectedVendor.contactPerson}</span>
                     <span><Phone size={13} /> {selectedVendor.phone}</span>
@@ -225,21 +226,24 @@ export const VendorLedgerView = () => {
               </div>
 
               {/* Payment History Log Table */}
-              <div className="ledger-section mt-3">
-                <div className="section-title-row">
-                  <h4><Receipt size={16} className="text-primary" /> Timestamped Payment History Log</h4>
+              <div className="ledger-section mb-4">
+                <div className="section-title-row flex-between mb-2">
+                  <div className="flex-align-center gap-2">
+                    <Receipt size={16} className="text-primary" />
+                    <h4 className="mb-0">Timestamped Payment History Log</h4>
+                  </div>
                   <span className="badge badge-sage">{selectedVendor.payments.length} Payments</span>
                 </div>
 
                 <div className="ledger-table-container">
-                  <table className="data-table">
+                  <table className="clean-ledger-table">
                     <thead>
                       <tr>
-                        <th>Date & Time</th>
-                        <th>Amount Paid</th>
-                        <th>Payment Mode</th>
-                        <th>Due Date</th>
-                        <th>Logged By</th>
+                        <th style={{ width: '160px' }}>Date & Time</th>
+                        <th style={{ width: '130px' }}>Amount Paid</th>
+                        <th style={{ width: '130px' }}>Payment Mode</th>
+                        <th style={{ width: '110px' }}>Due Date</th>
+                        <th style={{ width: '160px' }}>Logged By</th>
                         <th>Reference Note</th>
                       </tr>
                     </thead>
@@ -253,19 +257,21 @@ export const VendorLedgerView = () => {
                       ) : (
                         selectedVendor.payments.map((p) => (
                           <tr key={p.id}>
-                            <td className="font-mono text-subtle text-xs">
+                            <td className="font-mono text-subtle text-xs white-space-nowrap">
                               <div className="flex-align-center gap-1">
                                 <Calendar size={12} /> {p.dateTime}
                               </div>
                             </td>
-                            <td className="font-mono text-success font-weight-800">
+                            <td className="font-mono text-success font-weight-800 white-space-nowrap">
                               Rs. {p.amountPaid.toLocaleString()}
                             </td>
                             <td>
                               <span className="badge badge-info badge-compact">{p.paymentMethod}</span>
                             </td>
-                            <td className="font-mono text-xs text-muted">{p.dueDate || 'N/A'}</td>
-                            <td className="text-xs">
+                            <td className="font-mono text-xs text-muted white-space-nowrap">
+                              {p.dueDate || 'N/A'}
+                            </td>
+                            <td className="text-xs white-space-nowrap">
                               <div className="flex-align-center gap-1">
                                 <UserCheck size={12} className="text-primary" /> {p.loggedBy}
                               </div>
@@ -280,21 +286,24 @@ export const VendorLedgerView = () => {
               </div>
 
               {/* Received Stock Shipments Table */}
-              <div className="ledger-section mt-4">
-                <div className="section-title-row">
-                  <h4><Package size={16} className="text-amber" /> Received Stock Mill Shipments</h4>
+              <div className="ledger-section">
+                <div className="section-title-row flex-between mb-2">
+                  <div className="flex-align-center gap-2">
+                    <Package size={16} className="text-amber" />
+                    <h4 className="mb-0">Received Stock Mill Shipments</h4>
+                  </div>
                   <span className="badge badge-warning">{selectedVendor.shipments.length} Shipments</span>
                 </div>
 
                 <div className="ledger-table-container">
-                  <table className="data-table">
+                  <table className="clean-ledger-table">
                     <thead>
                       <tr>
-                        <th>Date & Time</th>
-                        <th>Barcode</th>
+                        <th style={{ width: '160px' }}>Date & Time</th>
+                        <th style={{ width: '150px' }}>Barcode</th>
                         <th>Fabric Description</th>
-                        <th className="text-center">Qty / Length</th>
-                        <th className="text-right">Shipment Invoice Total</th>
+                        <th style={{ width: '120px' }} className="text-center">Qty / Length</th>
+                        <th style={{ width: '160px' }} className="text-right">Shipment Invoice</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -307,13 +316,13 @@ export const VendorLedgerView = () => {
                       ) : (
                         selectedVendor.shipments.map((s) => (
                           <tr key={s.id}>
-                            <td className="font-mono text-subtle text-xs">{s.dateTime}</td>
-                            <td className="font-mono text-highlight">{s.barcode}</td>
-                            <td className="font-weight-600">{s.itemName}</td>
-                            <td className="text-center font-mono">
+                            <td className="font-mono text-subtle text-xs white-space-nowrap">{s.dateTime}</td>
+                            <td className="font-mono text-highlight font-weight-600 white-space-nowrap">{s.barcode}</td>
+                            <td className="font-weight-600 text-main">{s.itemName}</td>
+                            <td className="text-center font-mono white-space-nowrap">
                               {s.qty} {s.unitType === 'Meter' ? 'm' : s.unitType || 'Suits'}
                             </td>
-                            <td className="text-right font-mono font-weight-700">
+                            <td className="text-right font-mono font-weight-700 white-space-nowrap">
                               Rs. {s.invoiceTotal.toLocaleString()}
                             </td>
                           </tr>
@@ -338,21 +347,21 @@ export const VendorLedgerView = () => {
           <div className="modal-content">
             <div className="modal-header">
               <div className="modal-title">
-                <CreditCard size={22} className="text-primary" />
-                <h3>Record Vendor Payment</h3>
+                <CreditCard size={20} className="text-primary" />
+                <h3 className="mb-0">Record Vendor Payment</h3>
               </div>
-              <button className="btn-close" onClick={() => setShowPaymentModal(false)}>
+              <button type="button" className="btn-close" onClick={() => setShowPaymentModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleRecordPaymentSubmit} className="modal-body">
-              <p className="mb-3">
+              <p className="text-xs text-muted mb-3">
                 Logging payment for <strong>{selectedVendor.vendorName}</strong>. Current outstanding due: <strong className="text-danger">Rs. {netVendorDue.toLocaleString()}</strong>.
               </p>
 
               <div className="form-group mb-3">
-                <label className="form-label mb-1">Amount Paid (Rs.) *</label>
+                <label className="form-label">Amount Paid (Rs.) *</label>
                 <input
                   type="number"
                   step="100"
@@ -366,7 +375,7 @@ export const VendorLedgerView = () => {
 
               <div className="form-grid-2col mb-3">
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Payment Method *</label>
+                  <label className="form-label">Payment Method *</label>
                   <select
                     className="form-select"
                     value={paymentMethod}
@@ -380,7 +389,7 @@ export const VendorLedgerView = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Payment Due Date / Clearing Date</label>
+                  <label className="form-label">Payment Due Date / Clearing Date</label>
                   <input
                     type="date"
                     className="form-input font-mono"
@@ -391,7 +400,7 @@ export const VendorLedgerView = () => {
               </div>
 
               <div className="form-group mb-4">
-                <label className="form-label mb-1">Reference Note / Cheque # *</label>
+                <label className="form-label">Reference Note / Cheque # *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -402,7 +411,7 @@ export const VendorLedgerView = () => {
                 />
               </div>
 
-              <div className="modal-actions">
+              <div className="modal-actions flex-between pt-2">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowPaymentModal(false)}>
                   Cancel
                 </button>
@@ -421,20 +430,20 @@ export const VendorLedgerView = () => {
           <div className="modal-content">
             <div className="modal-header">
               <div className="modal-title">
-                <Truck size={22} className="text-primary" />
-                <h3>Register New Vendor Partner</h3>
+                <Truck size={20} className="text-primary" />
+                <h3 className="mb-0">Register New Vendor Partner</h3>
               </div>
-              <button className="btn-close" onClick={() => setShowAddVendorModal(false)}>
+              <button type="button" className="btn-close" onClick={() => setShowAddVendorModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleAddVendorSubmit} className="modal-body">
               <div className="form-group mb-3">
-                <label className="form-label mb-1">Vendor / Mill Company Name *</label>
+                <label className="form-label">Vendor / Mill Company Name *</label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="form-input font-weight-600"
                   placeholder="e.g. Al-Karam Textile Mills"
                   value={vendorName}
                   onChange={(e) => setVendorName(e.target.value)}
@@ -444,7 +453,7 @@ export const VendorLedgerView = () => {
 
               <div className="form-grid-2col mb-3">
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Contact Person Name *</label>
+                  <label className="form-label">Contact Person Name *</label>
                   <input
                     type="text"
                     className="form-input"
@@ -456,10 +465,10 @@ export const VendorLedgerView = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Phone Number *</label>
+                  <label className="form-label">Phone Number *</label>
                   <input
                     type="text"
-                    className="form-input"
+                    className="form-input font-mono"
                     placeholder="e.g. +92 300 1234567"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -470,7 +479,7 @@ export const VendorLedgerView = () => {
 
               <div className="form-grid-2col mb-3">
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">City / Region *</label>
+                  <label className="form-label">City / Region *</label>
                   <input
                     type="text"
                     className="form-input"
@@ -481,7 +490,7 @@ export const VendorLedgerView = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Opening Due Balance (Rs.)</label>
+                  <label className="form-label">Opening Due Balance (Rs.)</label>
                   <input
                     type="number"
                     className="form-input font-mono"
@@ -493,7 +502,7 @@ export const VendorLedgerView = () => {
               </div>
 
               <div className="form-group mb-4">
-                <label className="form-label mb-1">Market Address / Notes</label>
+                <label className="form-label">Market Address / Notes</label>
                 <input
                   type="text"
                   className="form-input"
@@ -503,7 +512,7 @@ export const VendorLedgerView = () => {
                 />
               </div>
 
-              <div className="modal-actions">
+              <div className="modal-actions flex-between pt-2">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddVendorModal(false)}>
                   Cancel
                 </button>
