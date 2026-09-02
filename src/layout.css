@@ -427,9 +427,8 @@
     grid-template-columns: 1fr;
     overflow-y: auto;
   }
-  .settings-2col-workspace {
+  .settings-profile-grid {
     grid-template-columns: 1fr;
-    overflow-y: auto;
   }
 }
 

@@ -190,31 +190,28 @@ export const SettingsView = () => {
       </div>
 
       {/* ========================================================
-          TAB 1: SHOP PROFILE (Executive 2-Column Responsive Layout)
+          TAB 1: SHOP PROFILE (Full-Width Executive Grid)
           ======================================================== */}
       {activeSettingsTab === 'shop_profile' && (
-        <div className="settings-2col-workspace">
-          {/* LEFT COLUMN: Clean Form Cards */}
-          <div className="settings-form-left-col scrollable-panel">
-            <form onSubmit={handleSaveShopDetails}>
+        <div className="settings-profile-full-layout scrollable-panel">
+          <form onSubmit={handleSaveShopDetails} className="settings-form-container">
+            <div className="settings-profile-grid">
               {/* Card 1: Outlet & Brand Identity */}
-              <div className="glass-card p-3 mb-3">
-                <div className="card-header-styled mb-3">
-                  <div className="flex-align-center gap-2">
-                    <div className="brand-icon-badge">
-                      <Store size={18} className="text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="mb-0 text-sm font-weight-700">1. Outlet & Brand Identity</h3>
-                      <small className="text-muted text-xs">
-                        Your business title and contact details rendered across Top Header, Barcodes, and Invoices.
-                      </small>
-                    </div>
+              <div className="settings-section-card glass-card">
+                <div className="settings-card-header">
+                  <div className="brand-icon-badge">
+                    <Store size={18} className="text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="settings-card-title">Outlet & Brand Identity</h3>
+                    <p className="settings-card-desc">
+                      Store name, contact telephone, and physical location rendered on sales receipts and barcodes.
+                    </p>
                   </div>
                 </div>
 
-                <div className="form-grid-2col mb-3">
-                  <div className="form-group mb-0">
+                <div className="settings-card-body">
+                  <div className="form-group mb-3">
                     <label className="form-label text-xs">Shop / Outlet Name *</label>
                     <input
                       type="text"
@@ -226,166 +223,115 @@ export const SettingsView = () => {
                     />
                   </div>
 
-                  <div className="form-group mb-0">
-                    <label className="form-label text-xs">Official Contact Phone *</label>
-                    <div className="input-with-icon">
-                      <Phone size={15} className="input-icon" />
+                  <div className="form-grid-2col mb-3">
+                    <div className="form-group mb-0">
+                      <label className="form-label text-xs">Official Contact Phone *</label>
+                      <div className="input-with-icon">
+                        <Phone size={14} className="input-icon" />
+                        <input
+                          type="text"
+                          className="form-input font-mono text-xs"
+                          value={shopPhone}
+                          onChange={(e) => setShopPhone(e.target.value)}
+                          placeholder="e.g. +92 300 1234567"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group mb-0">
+                      <label className="form-label text-xs">Business Tax / NTN #</label>
                       <input
                         type="text"
-                        className="form-input font-mono"
-                        value={shopPhone}
-                        onChange={(e) => setShopPhone(e.target.value)}
-                        placeholder="e.g. +92 300 1234567"
+                        className="form-input font-mono text-xs"
+                        value={taxNumber}
+                        onChange={(e) => setTaxNumber(e.target.value)}
+                        placeholder="e.g. NTN-8492048-2"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group mb-0">
+                    <label className="form-label text-xs">Market Address & City *</label>
+                    <div className="input-with-icon">
+                      <MapPin size={14} className="input-icon" />
+                      <input
+                        type="text"
+                        className="form-input text-xs"
+                        value={shopLocation}
+                        onChange={(e) => setShopLocation(e.target.value)}
+                        placeholder="e.g. Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan"
                         required
                       />
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="form-group mb-0">
-                  <label className="form-label text-xs">Market Address & City *</label>
-                  <div className="input-with-icon">
-                    <MapPin size={15} className="input-icon" />
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={shopLocation}
-                      onChange={(e) => setShopLocation(e.target.value)}
-                      placeholder="e.g. Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan"
-                      required
+              {/* Card 2: Thermal Receipt & Store Return Policies */}
+              <div className="settings-section-card glass-card">
+                <div className="settings-card-header">
+                  <div className="brand-icon-badge">
+                    <FileText size={18} className="text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="settings-card-title">POS Receipt & Return Policies</h3>
+                    <p className="settings-card-desc">
+                      Thermal receipt footer disclaimers, customer exchange guidelines, and store operating policies.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="settings-card-body">
+                  <div className="form-group mb-3">
+                    <label className="form-label text-xs">Receipt Footer Note / Return & Exchange Policy</label>
+                    <textarea
+                      className="form-input text-xs settings-textarea"
+                      rows="4"
+                      value={receiptFooterNote}
+                      onChange={(e) => setReceiptFooterNote(e.target.value)}
+                      placeholder="e.g. Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original sales invoice."
                     />
                   </div>
-                </div>
-              </div>
 
-              {/* Card 2: POS Thermal Receipt Policy & Footer Note */}
-              <div className="glass-card p-3 mb-3">
-                <div className="card-header-styled mb-3">
-                  <div className="flex-align-center gap-2">
-                    <div className="brand-icon-badge">
-                      <FileText size={18} className="text-primary" />
+                  <div className="form-grid-2col">
+                    <div className="info-stat-pill">
+                      <span className="info-stat-lbl">Primary Currency</span>
+                      <strong className="info-stat-val font-mono">PKR (Rs.)</strong>
                     </div>
-                    <div>
-                      <h3 className="mb-0 text-sm font-weight-700">2. Thermal Receipt Policy</h3>
-                      <small className="text-muted text-xs">Return/exchange terms printed at the bottom of customer receipts.</small>
+                    <div className="info-stat-pill">
+                      <span className="info-stat-lbl">Date Standard</span>
+                      <strong className="info-stat-val font-mono">DD-MM-YYYY</strong>
                     </div>
                   </div>
                 </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label text-xs">Receipt Footer Note / Return Policy</label>
-                  <textarea
-                    className="form-input text-xs"
-                    rows="3"
-                    value={receiptFooterNote}
-                    onChange={(e) => setReceiptFooterNote(e.target.value)}
-                    placeholder="e.g. Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original receipt."
-                  />
-                </div>
               </div>
+            </div>
 
-              {/* Action Bar */}
-              <div className="glass-card p-3 flex-between">
-                <button type="submit" className="btn btn-primary">
+            {/* Bottom Action Bar */}
+            <div className="settings-actions-footer glass-card mt-3">
+              <div className="flex-align-center gap-2">
+                <button type="submit" className="btn btn-primary flex-align-center gap-1">
                   <Save size={16} /> Save Shop Profile
                 </button>
-
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-secondary flex-align-center gap-1"
                   onClick={resetToDemoData}
                   title="Reload Complete Pakistani Textile Dataset"
                 >
                   <RotateCcw size={15} /> Reload Demo Data
                 </button>
               </div>
-            </form>
-          </div>
 
-          {/* RIGHT COLUMN: Live Real-time Thermal Receipt Preview */}
-          <div className="settings-preview-right-col scrollable-panel">
-            <div className="glass-card p-3 mb-3">
-              <div className="flex-between mb-2 pb-2 border-bottom">
-                <div className="flex-align-center gap-1">
-                  <Printer size={16} className="text-primary" />
-                  <strong className="text-xs text-main text-uppercase">Live Receipt Preview (80mm Thermal)</strong>
-                </div>
-                <span className="badge badge-sage badge-compact">Live Sync</span>
-              </div>
-
-              <div className="thermal-receipt-preview live-mini-receipt">
-                <div className="receipt-header-center">
-                  <Scissors size={24} />
-                  <h2>{shopName || 'NOVA MEN & WOMEN FASHION'}</h2>
-                  <p>{shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat'}</p>
-                  <p>Tel: {shopPhone || '+92 300 1234567'}</p>
-                  <div className="receipt-divider">================================</div>
-                </div>
-
-                <div className="receipt-meta-grid">
-                  <div>Receipt #: <strong>INV-2026-8841</strong></div>
-                  <div>Date: 02-09-2026 14:30</div>
-                  <div>Salesman: Cashier #01</div>
-                  <div>Payment: Cash</div>
-                </div>
-
-                <div className="receipt-divider">--------------------------------</div>
-
-                <table className="receipt-table">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th className="text-center">Qty</th>
-                      <th className="text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>[SUIT] Cotton Lawn 3pc (Crisp White)</td>
-                      <td className="text-center">2</td>
-                      <td className="text-right">Rs. 8,400</td>
-                    </tr>
-                    <tr>
-                      <td>[METER] Boski Silk 7lbs Original</td>
-                      <td className="text-center">4.5 m</td>
-                      <td className="text-right">Rs. 4,275</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div className="receipt-divider">--------------------------------</div>
-
-                <div className="receipt-totals-section">
-                  <div className="r-row"><span>Subtotal:</span> <span>Rs. 12,675</span></div>
-                  <div className="r-row r-bold"><span>NET TOTAL:</span> <span>Rs. 12,675</span></div>
-                  <div className="r-row"><span>Amount Paid:</span> <span>Rs. 13,000</span></div>
-                  <div className="r-row"><span>Change:</span> <span>Rs. 325</span></div>
-                </div>
-
-                <div className="receipt-divider">================================</div>
-                <div className="receipt-footer-center">
-                  <p>{receiptFooterNote || 'Thank you for shopping with us. Exchanges accepted within 14 days with original receipt.'}</p>
-                  <p className="barcode-font">* INV-2026-8841 *</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Store Operational Metadata Card */}
-            <div className="glass-card p-3">
-              <div className="flex-between mb-2">
-                <strong className="text-xs text-main text-uppercase">Store Profile Engine Status</strong>
+              <div className="text-xs text-muted font-mono flex-align-center gap-2">
                 <span className="badge badge-success badge-compact flex-align-center gap-1">
-                  <CheckCircle2 size={10} /> Active
+                  <CheckCircle2 size={10} /> SQLite Synced
                 </span>
-              </div>
-              <div className="grid-2col gap-2 text-xs text-muted">
-                <div>Outlet Node: <strong className="text-main">Tenant #01</strong></div>
-                <div>Currency: <strong className="text-main font-mono">PKR (Rs.)</strong></div>
-                <div>Date Standard: <strong className="text-main font-mono">DD-MM-YYYY</strong></div>
-                <div>Local Database: <strong className="text-success font-mono">SQLite Synced</strong></div>
+                <span>Tenant Node: <strong>#01</strong></span>
               </div>
             </div>
-          </div>
+          </form>
         </div>
       )}
 

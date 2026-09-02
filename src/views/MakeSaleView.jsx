@@ -411,14 +411,14 @@ export const MakeSaleView = () => {
               <table className="cart-data-table">
                 <thead>
                   <tr>
-                    <th style={{ minWidth: '200px' }}>Item Description</th>
-                    <th style={{ width: '120px' }}>Barcode / SKU</th>
-                    <th style={{ width: '105px' }}>Rate / Unit</th>
-                    <th style={{ width: '140px' }} className="text-center">Sale Quantity</th>
-                    <th style={{ width: '105px' }}>Discount (%)</th>
-                    <th style={{ width: '85px' }}>Mode</th>
-                    <th style={{ width: '115px' }} className="text-right">Line Total</th>
-                    <th style={{ width: '50px' }} className="text-center">Action</th>
+                    <th style={{ minWidth: '180px' }}>Item Description</th>
+                    <th style={{ width: '135px' }}>Barcode / SKU</th>
+                    <th style={{ width: '95px' }}>Rate</th>
+                    <th style={{ width: '105px' }} className="text-center">Qty</th>
+                    <th style={{ width: '75px' }} className="text-center">Disc%</th>
+                    <th style={{ width: '65px' }} className="text-center">Mode</th>
+                    <th style={{ width: '105px' }} className="text-right">Line Total</th>
+                    <th style={{ width: '36px' }} className="text-center"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -434,10 +434,10 @@ export const MakeSaleView = () => {
                         className={item.isReturn ? 'return-item-row' : ''}
                       >
                         <td>
-                          <div className="item-name-cell">
-                            <div className="flex-align-center gap-1 flex-wrap">
+                          <div className="compact-item-cell">
+                            <div className="flex-align-center gap-1">
                               {item.isReturn && (
-                                <span className="badge badge-danger badge-compact">RETURN</span>
+                                <span className="badge badge-danger badge-compact">RET</span>
                               )}
                               <span className={`badge ${
                                 isVariant
@@ -450,131 +450,113 @@ export const MakeSaleView = () => {
                               } badge-compact`}>
                                 {isVariant ? item.variantDetails.size : item.unitType || 'Suit'}
                               </span>
-                              <strong className="text-main">{item.fabricMaterial}</strong>
+                              <strong className="compact-item-name" title={item.fabricMaterial}>
+                                {item.fabricMaterial}
+                              </strong>
                             </div>
-                            <div className="flex-align-center gap-2 text-xs text-muted mt-1 flex-wrap">
-                              <span>{item.fabricType}</span>
-                              {item.fabricColor && <span>• {item.fabricColor}</span>}
-                              {item.promoTag && (
-                                <span className="badge badge-warning badge-compact flex-align-center gap-1">
-                                  <Tag size={10} /> {item.promoTag}
-                                </span>
-                              )}
+                            <div className="compact-item-sub">
+                              {item.fabricType}{item.fabricColor ? ` • ${item.fabricColor}` : ''}
+                              {item.promoTag && ` • ${item.promoTag}`}
                             </div>
                           </div>
                         </td>
-                        <td className="font-mono text-highlight font-weight-600 text-xs">{item.barcode}</td>
+                        <td className="font-mono text-highlight font-weight-600 text-xs white-space-nowrap">{item.barcode}</td>
                         <td className="font-mono text-xs white-space-nowrap">
                           Rs. {item.unitPrice.toLocaleString()}{isMeter ? '/m' : ''}
                         </td>
                         <td className="text-center">
                           {isMeter ? (
-                            <div className="meter-qty-container">
-                              <div className="meter-inch-inline-row">
-                                <div className="unit-input-compact">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.5"
-                                    className="form-input form-input-xs font-mono text-center qty-num-input"
-                                    value={split.meters || ''}
-                                    onChange={(e) =>
-                                      setCartItemMetersAndInches(
-                                        item.cartItemId,
-                                        parseFloat(e.target.value) || 0,
-                                        split.inches,
-                                        item.isReturn
-                                      )
-                                    }
-                                  />
-                                  <span className="unit-suffix">m</span>
-                                </div>
-                                <span className="unit-plus">+</span>
-                                <div className="unit-input-compact">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="39"
-                                    className="form-input form-input-xs font-mono text-center qty-num-input"
-                                    value={split.inches || ''}
-                                    onChange={(e) =>
-                                      setCartItemMetersAndInches(
-                                        item.cartItemId,
-                                        split.meters,
-                                        parseFloat(e.target.value) || 0,
-                                        item.isReturn
-                                      )
-                                    }
-                                  />
-                                  <span className="unit-suffix">in</span>
-                                </div>
-                              </div>
-                              <div className="meter-qty-sub text-xs text-subtle font-mono mt-1">
-                                Total: {item.qty} m
+                            <div className="meter-qty-container-compact">
+                              <div className="meter-inch-inline-row-compact">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.5"
+                                  className="form-input-compact font-mono"
+                                  value={split.meters || ''}
+                                  onChange={(e) =>
+                                    setCartItemMetersAndInches(
+                                      item.cartItemId,
+                                      parseFloat(e.target.value) || 0,
+                                      split.inches,
+                                      item.isReturn
+                                    )
+                                  }
+                                />
+                                <span className="unit-compact-lbl">m</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="39"
+                                  className="form-input-compact font-mono ml-1"
+                                  value={split.inches || ''}
+                                  onChange={(e) =>
+                                    setCartItemMetersAndInches(
+                                      item.cartItemId,
+                                      split.meters,
+                                      parseFloat(e.target.value) || 0,
+                                      item.isReturn
+                                    )
+                                  }
+                                />
+                                <span className="unit-compact-lbl">in</span>
                               </div>
                             </div>
                           ) : (
-                            <div className="cart-qty-counter">
+                            <div className="cart-qty-counter-compact">
                               <button
                                 type="button"
-                                className="btn-qty"
+                                className="btn-qty-compact"
                                 onClick={() => updateCartQty(item.cartItemId, -1, item.isReturn)}
                               >
-                                <Minus size={12} />
+                                <Minus size={10} />
                               </button>
-                              <span className="qty-number font-mono">{item.qty}</span>
+                              <span className="qty-number-compact font-mono">{item.qty}</span>
                               <button
                                 type="button"
-                                className="btn-qty"
+                                className="btn-qty-compact"
                                 onClick={() => updateCartQty(item.cartItemId, 1, item.isReturn)}
                               >
-                                <Plus size={12} />
+                                <Plus size={10} />
                               </button>
                             </div>
                           )}
                         </td>
-                        <td>
-                          {/* Percentage-Based Line Discount Input */}
-                          <div className="item-disc-percent-wrapper">
-                            <div className="item-disc-percent-input">
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={item.itemDiscountPercent || ''}
-                                onChange={(e) => setItemDiscountPercent(item.cartItemId, e.target.value, item.isReturn)}
-                                placeholder="0"
-                                disabled={item.isReturn}
-                              />
-                              <span className="percent-sign">%</span>
-                            </div>
-                            {item.itemDiscount > 0 && (
-                              <span className="text-xs font-mono text-amber line-disc-calc">
-                                -Rs. {item.itemDiscount.toLocaleString()}
-                              </span>
-                            )}
+                        <td className="text-center">
+                          <div className="item-disc-compact">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={item.itemDiscountPercent || ''}
+                              onChange={(e) => setItemDiscountPercent(item.cartItemId, e.target.value, item.isReturn)}
+                              placeholder="0"
+                              disabled={item.isReturn}
+                              className="disc-input-compact font-mono"
+                            />
+                            <span className="disc-pct-lbl">%</span>
                           </div>
                         </td>
-                        <td>
+                        <td className="text-center">
                           <button
                             type="button"
-                            className={`mode-toggle-pill ${item.isReturn ? 'return' : 'sale'}`}
+                            className={`mode-toggle-pill-compact ${item.isReturn ? 'return' : 'sale'}`}
                             onClick={() => toggleCartReturn(item.cartItemId, item.isReturn)}
                           >
-                            <RotateCcw size={11} /> {item.isReturn ? 'Return' : 'Sale'}
+                            <RotateCcw size={9} /> {item.isReturn ? 'Ret' : 'Sale'}
                           </button>
                         </td>
-                        <td className={`text-right font-mono font-weight-700 ${item.isReturn ? 'text-danger' : ''}`}>
+                        <td className={`text-right font-mono font-weight-700 text-xs white-space-nowrap ${item.isReturn ? 'text-danger' : ''}`}>
                           {item.isReturn ? '-' : ''}Rs. {(lineGross - (item.itemDiscount || 0)).toLocaleString()}
                         </td>
                         <td className="text-center">
                           <button
                             type="button"
-                            className="btn-delete-cart"
+                            className="btn-delete-cart-compact"
                             onClick={() => removeFromCart(item.cartItemId, item.isReturn)}
                             title="Remove item"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={13} />
                           </button>
                         </td>
                       </tr>
