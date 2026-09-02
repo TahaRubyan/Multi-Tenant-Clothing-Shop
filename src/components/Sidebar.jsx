@@ -12,10 +12,21 @@ import {
   Settings,
   ChevronRight,
   ShieldCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 export const Sidebar = () => {
-  const { activeTab, setActiveTab, currentUser, hasPermission, hasModule, currentTenant } = usePOS();
+  const {
+    activeTab,
+    setActiveTab,
+    currentUser,
+    hasPermission,
+    hasModule,
+    currentTenant,
+    isSidebarCollapsed,
+    toggleSidebar,
+  } = usePOS();
 
   const navItems = [
     { id: 'super-admin-portal', label: 'Tenant Management', icon: ShieldCheck, badge: 'SaaS', perm: 'super_admin', superAdminOnly: true },
@@ -31,24 +42,33 @@ export const Sidebar = () => {
   ];
 
   return (
-    <aside className="sidebar-container">
+    <aside className={`sidebar-container ${isSidebarCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-menu">
-        <div className="sidebar-section-title">
-          {currentUser?.isSuperAdmin ? 'PLATFORM ADMIN' : `${(currentTenant?.name || 'MAIN').toUpperCase()} MENU`}
+        <div className="sidebar-top-bar flex-between">
+          {!isSidebarCollapsed && (
+            <span className="sidebar-section-title">
+              {currentUser?.isSuperAdmin ? 'PLATFORM ADMIN' : `${(currentTenant?.name || 'MAIN').toUpperCase()} MENU`}
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn-sidebar-toggle-mini"
+            onClick={toggleSidebar}
+            title={isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
         </div>
 
         {navItems.map((item) => {
-          // If super admin only item, check user flag
           if (item.superAdminOnly && !currentUser?.isSuperAdmin && currentUser?.role !== 'Super Admin') {
             return null;
           }
 
-          // If item requires specific permission, check logged-in user authority
           if (item.perm && !hasPermission(item.perm)) {
             return null;
           }
 
-          // If item depends on tenant module flag, check module status
           if (item.module && !hasModule(item.module) && !currentUser?.isSuperAdmin) {
             return null;
           }
@@ -61,27 +81,32 @@ export const Sidebar = () => {
               key={item.id}
               className={`sidebar-item ${isActive ? 'active' : ''}`}
               onClick={() => setActiveTab(item.id)}
+              title={isSidebarCollapsed ? item.label : undefined}
             >
               <div className="sidebar-item-left">
-                <IconComponent size={20} className="nav-icon" />
-                <span className="nav-label">{item.label}</span>
+                <IconComponent size={19} className="nav-icon" />
+                {!isSidebarCollapsed && <span className="nav-label">{item.label}</span>}
               </div>
-              <div className="sidebar-item-right">
-                {item.badge && <span className="sidebar-badge">{item.badge}</span>}
-                {isActive && <ChevronRight size={15} className="active-arrow" />}
-              </div>
+              {!isSidebarCollapsed && (
+                <div className="sidebar-item-right">
+                  {item.badge && <span className="sidebar-badge">{item.badge}</span>}
+                  {isActive && <ChevronRight size={14} className="active-arrow" />}
+                </div>
+              )}
             </button>
           );
         })}
       </div>
 
       <div className="sidebar-footer">
-        <div className="system-status-pill">
+        <div className="system-status-pill" title={isSidebarCollapsed ? `${currentTenant?.name || 'POS'} • Online` : undefined}>
           <div className="status-dot online"></div>
-          <div className="status-text">
-            <span>{currentTenant?.name ? currentTenant.name.substring(0, 18) : 'POS Active'}</span>
-            <small>{currentUser ? currentUser.role : 'Guest'}</small>
-          </div>
+          {!isSidebarCollapsed && (
+            <div className="status-text">
+              <span>{currentTenant?.name ? currentTenant.name.substring(0, 18) : 'POS Active'}</span>
+              <small>{currentUser ? currentUser.role : 'Guest'}</small>
+            </div>
+          )}
         </div>
       </div>
     </aside>

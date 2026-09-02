@@ -371,13 +371,13 @@ export const MakeSaleView = () => {
         {/* LEFT / CENTER: Cart Item Table */}
         <div className="cart-table-panel glass-card">
           <div className="cart-panel-header">
-            <div className="flex-align-center gap-2">
-              <ShoppingCart size={22} className="text-primary" />
-              <h3>Current Sale Order</h3>
-              <span className="badge badge-sage">{cart.length} line items</span>
+            <div className="flex-align-center gap-2 flex-wrap">
+              <ShoppingCart size={20} className="text-primary" />
+              <h3 className="mb-0">Current Sale Order</h3>
+              <span className="badge badge-sage badge-compact">{cart.length} items</span>
               {activeStorewidePromo && (
-                <span className="badge badge-warning flex-align-center gap-1">
-                  <Percent size={12} /> {activeStorewidePromo.discountPercent}% Storewide Sale Active
+                <span className="badge badge-warning badge-compact flex-align-center gap-1">
+                  <Percent size={11} /> {activeStorewidePromo.discountPercent}% Storewide Sale
                 </span>
               )}
             </div>
@@ -390,11 +390,11 @@ export const MakeSaleView = () => {
                   setShowReturnModal(true);
                 }}
               >
-                <RotateCcw size={14} className="text-amber" /> Invoice Return / Exchange
+                <RotateCcw size={13} className="text-amber" /> Return / Exchange
               </button>
               {cart.length > 0 && (
                 <button className="btn btn-danger btn-sm" onClick={clearCart}>
-                  <Trash2 size={15} /> Clear All Items
+                  <Trash2 size={13} /> Clear All
                 </button>
               )}
             </div>
@@ -403,7 +403,7 @@ export const MakeSaleView = () => {
           <div className="cart-table-scroll-container">
             {cart.length === 0 ? (
               <div className="empty-cart-display">
-                <ShoppingCart size={48} className="text-subtle mb-3" />
+                <ShoppingCart size={44} className="text-subtle mb-2" />
                 <h4>No Items Added to Sale Order</h4>
                 <p className="text-muted">Click the search bar above to browse full stock, scan a barcode, or look up an invoice to log a return/exchange.</p>
               </div>
@@ -411,14 +411,14 @@ export const MakeSaleView = () => {
               <table className="cart-data-table">
                 <thead>
                   <tr>
-                    <th style={{ minWidth: '220px' }}>Item Description</th>
-                    <th style={{ width: '130px' }}>Barcode / SKU</th>
-                    <th style={{ width: '110px' }}>Rate / Unit</th>
-                    <th style={{ width: '150px' }} className="text-center">Sale Quantity</th>
-                    <th style={{ width: '120px' }}>Discount (%)</th>
-                    <th style={{ width: '95px' }}>Mode</th>
-                    <th style={{ width: '125px' }} className="text-right">Line Total</th>
-                    <th style={{ width: '60px' }} className="text-center">Action</th>
+                    <th style={{ minWidth: '200px' }}>Item Description</th>
+                    <th style={{ width: '120px' }}>Barcode / SKU</th>
+                    <th style={{ width: '105px' }}>Rate / Unit</th>
+                    <th style={{ width: '140px' }} className="text-center">Sale Quantity</th>
+                    <th style={{ width: '105px' }}>Discount (%)</th>
+                    <th style={{ width: '85px' }}>Mode</th>
+                    <th style={{ width: '115px' }} className="text-right">Line Total</th>
+                    <th style={{ width: '50px' }} className="text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -435,11 +435,12 @@ export const MakeSaleView = () => {
                       >
                         <td>
                           <div className="item-name-cell">
-                            <div className="flex-align-center gap-1">
+                            <div className="flex-align-center gap-1 flex-wrap">
+                              {item.isReturn && (
+                                <span className="badge badge-danger badge-compact">RETURN</span>
+                              )}
                               <span className={`badge ${
-                                item.isReturn
-                                  ? 'badge-danger'
-                                  : isVariant
+                                isVariant
                                   ? 'badge-warning'
                                   : isMeter
                                   ? 'badge-warning'
@@ -447,23 +448,24 @@ export const MakeSaleView = () => {
                                   ? 'badge-info'
                                   : 'badge-sage'
                               } badge-compact`}>
-                                {item.isReturn ? 'RETURN' : isVariant ? item.variantDetails.size : item.unitType || 'Suit'}
+                                {isVariant ? item.variantDetails.size : item.unitType || 'Suit'}
                               </span>
                               <strong className="text-main">{item.fabricMaterial}</strong>
                             </div>
-                            <small className="text-muted">
-                              {item.fabricType} • {item.fabricColor}
-                            </small>
-                            {item.promoTag && (
-                              <span className="badge badge-warning badge-compact mt-1 flex-align-center gap-1 width-fit">
-                                <Tag size={10} /> {item.promoTag}
-                              </span>
-                            )}
+                            <div className="flex-align-center gap-2 text-xs text-muted mt-1 flex-wrap">
+                              <span>{item.fabricType}</span>
+                              {item.fabricColor && <span>• {item.fabricColor}</span>}
+                              {item.promoTag && (
+                                <span className="badge badge-warning badge-compact flex-align-center gap-1">
+                                  <Tag size={10} /> {item.promoTag}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
-                        <td className="font-mono text-highlight font-weight-600">{item.barcode}</td>
-                        <td className="font-mono">
-                          Rs. {item.unitPrice.toLocaleString()} {isMeter ? '/ m' : ''}
+                        <td className="font-mono text-highlight font-weight-600 text-xs">{item.barcode}</td>
+                        <td className="font-mono text-xs white-space-nowrap">
+                          Rs. {item.unitPrice.toLocaleString()}{isMeter ? '/m' : ''}
                         </td>
                         <td className="text-center">
                           {isMeter ? (

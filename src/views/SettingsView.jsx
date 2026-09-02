@@ -18,6 +18,7 @@ import {
   UserCheck,
   Shield,
   Layers,
+  FileText,
 } from 'lucide-react';
 
 export const SettingsView = () => {

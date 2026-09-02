@@ -8,10 +8,21 @@ import {
   Store,
   MapPin,
   Sparkles,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 export const Navbar = () => {
-  const { currentUser, logout, currentTenant, shopSettings, setShowShopSwitcher } = usePOS();
+  const {
+    currentUser,
+    logout,
+    currentTenant,
+    shopSettings,
+    setShowShopSwitcher,
+    isSidebarCollapsed,
+    toggleSidebar,
+  } = usePOS();
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
 
@@ -33,8 +44,17 @@ export const Navbar = () => {
 
   return (
     <header className="navbar-container">
-      {/* LEFT: Clock with Time & Date + Online Status */}
+      {/* LEFT: Sidebar Toggle + Clock with Time & Date + Online Status */}
       <div className="nav-left">
+        <button
+          type="button"
+          className="btn-toggle-sidebar-nav"
+          onClick={toggleSidebar}
+          title={isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        >
+          <Menu size={18} />
+        </button>
+
         <div className="info-pill">
           <Clock size={15} />
           <span>{dateStr}</span>

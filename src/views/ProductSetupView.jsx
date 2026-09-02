@@ -16,6 +16,7 @@ import {
   Tag,
   Boxes,
   PlusCircle,
+  Truck,
 } from 'lucide-react';
 
 export const ProductSetupView = () => {

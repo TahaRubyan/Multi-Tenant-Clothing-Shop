@@ -709,6 +709,10 @@ export const POSProvider = ({ children }) => {
     const unitPrice = parseFloat(invoiceItem.unitPrice) || 0;
     const wholesalePrice = parseFloat(invoiceItem.wholesalePrice) || (unitPrice * 0.5);
 
+    // Clean raw fabric material name without redundant prefixes
+    let cleanName = invoiceItem.fabric || invoiceItem.fabricMaterial || 'Garment Item';
+    cleanName = cleanName.replace(/\[RETURN \/ EXCHANGE\]\s*/i, '').replace(/^\[.*?\]\s*/, '');
+
     setCart(prev => [
       ...prev,
       {
@@ -716,9 +720,9 @@ export const POSProvider = ({ children }) => {
         cartItemId,
         barcode: invoiceItem.barcode || 'RET-ITEM',
         masterBarcode: invoiceItem.barcode || 'RET-ITEM',
-        fabricMaterial: `[RETURN / EXCHANGE] ${invoiceItem.fabric || invoiceItem.fabricMaterial || 'Garment Item'}`,
-        fabricType: invoiceItem.unitType || 'Garment',
-        fabricColor: 'Exchange Return',
+        fabricMaterial: cleanName,
+        fabricType: invoiceItem.fabricType || invoiceItem.unitType || 'Garment',
+        fabricColor: invoiceItem.fabricColor || 'Exchange Return',
         variantDetails: invoiceItem.variantDetails || null,
         unitType: invoiceItem.unitType || 'Suit',
         unitPrice: unitPrice,
@@ -727,11 +731,11 @@ export const POSProvider = ({ children }) => {
         qty: parseFloat(invoiceItem.qty) || 1,
         itemDiscountPercent: 0,
         itemDiscount: 0,
-        promoTag: `Returned from ${originalInvoiceNumber || 'Past Sale'}`,
+        promoTag: originalInvoiceNumber ? `Ref: ${originalInvoiceNumber}` : null,
         isReturn: true,
       }
     ]);
-    showToast(`Added ${invoiceItem.fabric || invoiceItem.barcode} as negative return for exchange`, 'warning');
+    showToast(`Added ${cleanName} as exchange return`, 'warning');
   };
 
   const completeSale = (paymentMethod, amountReceivedInput = null) => {
@@ -887,6 +891,12 @@ export const POSProvider = ({ children }) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
   };
 
+  // Sidebar Collapsed / Responsive Drawer State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth <= 1024 : false;
+  });
+  const toggleSidebar = () => setIsSidebarCollapsed(prev => !prev);
+
   // Toast Alerts
   const [toast, setToast] = useState(null);
   const showToast = (message, type = 'info') => {
@@ -897,6 +907,9 @@ export const POSProvider = ({ children }) => {
   return (
     <POSContext.Provider
       value={{
+        isSidebarCollapsed,
+        setIsSidebarCollapsed,
+        toggleSidebar,
         tenants,
         currentTenant,
         currentTenantId,
