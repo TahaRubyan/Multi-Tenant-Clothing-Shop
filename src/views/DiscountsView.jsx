@@ -104,8 +104,6 @@ export const DiscountsView = () => {
     ? Math.round(discountRules.reduce((acc, r) => acc + (parseFloat(r.discountPercent) || 0), 0) / discountRules.length)
     : 0;
 
-  const quickDiscountPresets = [10, 15, 20, 25, 50];
-
   return (
     <div className="view-container discounts-view no-scroll-view">
       {/* View Header */}
@@ -217,23 +215,6 @@ export const DiscountsView = () => {
                     required
                   />
                 </div>
-              </div>
-            </div>
-
-            {/* Quick Percentage Presets */}
-            <div className="discount-preset-box mb-3">
-              <div className="discount-preset-pills-row">
-                <span className="text-xs text-muted font-weight-600">Quick Presets:</span>
-                {quickDiscountPresets.map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
-                    className={`discount-preset-btn ${parseFloat(discountPercent) === pct ? 'active' : ''}`}
-                    onClick={() => setDiscountPercent(pct.toString())}
-                  >
-                    {pct}%
-                  </button>
-                ))}
               </div>
             </div>
 

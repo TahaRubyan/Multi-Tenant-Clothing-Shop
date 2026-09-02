@@ -14,7 +14,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v3.5_full_pakistan_textiles_demo';
+const POS_DATA_VERSION = 'v4.0_pakistan_enterprise_textile_dataset';
 
 const getStoredOrDefault = (key, defaultVal) => {
   try {

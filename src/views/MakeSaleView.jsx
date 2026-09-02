@@ -210,7 +210,7 @@ export const MakeSaleView = () => {
 
   // Cash vs Digital Payment Calculation
   const isCash = paymentMethod === 'Cash';
-  const amountRecNum = isCash
+  const amountRecNum = amountReceived !== ''
     ? (parseFloat(amountReceived) || cartNetTotal)
     : cartNetTotal;
   const changeReturned = isCash
@@ -223,7 +223,7 @@ export const MakeSaleView = () => {
       return;
     }
 
-    const saleResult = completeSale(paymentMethod, isCash ? amountRecNum : cartNetTotal);
+    const saleResult = completeSale(paymentMethod, amountRecNum);
     if (saleResult) {
       setCompletedSaleData(saleResult);
       confetti({
@@ -624,34 +624,48 @@ export const MakeSaleView = () => {
             </div>
           </div>
 
-          {/* Cash Payment: Amount Received & Change Returned */}
-          {isCash ? (
-            <div className="calc-inputs-grid">
-              <div className="calc-group">
-                <label className="form-label">Amount Received (Rs.)</label>
-                <input
-                  type="number"
-                  className="form-input font-mono calc-input"
-                  value={amountReceived}
-                  onChange={(e) => setAmountReceived(e.target.value)}
-                  placeholder={cartNetTotal.toString()}
-                />
-              </div>
+          {/* Amount Received / Paid Inputs For All Payment Methods */}
+          <div className="calc-inputs-grid mb-3">
+            <div className="calc-group">
+              <label className="form-label">
+                {isCash ? 'Amount Received (Rs.) *' : `${paymentMethod} Amount Paid (Rs.) *`}
+              </label>
+              <input
+                type="number"
+                className="form-input font-mono calc-input font-weight-700"
+                value={amountReceived !== '' ? amountReceived : (cartNetTotal > 0 ? cartNetTotal : '')}
+                onChange={(e) => setAmountReceived(e.target.value)}
+                placeholder={cartNetTotal.toString()}
+              />
+            </div>
 
+            {isCash ? (
               <div className="calc-group">
                 <label className="form-label">Change Returned</label>
                 <div className="change-returned-badge font-mono">
                   Rs. {changeReturned.toLocaleString()}
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="digital-payment-info-box mb-3">
-              <div className="flex-align-center gap-2 text-success font-weight-600 text-xs">
-                <CheckCircle2 size={15} />
-                <span>Exact Net Amount Settled via {paymentMethod} (Rs. {cartNetTotal.toLocaleString()})</span>
+            ) : (
+              <div className="calc-group">
+                <label className="form-label">
+                  {paymentMethod === 'Card' ? 'Card Slip / Auth #' : 'Trx ID / Reference #'}
+                </label>
+                <input
+                  type="text"
+                  className="form-input font-mono text-xs"
+                  placeholder={paymentMethod === 'Card' ? 'e.g. AUTH-98421' : 'e.g. JC-884192'}
+                />
               </div>
-              <small className="text-muted text-xs mt-1 block">Digital settlement requires no cash change return.</small>
+            )}
+          </div>
+
+          {!isCash && (
+            <div className="digital-settlement-callout mb-3">
+              <div className="flex-align-center gap-2 text-primary font-weight-600 text-xs">
+                <CheckCircle2 size={14} className="text-success flex-shrink-0" />
+                <span>Digital payment via {paymentMethod} recorded in POS ledger</span>
+              </div>
             </div>
           )}
 
