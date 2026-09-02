@@ -284,6 +284,7 @@ export const MakeSaleView = () => {
               type="text"
               placeholder="Click to browse all items, search fabric name, suit, box, meter bolt, shirt size, or scan barcode..."
               value={searchQuery}
+              onClick={() => setIsSearchFocused(true)}
               onFocus={() => setIsSearchFocused(true)}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -291,7 +292,6 @@ export const MakeSaleView = () => {
                 setIsSearchFocused(true);
               }}
               onKeyDown={handleKeyDown}
-              autoFocus
             />
             {searchQuery && (
               <button

@@ -19,6 +19,8 @@ import {
   Shield,
   Layers,
   FileText,
+  Printer,
+  Scissors,
 } from 'lucide-react';
 
 export const SettingsView = () => {
@@ -188,110 +190,202 @@ export const SettingsView = () => {
       </div>
 
       {/* ========================================================
-          TAB 1: SHOP PROFILE (Clean Executive Form)
+          TAB 1: SHOP PROFILE (Executive 2-Column Responsive Layout)
           ======================================================== */}
       {activeSettingsTab === 'shop_profile' && (
-        <div className="settings-single-card-layout scrollable-panel">
-          <form onSubmit={handleSaveShopDetails} className="enterprise-form-card">
-            {/* Card 1: Outlet & Brand Identity */}
-            <div className="glass-card p-4 mb-4">
-              <div className="card-header-styled mb-3">
-                <div className="flex-align-center gap-2">
-                  <Store size={20} className="text-primary" />
-                  <div>
-                    <h3 className="mb-0">1. Outlet & Brand Identity</h3>
-                    <small className="text-muted">
-                      Your business title and contact details rendered across Top Header, Barcode Labels, and Invoices.
-                    </small>
+        <div className="settings-2col-workspace">
+          {/* LEFT COLUMN: Clean Form Cards */}
+          <div className="settings-form-left-col scrollable-panel">
+            <form onSubmit={handleSaveShopDetails}>
+              {/* Card 1: Outlet & Brand Identity */}
+              <div className="glass-card p-3 mb-3">
+                <div className="card-header-styled mb-3">
+                  <div className="flex-align-center gap-2">
+                    <div className="brand-icon-badge">
+                      <Store size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="mb-0 text-sm font-weight-700">1. Outlet & Brand Identity</h3>
+                      <small className="text-muted text-xs">
+                        Your business title and contact details rendered across Top Header, Barcodes, and Invoices.
+                      </small>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="form-grid-2col mb-3">
-                <div className="form-group mb-0">
-                  <label className="form-label">Shop / Outlet Name *</label>
-                  <input
-                    type="text"
-                    className="form-input font-weight-700"
-                    value={shopName}
-                    onChange={(e) => setShopName(e.target.value)}
-                    placeholder="e.g. NOVA MEN & WOMEN FASHION"
-                    required
-                  />
+                <div className="form-grid-2col mb-3">
+                  <div className="form-group mb-0">
+                    <label className="form-label text-xs">Shop / Outlet Name *</label>
+                    <input
+                      type="text"
+                      className="form-input font-weight-700"
+                      value={shopName}
+                      onChange={(e) => setShopName(e.target.value)}
+                      placeholder="e.g. NOVA MEN & WOMEN FASHION"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group mb-0">
+                    <label className="form-label text-xs">Official Contact Phone *</label>
+                    <div className="input-with-icon">
+                      <Phone size={15} className="input-icon" />
+                      <input
+                        type="text"
+                        className="form-input font-mono"
+                        value={shopPhone}
+                        onChange={(e) => setShopPhone(e.target.value)}
+                        placeholder="e.g. +92 300 1234567"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Official Contact Phone *</label>
+                  <label className="form-label text-xs">Market Address & City *</label>
                   <div className="input-with-icon">
-                    <Phone size={16} className="input-icon" />
+                    <MapPin size={15} className="input-icon" />
                     <input
                       type="text"
-                      className="form-input font-mono"
-                      value={shopPhone}
-                      onChange={(e) => setShopPhone(e.target.value)}
-                      placeholder="e.g. +92 300 1234567"
+                      className="form-input"
+                      value={shopLocation}
+                      onChange={(e) => setShopLocation(e.target.value)}
+                      placeholder="e.g. Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan"
                       required
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="form-group mb-0">
-                <label className="form-label">Market Address & City *</label>
-                <div className="input-with-icon">
-                  <MapPin size={16} className="input-icon" />
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={shopLocation}
-                    onChange={(e) => setShopLocation(e.target.value)}
-                    placeholder="e.g. Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan"
-                    required
+              {/* Card 2: POS Thermal Receipt Policy & Footer Note */}
+              <div className="glass-card p-3 mb-3">
+                <div className="card-header-styled mb-3">
+                  <div className="flex-align-center gap-2">
+                    <div className="brand-icon-badge">
+                      <FileText size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="mb-0 text-sm font-weight-700">2. Thermal Receipt Policy</h3>
+                      <small className="text-muted text-xs">Return/exchange terms printed at the bottom of customer receipts.</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label text-xs">Receipt Footer Note / Return Policy</label>
+                  <textarea
+                    className="form-input text-xs"
+                    rows="3"
+                    value={receiptFooterNote}
+                    onChange={(e) => setReceiptFooterNote(e.target.value)}
+                    placeholder="e.g. Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original receipt."
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Card 2: POS Thermal Receipt Policy & Footer Note */}
-            <div className="glass-card p-4 mb-4">
-              <div className="card-header-styled mb-3">
-                <div className="flex-align-center gap-2">
-                  <FileText size={20} className="text-primary" />
-                  <div>
-                    <h3 className="mb-0">2. Thermal Receipt Customization</h3>
-                    <small className="text-muted">Return/exchange terms printed at the bottom of customer receipts.</small>
-                  </div>
+              {/* Action Bar */}
+              <div className="glass-card p-3 flex-between">
+                <button type="submit" className="btn btn-primary">
+                  <Save size={16} /> Save Shop Profile
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={resetToDemoData}
+                  title="Reload Complete Pakistani Textile Dataset"
+                >
+                  <RotateCcw size={15} /> Reload Demo Data
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* RIGHT COLUMN: Live Real-time Thermal Receipt Preview */}
+          <div className="settings-preview-right-col scrollable-panel">
+            <div className="glass-card p-3 mb-3">
+              <div className="flex-between mb-2 pb-2 border-bottom">
+                <div className="flex-align-center gap-1">
+                  <Printer size={16} className="text-primary" />
+                  <strong className="text-xs text-main text-uppercase">Live Receipt Preview (80mm Thermal)</strong>
+                </div>
+                <span className="badge badge-sage badge-compact">Live Sync</span>
+              </div>
+
+              <div className="thermal-receipt-preview live-mini-receipt">
+                <div className="receipt-header-center">
+                  <Scissors size={24} />
+                  <h2>{shopName || 'NOVA MEN & WOMEN FASHION'}</h2>
+                  <p>{shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat'}</p>
+                  <p>Tel: {shopPhone || '+92 300 1234567'}</p>
+                  <div className="receipt-divider">================================</div>
+                </div>
+
+                <div className="receipt-meta-grid">
+                  <div>Receipt #: <strong>INV-2026-8841</strong></div>
+                  <div>Date: 02-09-2026 14:30</div>
+                  <div>Salesman: Cashier #01</div>
+                  <div>Payment: Cash</div>
+                </div>
+
+                <div className="receipt-divider">--------------------------------</div>
+
+                <table className="receipt-table">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th className="text-center">Qty</th>
+                      <th className="text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>[SUIT] Cotton Lawn 3pc (Crisp White)</td>
+                      <td className="text-center">2</td>
+                      <td className="text-right">Rs. 8,400</td>
+                    </tr>
+                    <tr>
+                      <td>[METER] Boski Silk 7lbs Original</td>
+                      <td className="text-center">4.5 m</td>
+                      <td className="text-right">Rs. 4,275</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div className="receipt-divider">--------------------------------</div>
+
+                <div className="receipt-totals-section">
+                  <div className="r-row"><span>Subtotal:</span> <span>Rs. 12,675</span></div>
+                  <div className="r-row r-bold"><span>NET TOTAL:</span> <span>Rs. 12,675</span></div>
+                  <div className="r-row"><span>Amount Paid:</span> <span>Rs. 13,000</span></div>
+                  <div className="r-row"><span>Change:</span> <span>Rs. 325</span></div>
+                </div>
+
+                <div className="receipt-divider">================================</div>
+                <div className="receipt-footer-center">
+                  <p>{receiptFooterNote || 'Thank you for shopping with us. Exchanges accepted within 14 days with original receipt.'}</p>
+                  <p className="barcode-font">* INV-2026-8841 *</p>
                 </div>
               </div>
+            </div>
 
-              <div className="form-group mb-0">
-                <label className="form-label">Receipt Footer Note / Return Policy</label>
-                <textarea
-                  className="form-input"
-                  rows="3"
-                  value={receiptFooterNote}
-                  onChange={(e) => setReceiptFooterNote(e.target.value)}
-                  placeholder="e.g. Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original receipt."
-                />
+            {/* Store Operational Metadata Card */}
+            <div className="glass-card p-3">
+              <div className="flex-between mb-2">
+                <strong className="text-xs text-main text-uppercase">Store Profile Engine Status</strong>
+                <span className="badge badge-success badge-compact flex-align-center gap-1">
+                  <CheckCircle2 size={10} /> Active
+                </span>
+              </div>
+              <div className="grid-2col gap-2 text-xs text-muted">
+                <div>Outlet Node: <strong className="text-main">Tenant #01</strong></div>
+                <div>Currency: <strong className="text-main font-mono">PKR (Rs.)</strong></div>
+                <div>Date Standard: <strong className="text-main font-mono">DD-MM-YYYY</strong></div>
+                <div>Local Database: <strong className="text-success font-mono">SQLite Synced</strong></div>
               </div>
             </div>
-
-            {/* Action Bar */}
-            <div className="glass-card p-3 flex-between">
-              <button type="submit" className="btn btn-primary btn-lg">
-                <Save size={16} /> Save Shop Profile
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={resetToDemoData}
-                title="Reload Complete Pakistani Textile Dataset"
-              >
-                <RotateCcw size={15} /> Reload Demo Data
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       )}
 

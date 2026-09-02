@@ -3080,6 +3080,62 @@
   white-space: nowrap !important;
 }
 
+/* =======================================================
+   EXECUTIVE 2-COLUMN SETTINGS & LIVE THERMAL RECEIPT PREVIEW
+   ======================================================= */
+.settings-2col-workspace {
+  display: grid;
+  grid-template-columns: 1.15fr 400px;
+  gap: 1.25rem;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+.settings-form-left-col {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.settings-preview-right-col {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.brand-icon-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.live-mini-receipt {
+  font-size: 0.72rem;
+  padding: 1.15rem 1.25rem;
+  max-width: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.live-mini-receipt h2 {
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
 
 
 

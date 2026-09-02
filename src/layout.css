@@ -427,6 +427,10 @@
     grid-template-columns: 1fr;
     overflow-y: auto;
   }
+  .settings-2col-workspace {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
 }
 
 @media (max-width: 768px) {
