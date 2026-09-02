@@ -212,8 +212,9 @@ export const SettingsView = () => {
 
                 <div className="settings-card-body">
                   <div className="form-group mb-3">
-                    <label className="form-label text-xs">Shop / Outlet Name *</label>
+                    <label htmlFor="shop-name-input" className="form-label text-xs">Shop / Outlet Name *</label>
                     <input
+                      id="shop-name-input"
                       type="text"
                       className="form-input font-weight-700"
                       value={shopName}
@@ -225,10 +226,11 @@ export const SettingsView = () => {
 
                   <div className="form-grid-2col mb-3">
                     <div className="form-group mb-0">
-                      <label className="form-label text-xs">Official Contact Phone *</label>
+                      <label htmlFor="shop-phone-input" className="form-label text-xs">Official Contact Phone *</label>
                       <div className="input-with-icon">
                         <Phone size={14} className="input-icon" />
                         <input
+                          id="shop-phone-input"
                           type="text"
                           className="form-input font-mono text-xs"
                           value={shopPhone}
@@ -240,8 +242,9 @@ export const SettingsView = () => {
                     </div>
 
                     <div className="form-group mb-0">
-                      <label className="form-label text-xs">Business Tax / NTN #</label>
+                      <label htmlFor="shop-tax-input" className="form-label text-xs">Business Tax / NTN #</label>
                       <input
+                        id="shop-tax-input"
                         type="text"
                         className="form-input font-mono text-xs"
                         value={taxNumber}
@@ -252,10 +255,11 @@ export const SettingsView = () => {
                   </div>
 
                   <div className="form-group mb-0">
-                    <label className="form-label text-xs">Market Address & City *</label>
+                    <label htmlFor="shop-location-input" className="form-label text-xs">Market Address & City *</label>
                     <div className="input-with-icon">
                       <MapPin size={14} className="input-icon" />
                       <input
+                        id="shop-location-input"
                         type="text"
                         className="form-input text-xs"
                         value={shopLocation}
@@ -284,8 +288,9 @@ export const SettingsView = () => {
 
                 <div className="settings-card-body">
                   <div className="form-group mb-3">
-                    <label className="form-label text-xs">Receipt Footer Note / Return & Exchange Policy</label>
+                    <label htmlFor="shop-receipt-policy-input" className="form-label text-xs">Receipt Footer Note / Return & Exchange Policy</label>
                     <textarea
+                      id="shop-receipt-policy-input"
                       className="form-input text-xs settings-textarea"
                       rows="4"
                       value={receiptFooterNote}

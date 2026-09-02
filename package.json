@@ -8,7 +8,15 @@
     "dev": "npx vite",
     "build": "npx vite build",
     "preview": "npx vite preview",
-    "electron": "npx vite build && npx electron ."
+    "electron": "npx vite build && npx electron .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "test:perf": "vitest run tests/performance",
+    "test:a11y": "vitest run tests/accessibility",
+    "test:all": "vitest run"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
@@ -17,10 +25,15 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
-    "vite": "^6.0.7"
+    "jsdom": "^30.0.1",
+    "vite": "^6.0.7",
+    "vitest": "^4.1.11"
   }
 }
