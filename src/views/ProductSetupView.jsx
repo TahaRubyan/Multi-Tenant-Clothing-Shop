@@ -26,6 +26,7 @@ export const ProductSetupView = () => {
     showToast,
     apparelCategories,
     addApparelCategory,
+    vendors,
   } = usePOS();
 
   // Mode: 'unstitched' (Suits/Meters/Boxes) vs 'apparel' (Ready-Made Shirts/Trousers/Pants)
@@ -34,6 +35,9 @@ export const ProductSetupView = () => {
       ? 'apparel'
       : 'unstitched';
   });
+
+  // Selected Vendor / Mill Sourcing
+  const [selectedVendorId, setSelectedVendorId] = useState('');
 
   // UNSTITCHED FABRIC STATE
   const [unitType, setUnitType] = useState('Suit'); // 'Suit' | 'Box' | 'Meter'
@@ -157,6 +161,7 @@ export const ProductSetupView = () => {
         retailPrice,
         initialStock,
         reorderLimit,
+        vendorId: selectedVendorId,
       });
 
       setPrintBarcodeModalData({
@@ -170,6 +175,7 @@ export const ProductSetupView = () => {
       setRetailPrice('');
       setInitialStock('');
       setReorderLimit('');
+      setSelectedVendorId('');
       setCustomBarcode(generateBarcodeString());
     } else {
       // Apparel Ready-Made Save
@@ -194,6 +200,7 @@ export const ProductSetupView = () => {
         reorderLimit: parseFloat(apparelReorderLimit) || 10,
         unitType: 'Piece',
         variants: variantRows,
+        vendorId: selectedVendorId,
       });
 
       setPrintBarcodeModalData({
@@ -205,6 +212,7 @@ export const ProductSetupView = () => {
       setApparelBrand('');
       setApparelBaseWholesale('');
       setApparelBaseRetail('');
+      setSelectedVendorId('');
     }
   };
 
@@ -216,6 +224,7 @@ export const ProductSetupView = () => {
     setRetailPrice('');
     setInitialStock('');
     setReorderLimit('');
+    setSelectedVendorId('');
   };
 
   return (
@@ -421,6 +430,74 @@ export const ProductSetupView = () => {
                   />
                 </div>
               </div>
+
+              {/* Vendor / Mill Sourcing & Accounts Payable Linkage */}
+              <div className="form-section-title sub-section-heading mt-3">
+                <Truck size={18} className="title-icon text-primary" />
+                <span>Supplier / Mill Sourcing & Vendor Ledger</span>
+              </div>
+
+              <div className="form-group mb-2">
+                <label className="form-label mb-1">Select Sourcing Supplier / Mill (Optional)</label>
+                <div className="input-with-icon">
+                  <Truck size={16} className="input-icon" />
+                  <select
+                    className="form-select font-weight-600"
+                    value={selectedVendorId}
+                    onChange={(e) => setSelectedVendorId(e.target.value)}
+                  >
+                    <option value="">-- Direct Mill / Cash Purchase (No Ledger) --</option>
+                    {vendors.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.vendorName} ({v.city})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Live Vendor Financial Ledger Summary Card */}
+              {selectedVendorId && (() => {
+                const selVen = vendors.find(v => v.id === selectedVendorId);
+                if (!selVen) return null;
+                const outstandingDue = (selVen.totalInvoiced || 0) - (selVen.totalPaid || 0);
+                const wholesaleNum = parseFloat(wholesalePrice) || 0;
+                const stockNum = parseFloat(initialStock) || 0;
+                const thisShipmentVal = wholesaleNum * stockNum;
+
+                return (
+                  <div className="vendor-ledger-mini-summary glass-card p-3 my-2">
+                    <div className="flex-between mb-2">
+                      <div className="flex-align-center gap-2">
+                        <Truck size={16} className="text-primary" />
+                        <strong className="text-main">{selVen.vendorName}</strong>
+                        <span className="text-xs text-muted">({selVen.city})</span>
+                      </div>
+                      <span className={`badge ${outstandingDue > 0 ? 'badge-danger' : 'badge-success'}`}>
+                        {outstandingDue > 0
+                          ? `We Owe: Rs. ${outstandingDue.toLocaleString()}`
+                          : 'Account Settled'}
+                      </span>
+                    </div>
+                    <div className="vendor-mini-stats-grid">
+                      <div className="v-stat">
+                        <span className="v-stat-lbl">Total Mill Invoiced</span>
+                        <strong className="v-stat-val font-mono">Rs. {selVen.totalInvoiced.toLocaleString()}</strong>
+                      </div>
+                      <div className="v-stat">
+                        <span className="v-stat-lbl">Total Paid So Far</span>
+                        <strong className="v-stat-val font-mono text-success">Rs. {selVen.totalPaid.toLocaleString()}</strong>
+                      </div>
+                      <div className="v-stat">
+                        <span className="v-stat-lbl">This Sourcing Value (Auto-Added)</span>
+                        <strong className="v-stat-val font-mono text-primary">
+                          +Rs. {thisShipmentVal.toLocaleString()}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           ) : (
             /* READY-MADE APPAREL VARIANT GRID SETUP */
@@ -591,6 +668,74 @@ export const ProductSetupView = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Apparel Vendor Sourcing Section */}
+              <div className="form-section-title sub-section-heading mt-3">
+                <Truck size={18} className="title-icon text-primary" />
+                <span>Supplier / Mill Sourcing & Vendor Ledger</span>
+              </div>
+
+              <div className="form-group mb-2">
+                <label className="form-label mb-1">Select Sourcing Mill / Vendor (Optional)</label>
+                <div className="input-with-icon">
+                  <Truck size={16} className="input-icon" />
+                  <select
+                    className="form-select font-weight-600"
+                    value={selectedVendorId}
+                    onChange={(e) => setSelectedVendorId(e.target.value)}
+                  >
+                    <option value="">-- Direct Factory / Cash Sourcing (No Ledger) --</option>
+                    {vendors.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.vendorName} ({v.city})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Live Vendor Financial Ledger Summary Card for Apparel */}
+              {selectedVendorId && (() => {
+                const selVen = vendors.find(v => v.id === selectedVendorId);
+                if (!selVen) return null;
+                const outstandingDue = (selVen.totalInvoiced || 0) - (selVen.totalPaid || 0);
+                const wholesaleNum = parseFloat(apparelBaseWholesale) || 0;
+                const totalVariantStock = variantRows.reduce((acc, r) => acc + (parseFloat(r.stock) || 0), 0);
+                const thisShipmentVal = wholesaleNum * totalVariantStock;
+
+                return (
+                  <div className="vendor-ledger-mini-summary glass-card p-3 my-2">
+                    <div className="flex-between mb-2">
+                      <div className="flex-align-center gap-2">
+                        <Truck size={16} className="text-primary" />
+                        <strong className="text-main">{selVen.vendorName}</strong>
+                        <span className="text-xs text-muted">({selVen.city})</span>
+                      </div>
+                      <span className={`badge ${outstandingDue > 0 ? 'badge-danger' : 'badge-success'}`}>
+                        {outstandingDue > 0
+                          ? `We Owe: Rs. ${outstandingDue.toLocaleString()}`
+                          : 'Account Settled'}
+                      </span>
+                    </div>
+                    <div className="vendor-mini-stats-grid">
+                      <div className="v-stat">
+                        <span className="v-stat-lbl">Total Mill Invoiced</span>
+                        <strong className="v-stat-val font-mono">Rs. {selVen.totalInvoiced.toLocaleString()}</strong>
+                      </div>
+                      <div className="v-stat">
+                        <span className="v-stat-lbl">Total Paid So Far</span>
+                        <strong className="v-stat-val font-mono text-success">Rs. {selVen.totalPaid.toLocaleString()}</strong>
+                      </div>
+                      <div className="v-stat">
+                        <span className="v-stat-lbl">This Sourcing Value (Auto-Added)</span>
+                        <strong className="v-stat-val font-mono text-primary">
+                          +Rs. {thisShipmentVal.toLocaleString()}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>

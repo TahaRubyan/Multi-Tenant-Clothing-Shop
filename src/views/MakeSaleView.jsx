@@ -40,6 +40,8 @@ export const MakeSaleView = () => {
     getActiveStorewideDiscount,
     shopSettings,
     showToast,
+    salesLogs,
+    addReturnItemToCart,
   } = usePOS();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,6 +50,11 @@ export const MakeSaleView = () => {
   const [amountReceived, setAmountReceived] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // 'Cash' | 'Card' | 'Mobile Banking'
   const [completedSaleData, setCompletedSaleData] = useState(null);
+
+  // Invoice Return / Exchange Lookup Modal State
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnSearchQuery, setReturnSearchQuery] = useState('');
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   const selectedRowRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -223,6 +230,14 @@ export const MakeSaleView = () => {
       return;
     }
 
+    if (cartSubtotal < 0) {
+      showToast(
+        `Exchange balance is -Rs. ${Math.abs(cartSubtotal).toLocaleString()}. Please add purchase items to settle or exceed the return credit.`,
+        'warning'
+      );
+      return;
+    }
+
     const saleResult = completeSale(paymentMethod, amountRecNum);
     if (saleResult) {
       setCompletedSaleData(saleResult);
@@ -243,6 +258,19 @@ export const MakeSaleView = () => {
     const totalInches = Math.round(fractionMeters * 39.3701);
     return { meters: fullMeters, inches: totalInches };
   };
+
+  // Filtered Invoices for Return Lookup
+  const filteredInvoices = (salesLogs || []).filter((inv) => {
+    if (!returnSearchQuery.trim()) return true;
+    const q = returnSearchQuery.toLowerCase();
+    return (
+      inv.receiptNumber?.toLowerCase().includes(q) ||
+      inv.dateTime?.toLowerCase().includes(q) ||
+      inv.salesman?.toLowerCase().includes(q) ||
+      inv.paymentMethod?.toLowerCase().includes(q) ||
+      inv.items?.some((it) => it.fabric?.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="view-container make-sale-full-view">
@@ -353,11 +381,23 @@ export const MakeSaleView = () => {
                 </span>
               )}
             </div>
-            {cart.length > 0 && (
-              <button className="btn btn-danger btn-sm" onClick={clearCart}>
-                <Trash2 size={15} /> Clear All Items
+            <div className="flex-align-center gap-2">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm flex-align-center gap-1"
+                onClick={() => {
+                  setSelectedInvoice(null);
+                  setShowReturnModal(true);
+                }}
+              >
+                <RotateCcw size={14} className="text-amber" /> Invoice Return / Exchange
               </button>
-            )}
+              {cart.length > 0 && (
+                <button className="btn btn-danger btn-sm" onClick={clearCart}>
+                  <Trash2 size={15} /> Clear All Items
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="cart-table-scroll-container">
@@ -365,7 +405,7 @@ export const MakeSaleView = () => {
               <div className="empty-cart-display">
                 <ShoppingCart size={48} className="text-subtle mb-3" />
                 <h4>No Items Added to Sale Order</h4>
-                <p className="text-muted">Click the search bar above to browse full stock or scan a barcode tag.</p>
+                <p className="text-muted">Click the search bar above to browse full stock, scan a barcode, or look up an invoice to log a return/exchange.</p>
               </div>
             ) : (
               <table className="cart-data-table">
@@ -397,7 +437,9 @@ export const MakeSaleView = () => {
                           <div className="item-name-cell">
                             <div className="flex-align-center gap-1">
                               <span className={`badge ${
-                                isVariant
+                                item.isReturn
+                                  ? 'badge-danger'
+                                  : isVariant
                                   ? 'badge-warning'
                                   : isMeter
                                   ? 'badge-warning'
@@ -405,7 +447,7 @@ export const MakeSaleView = () => {
                                   ? 'badge-info'
                                   : 'badge-sage'
                               } badge-compact`}>
-                                {isVariant ? item.variantDetails.size : item.unitType || 'Suit'}
+                                {item.isReturn ? 'RETURN' : isVariant ? item.variantDetails.size : item.unitType || 'Suit'}
                               </span>
                               <strong className="text-main">{item.fabricMaterial}</strong>
                             </div>
@@ -490,7 +532,7 @@ export const MakeSaleView = () => {
                           )}
                         </td>
                         <td>
-                          {/* Percentage-Based Line Discount Input with Auto-Calculated Rupee deduction */}
+                          {/* Percentage-Based Line Discount Input */}
                           <div className="item-disc-percent-wrapper">
                             <div className="item-disc-percent-input">
                               <input
@@ -500,6 +542,7 @@ export const MakeSaleView = () => {
                                 value={item.itemDiscountPercent || ''}
                                 onChange={(e) => setItemDiscountPercent(item.cartItemId, e.target.value, item.isReturn)}
                                 placeholder="0"
+                                disabled={item.isReturn}
                               />
                               <span className="percent-sign">%</span>
                             </div>
@@ -519,7 +562,7 @@ export const MakeSaleView = () => {
                             <RotateCcw size={11} /> {item.isReturn ? 'Return' : 'Sale'}
                           </button>
                         </td>
-                        <td className="text-right font-mono font-weight-700">
+                        <td className={`text-right font-mono font-weight-700 ${item.isReturn ? 'text-danger' : ''}`}>
                           {item.isReturn ? '-' : ''}Rs. {(lineGross - (item.itemDiscount || 0)).toLocaleString()}
                         </td>
                         <td className="text-center">
@@ -547,8 +590,10 @@ export const MakeSaleView = () => {
 
           <div className="totals-breakdown-card">
             <div className="t-row">
-              <span>Subtotal</span>
-              <span className="font-mono font-weight-600">Rs. {cartSubtotal.toLocaleString()}</span>
+              <span>Subtotal {cartSubtotal < 0 ? '(Return Credit)' : ''}</span>
+              <span className={`font-mono font-weight-600 ${cartSubtotal < 0 ? 'text-danger' : ''}`}>
+                Rs. {cartSubtotal.toLocaleString()}
+              </span>
             </div>
 
             {storewideDiscountAmt > 0 && (
@@ -624,47 +669,39 @@ export const MakeSaleView = () => {
             </div>
           </div>
 
-          {/* Amount Received / Paid Inputs For All Payment Methods */}
-          <div className="calc-inputs-grid mb-3">
-            <div className="calc-group">
-              <label className="form-label">
-                {isCash ? 'Amount Received (Rs.) *' : `${paymentMethod} Amount Paid (Rs.) *`}
-              </label>
-              <input
-                type="number"
-                className="form-input font-mono calc-input font-weight-700"
-                value={amountReceived !== '' ? amountReceived : (cartNetTotal > 0 ? cartNetTotal : '')}
-                onChange={(e) => setAmountReceived(e.target.value)}
-                placeholder={cartNetTotal.toString()}
-              />
-            </div>
+          {/* Minimalist Card / Mobile Banking Alert vs Cash Amount Inputs */}
+          {isCash ? (
+            <div className="calc-inputs-grid mb-3">
+              <div className="calc-group">
+                <label className="form-label">Amount Received (Rs.) *</label>
+                <input
+                  type="number"
+                  className="form-input font-mono calc-input font-weight-700"
+                  value={amountReceived !== '' ? amountReceived : (cartNetTotal > 0 ? cartNetTotal : '')}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                  placeholder={cartNetTotal.toString()}
+                />
+              </div>
 
-            {isCash ? (
               <div className="calc-group">
                 <label className="form-label">Change Returned</label>
                 <div className="change-returned-badge font-mono">
                   Rs. {changeReturned.toLocaleString()}
                 </div>
               </div>
-            ) : (
-              <div className="calc-group">
-                <label className="form-label">
-                  {paymentMethod === 'Card' ? 'Card Slip / Auth #' : 'Trx ID / Reference #'}
-                </label>
-                <input
-                  type="text"
-                  className="form-input font-mono text-xs"
-                  placeholder={paymentMethod === 'Card' ? 'e.g. AUTH-98421' : 'e.g. JC-884192'}
-                />
-              </div>
-            )}
-          </div>
-
-          {!isCash && (
-            <div className="digital-settlement-callout mb-3">
-              <div className="flex-align-center gap-2 text-primary font-weight-600 text-xs">
-                <CheckCircle2 size={14} className="text-success flex-shrink-0" />
-                <span>Digital payment via {paymentMethod} recorded in POS ledger</span>
+            </div>
+          ) : (
+            <div className="digital-settlement-alert glass-card p-3 mb-3">
+              <div className="flex-align-center gap-2">
+                <CheckCircle2 size={18} className="text-success flex-shrink-0" />
+                <div>
+                  <div className="font-weight-700 text-main text-sm">
+                    Fixed price (Rs. {cartNetTotal.toLocaleString()}) paid via {paymentMethod}
+                  </div>
+                  <p className="text-xs text-muted mb-0">
+                    Settled directly via digital terminal. No cash change required.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -673,11 +710,17 @@ export const MakeSaleView = () => {
           <button
             type="button"
             className="btn btn-primary btn-checkout-primary hover-lift"
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || cartSubtotal < 0}
             onClick={handleCheckout}
           >
             <Printer size={18} /> Save Order & Print Receipt
           </button>
+
+          {cartSubtotal < 0 && (
+            <p className="text-danger text-xs text-center mt-2 mb-0 font-weight-600">
+              * Add items of at least Rs. {Math.abs(cartSubtotal).toLocaleString()} to complete the exchange.
+            </p>
+          )}
         </div>
       </div>
 
@@ -769,6 +812,141 @@ export const MakeSaleView = () => {
               </button>
               <button className="btn btn-primary" onClick={() => setCompletedSaleData(null)}>
                 Done & Next Customer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE RETURN & EXCHANGE LOOKUP MODAL */}
+      {showReturnModal && (
+        <div className="modal-overlay">
+          <div className="modal-content return-lookup-modal glass-card">
+            <div className="modal-header flex-between">
+              <div className="flex-align-center gap-2">
+                <RotateCcw size={22} className="text-amber" />
+                <div>
+                  <h3 className="mb-0">Invoice Return & Exchange Lookup</h3>
+                  <small className="text-muted">Search previous sales invoices and select items to return for customer exchange.</small>
+                </div>
+              </div>
+              <button className="btn-close" onClick={() => setShowReturnModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body p-3">
+              {/* Search Bar */}
+              <div className="search-barcode-input-group mb-3">
+                <Search size={18} className="search-icon-accent" />
+                <input
+                  type="text"
+                  placeholder="Search by Invoice # (e.g. REC-2026-0801), Date (DD-MM-YYYY), Salesman, or Fabric..."
+                  value={returnSearchQuery}
+                  onChange={(e) => setReturnSearchQuery(e.target.value)}
+                  autoFocus
+                />
+                {returnSearchQuery && (
+                  <button
+                    type="button"
+                    className="btn-text-icon"
+                    onClick={() => setReturnSearchQuery('')}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+
+              {/* Invoices List / Selected Invoice Items Grid */}
+              <div className="return-modal-workspace">
+                <div className="return-invoices-col">
+                  <div className="text-xs font-weight-700 text-subtle text-uppercase mb-2">
+                    Found Invoices ({filteredInvoices.length})
+                  </div>
+                  <div className="return-invoices-list">
+                    {filteredInvoices.length === 0 ? (
+                      <div className="text-center py-4 text-muted text-xs">No matching invoices found.</div>
+                    ) : (
+                      filteredInvoices.map((inv) => (
+                        <div
+                          key={inv.id}
+                          className={`return-invoice-card ${selectedInvoice?.id === inv.id ? 'active' : ''}`}
+                          onClick={() => setSelectedInvoice(inv)}
+                        >
+                          <div className="flex-between">
+                            <strong className="font-mono text-highlight text-sm">{inv.receiptNumber}</strong>
+                            <span className="badge badge-sage badge-compact font-mono">Rs. {inv.netTotal.toLocaleString()}</span>
+                          </div>
+                          <div className="flex-between text-xs text-muted mt-1 font-mono">
+                            <span>{inv.dateTime}</span>
+                            <span>{inv.paymentMethod}</span>
+                          </div>
+                          <div className="text-xs text-muted mt-1 truncate-cell">
+                            {inv.items?.map((it) => it.fabric).join(', ')}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="return-items-col">
+                  <div className="text-xs font-weight-700 text-subtle text-uppercase mb-2">
+                    {selectedInvoice ? `Items in Invoice ${selectedInvoice.receiptNumber}` : 'Select an invoice to view line items'}
+                  </div>
+
+                  {!selectedInvoice ? (
+                    <div className="empty-selection-box text-center py-8 text-muted text-xs">
+                      Click any invoice on the left to inspect items and log returns.
+                    </div>
+                  ) : (
+                    <div className="return-items-list">
+                      {selectedInvoice.items?.map((it, idx) => (
+                        <div key={`${it.barcode}-${idx}`} className="return-item-row-card glass-card p-3 mb-2">
+                          <div className="flex-between">
+                            <div>
+                              <div className="flex-align-center gap-2">
+                                <span className="badge badge-sage badge-compact">
+                                  {it.variantDetails ? it.variantDetails.size : it.unitType || 'Suit'}
+                                </span>
+                                <strong className="text-main">{it.fabric}</strong>
+                              </div>
+                              <div className="text-xs text-muted font-mono mt-1">
+                                {it.barcode} • Sold Qty: {it.unitType === 'Meter' ? `${it.qty} m` : it.qty} @ Rs. {it.unitPrice.toLocaleString()}
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <div className="font-mono font-weight-700 text-sm mb-1">
+                                Rs. {it.total.toLocaleString()}
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-warning btn-sm flex-align-center gap-1"
+                                onClick={() => {
+                                  addReturnItemToCart(it, selectedInvoice.receiptNumber);
+                                  showToast(`Returned item "${it.fabric}" added with -Rs. ${it.total.toLocaleString()} for exchange`, 'success');
+                                  setShowReturnModal(false);
+                                }}
+                              >
+                                <RotateCcw size={12} /> Return for Exchange
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions flex-between p-3">
+              <span className="text-xs text-muted font-weight-600">
+                Returned items will be added with negative value (-Rs. X,XXX) and returned back to stock upon checkout.
+              </span>
+              <button className="btn btn-secondary" onClick={() => setShowReturnModal(false)}>
+                Close
               </button>
             </div>
           </div>

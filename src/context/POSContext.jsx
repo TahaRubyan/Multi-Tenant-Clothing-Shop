@@ -14,7 +14,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v4.0_pakistan_enterprise_textile_dataset';
+const POS_DATA_VERSION = 'v5.0_nova_fashion_jalalpur_jattan';
 
 const getStoredOrDefault = (key, defaultVal) => {
   try {
@@ -264,7 +264,7 @@ export const POSProvider = ({ children }) => {
     }
   };
 
-  // Helper for formatted date & time
+  // Helper for formatted date & time in DD-MM-YYYY format
   const getFormattedNow = () => {
     const now = new Date();
     const yr = now.getFullYear();
@@ -272,7 +272,7 @@ export const POSProvider = ({ children }) => {
     const da = String(now.getDate()).padStart(2, '0');
     const hr = String(now.getHours()).padStart(2, '0');
     const mi = String(now.getMinutes()).padStart(2, '0');
-    return `${yr}-${mo}-${da} ${hr}:${mi}`;
+    return `${da}-${mo}-${yr} ${hr}:${mi}`;
   };
 
   // Role Management
@@ -704,6 +704,36 @@ export const POSProvider = ({ children }) => {
     setWholeSaleDiscountPercent(0);
   };
 
+  const addReturnItemToCart = (invoiceItem, originalInvoiceNumber = '') => {
+    const cartItemId = `return-${invoiceItem.barcode || Date.now()}-${Date.now()}`;
+    const unitPrice = parseFloat(invoiceItem.unitPrice) || 0;
+    const wholesalePrice = parseFloat(invoiceItem.wholesalePrice) || (unitPrice * 0.5);
+
+    setCart(prev => [
+      ...prev,
+      {
+        id: invoiceItem.barcode || `item-${Date.now()}`,
+        cartItemId,
+        barcode: invoiceItem.barcode || 'RET-ITEM',
+        masterBarcode: invoiceItem.barcode || 'RET-ITEM',
+        fabricMaterial: `[RETURN / EXCHANGE] ${invoiceItem.fabric || invoiceItem.fabricMaterial || 'Garment Item'}`,
+        fabricType: invoiceItem.unitType || 'Garment',
+        fabricColor: 'Exchange Return',
+        variantDetails: invoiceItem.variantDetails || null,
+        unitType: invoiceItem.unitType || 'Suit',
+        unitPrice: unitPrice,
+        wholesalePrice: wholesalePrice,
+        stock: 999,
+        qty: parseFloat(invoiceItem.qty) || 1,
+        itemDiscountPercent: 0,
+        itemDiscount: 0,
+        promoTag: `Returned from ${originalInvoiceNumber || 'Past Sale'}`,
+        isReturn: true,
+      }
+    ]);
+    showToast(`Added ${invoiceItem.fabric || invoiceItem.barcode} as negative return for exchange`, 'warning');
+  };
+
   const completeSale = (paymentMethod, amountReceivedInput = null) => {
     if (cart.length === 0) return null;
 
@@ -743,12 +773,19 @@ export const POSProvider = ({ children }) => {
       : 0;
 
     const now = new Date();
-    const receiptNumber = `INV-${now.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const yr = now.getFullYear();
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    const da = String(now.getDate()).padStart(2, '0');
+    const hr = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const formattedDateTime = `${da}-${mo}-${yr} ${hr}:${mi}`;
+
+    const receiptNumber = `INV-${yr}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newSale = {
       receiptNumber,
       tenantId: currentTenantId,
-      dateTime: now.toISOString().replace('T', ' ').substring(0, 16),
+      dateTime: formattedDateTime,
       salesman: currentUser ? currentUser.fullName : 'Walk-in Cashier',
       salesmanId: currentUser ? currentUser.id : 'u-0',
       subtotal,
@@ -906,6 +943,7 @@ export const POSProvider = ({ children }) => {
         getActiveStorewideDiscount,
         cart,
         addToCart,
+        addReturnItemToCart,
         updateCartQty,
         setCartItemMetersAndInches,
         toggleCartReturn,

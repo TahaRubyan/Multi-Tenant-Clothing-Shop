@@ -3,12 +3,12 @@
 export const INITIAL_TENANTS = [
   {
     id: 'tenant-gents-101',
-    name: 'SHAAN Gents Cloth House',
-    tagline: 'Premium Unstitched Men Fabrics, Latha & Boski',
-    city: 'Azam Cloth Market, Lahore',
-    address: 'Shop #14, Gate #3, Azam Market, Lahore, Pakistan',
-    phone: '+92 300 4567890',
-    shopType: 'gents_unstitched', // 'gents_unstitched' | 'ladies_fashion' | 'ready_made_apparel' | 'mixed_garments'
+    name: 'NOVA MEN & WOMEN FASHION',
+    tagline: 'Exclusive Men & Women Ready-to-Wear and Unstitched Fabrics',
+    city: 'Jalal Pur Jattan, Gujrat',
+    address: 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan',
+    phone: '+92 300 1234567',
+    shopType: 'mixed_garments', // 'gents_unstitched' | 'ladies_fashion' | 'ready_made_apparel' | 'mixed_garments'
     ownerName: 'Haji Muhammad Ahmed',
     modules: {
       unstitched_fabric: true,
@@ -18,7 +18,7 @@ export const INITIAL_TENANTS = [
       analytics: true,
     },
     status: 'active',
-    createdAt: '2026-06-01',
+    createdAt: '01-06-2026',
   },
   {
     id: 'tenant-ladies-102',
@@ -849,19 +849,18 @@ export const INITIAL_PROMOTIONAL_DISCOUNTS = [
 ];
 
 export const INITIAL_SHOP_SETTINGS = {
-  shopName: 'SHAAN Gents Cloth House',
-  shopPhone: '+92 300 4567890',
-  shopLocation: 'Shop #14, Gate #3, Azam Cloth Market, Lahore, Pakistan',
+  shopName: 'NOVA MEN & WOMEN FASHION',
+  shopPhone: '+92 300 1234567',
+  shopLocation: 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan',
   currencySymbol: 'Rs.',
-  taxNumber: 'NTN-8492048-2',
-  receiptFooterNote: 'Thank you for shopping at SHAAN Textiles. Exchanges accepted within 14 days with original receipt.',
+  receiptFooterNote: 'Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original receipt.',
 };
 
 export const MOCK_SALES_LOG = [
   {
     receiptNumber: 'INV-2026-9101',
     tenantId: 'tenant-gents-101',
-    dateTime: '2026-09-01 11:20',
+    dateTime: '01-09-2026 11:20',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
     subtotal: 18400,
@@ -881,7 +880,7 @@ export const MOCK_SALES_LOG = [
   {
     receiptNumber: 'INV-2026-9102',
     tenantId: 'tenant-gents-101',
-    dateTime: '2026-09-01 12:45',
+    dateTime: '01-09-2026 12:45',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
     subtotal: 6800,
@@ -900,7 +899,7 @@ export const MOCK_SALES_LOG = [
   {
     receiptNumber: 'INV-2026-9095',
     tenantId: 'tenant-gents-101',
-    dateTime: '2026-08-31 16:15',
+    dateTime: '31-08-2026 16:15',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
     subtotal: 8550,
@@ -919,7 +918,7 @@ export const MOCK_SALES_LOG = [
   {
     receiptNumber: 'INV-2026-9080',
     tenantId: 'tenant-gents-101',
-    dateTime: '2026-08-29 15:10',
+    dateTime: '29-08-2026 15:10',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
     subtotal: 14400,
@@ -938,7 +937,7 @@ export const MOCK_SALES_LOG = [
   {
     receiptNumber: 'INV-2026-9062',
     tenantId: 'tenant-gents-101',
-    dateTime: '2026-08-25 18:30',
+    dateTime: '25-08-2026 18:30',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
     subtotal: 10400,
@@ -966,7 +965,7 @@ export const MOCK_STOCK_UPDATES = [
     qtyAdded: 30,
     unitType: 'Suit',
     reason: 'Restock shipment from Gul Ahmed Wholesalers',
-    dateLogged: '2026-08-28 09:30',
+    dateLogged: '28-08-2026 09:30',
     loggedBy: 'Haji Muhammad Ahmed',
     vendorId: 'ven-1',
   },
@@ -979,7 +978,7 @@ export const MOCK_STOCK_UPDATES = [
     qtyAdded: 60,
     unitType: 'Meter',
     reason: 'Fresh roll addition from Pasha Fabrics Faisalabad',
-    dateLogged: '2026-08-29 11:15',
+    dateLogged: '29-08-2026 11:15',
     loggedBy: 'Haji Muhammad Ahmed',
     vendorId: 'ven-2',
   },
@@ -992,7 +991,7 @@ export const MOCK_STOCK_UPDATES = [
     qtyAdded: 15,
     unitType: 'Box',
     reason: 'Eid Gift Box collection restock',
-    dateLogged: '2026-08-30 14:00',
+    dateLogged: '30-08-2026 14:00',
     loggedBy: 'Haji Muhammad Ahmed',
     vendorId: 'ven-3',
   },
@@ -1008,7 +1007,7 @@ export const MOCK_DAMAGED_ITEMS = [
     qtyRemoved: 2.0,
     unitType: 'Meter',
     reason: 'Bolt edge weaving defect (2.0 meters cut away)',
-    dateLogged: '2026-08-27 11:20',
+    dateLogged: '27-08-2026 11:20',
     loggedBy: 'Tariq Mahmood',
   },
   {
@@ -1020,7 +1019,7 @@ export const MOCK_DAMAGED_ITEMS = [
     qtyRemoved: 1,
     unitType: 'Suit',
     reason: 'Dye bleeding on dupatta piece during unpacking',
-    dateLogged: '2026-08-29 16:40',
+    dateLogged: '29-08-2026 16:40',
     loggedBy: 'Tariq Mahmood',
   },
 ];

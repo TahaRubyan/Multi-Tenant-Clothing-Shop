@@ -187,7 +187,7 @@ export const SettingsView = () => {
       </div>
 
       {/* ========================================================
-          TAB 1: SHOP PROFILE (3 Structured Executive Cards)
+          TAB 1: SHOP PROFILE (Clean Executive Form)
           ======================================================== */}
       {activeSettingsTab === 'shop_profile' && (
         <div className="settings-single-card-layout scrollable-panel">
@@ -200,7 +200,7 @@ export const SettingsView = () => {
                   <div>
                     <h3 className="mb-0">1. Outlet & Brand Identity</h3>
                     <small className="text-muted">
-                      Your business title and contact details rendered across Top Header, Barcodes, and Invoices.
+                      Your business title and contact details rendered across Top Header, Barcode Labels, and Invoices.
                     </small>
                   </div>
                 </div>
@@ -214,7 +214,7 @@ export const SettingsView = () => {
                     className="form-input font-weight-700"
                     value={shopName}
                     onChange={(e) => setShopName(e.target.value)}
-                    placeholder="e.g. SHAAN Gents Cloth House"
+                    placeholder="e.g. NOVA MEN & WOMEN FASHION"
                     required
                   />
                 </div>
@@ -228,7 +228,7 @@ export const SettingsView = () => {
                       className="form-input font-mono"
                       value={shopPhone}
                       onChange={(e) => setShopPhone(e.target.value)}
-                      placeholder="e.g. +92 300 4567890"
+                      placeholder="e.g. +92 300 1234567"
                       required
                     />
                   </div>
@@ -244,56 +244,20 @@ export const SettingsView = () => {
                     className="form-input"
                     value={shopLocation}
                     onChange={(e) => setShopLocation(e.target.value)}
-                    placeholder="e.g. Shop #14, Gate #3, Azam Market, Lahore, Pakistan"
+                    placeholder="e.g. Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan"
                     required
                   />
                 </div>
               </div>
             </div>
 
-            {/* Card 2: Tax Registration & Currency */}
-            <div className="glass-card p-4 mb-4">
-              <div className="card-header-styled mb-3">
-                <div className="flex-align-center gap-2">
-                  <Building size={20} className="text-amber" />
-                  <div>
-                    <h3 className="mb-0">2. Tax & Legal Compliance</h3>
-                    <small className="text-muted">Federal board of revenue and currency parameters.</small>
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-grid-2col">
-                <div className="form-group mb-0">
-                  <label className="form-label">Tax Registration / NTN #</label>
-                  <input
-                    type="text"
-                    className="form-input font-mono"
-                    value={taxNumber}
-                    onChange={(e) => setTaxNumber(e.target.value)}
-                    placeholder="e.g. NTN-8492048-2"
-                  />
-                </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label">System Currency (Locked)</label>
-                  <input
-                    type="text"
-                    className="form-input font-mono"
-                    value="Pakistani Rupee (PKR - Rs.)"
-                    disabled
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: POS Thermal Receipt Policy & Footer Note */}
+            {/* Card 2: POS Thermal Receipt Policy & Footer Note */}
             <div className="glass-card p-4 mb-4">
               <div className="card-header-styled mb-3">
                 <div className="flex-align-center gap-2">
                   <FileText size={20} className="text-primary" />
                   <div>
-                    <h3 className="mb-0">3. Thermal Receipt Customization</h3>
+                    <h3 className="mb-0">2. Thermal Receipt Customization</h3>
                     <small className="text-muted">Return/exchange terms printed at the bottom of customer receipts.</small>
                   </div>
                 </div>
@@ -306,7 +270,7 @@ export const SettingsView = () => {
                   rows="3"
                   value={receiptFooterNote}
                   onChange={(e) => setReceiptFooterNote(e.target.value)}
-                  placeholder="e.g. Thank you for shopping with us. Exchanges accepted within 14 days with original receipt."
+                  placeholder="e.g. Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original receipt."
                 />
               </div>
             </div>
