@@ -597,11 +597,6 @@ export const ProductSetupView = () => {
 
         {/* RIGHT COLUMN: 1.8" x 0.9" Thermal Barcode Sticker Preview & Action Buttons */}
         <div className="glass-card setup-preview-side-card">
-          <div className="preview-label mb-2 text-center flex-align-center justify-center gap-1">
-            <Barcode size={16} />
-            <span>Thermal Barcode Label (1.8" × 0.9")</span>
-          </div>
-
           {/* Professional 1.8" x 0.9" Thermal Barcode Sticker (Standard Ratio) */}
           <div className="thermal-barcode-label-18x09">
             <div className="tbl-header-brand">

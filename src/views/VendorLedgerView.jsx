@@ -182,13 +182,13 @@ export const VendorLedgerView = () => {
                 >
                   <div className="vendor-item-top">
                     <strong className="vendor-name-title">{v.vendorName}</strong>
-                    <span className={`badge ${due > 0 ? 'badge-danger' : 'badge-sage'} badge-compact`}>
+                    <span className={`badge ${due > 0 ? 'badge-danger font-mono font-weight-700' : 'badge-success font-mono font-weight-700'} badge-compact`}>
                       {due > 0 ? `DUE: Rs. ${due.toLocaleString()}` : 'SETTLED'}
                     </span>
                   </div>
                   <div className="vendor-item-sub">
-                    <span><Building2 size={12} /> {v.contactPerson}</span>
-                    <span><MapPin size={12} /> {v.city}</span>
+                    <span><Building2 size={13} className="text-muted" /> {v.contactPerson}</span>
+                    <span><MapPin size={13} className="text-muted" /> {v.city}</span>
                   </div>
                 </div>
               );

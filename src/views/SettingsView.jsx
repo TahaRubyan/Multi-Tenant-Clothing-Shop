@@ -187,25 +187,26 @@ export const SettingsView = () => {
       </div>
 
       {/* ========================================================
-          TAB 1: SHOP PROFILE (Clean Enterprise Form)
+          TAB 1: SHOP PROFILE (3 Structured Executive Cards)
           ======================================================== */}
       {activeSettingsTab === 'shop_profile' && (
         <div className="settings-single-card-layout scrollable-panel">
-          <div className="glass-card settings-card enterprise-form-card">
-            <div className="card-header-styled mb-4">
-              <div className="flex-align-center gap-2">
-                <Store size={22} className="text-primary" />
-                <div>
-                  <h3 className="mb-0">Shop Profile & Business Details</h3>
-                  <small className="text-muted">
-                    Information saved here synchronizes across the Top Header, Barcode Labels, Receipts, and Reports.
-                  </small>
+          <form onSubmit={handleSaveShopDetails} className="enterprise-form-card">
+            {/* Card 1: Outlet & Brand Identity */}
+            <div className="glass-card p-4 mb-4">
+              <div className="card-header-styled mb-3">
+                <div className="flex-align-center gap-2">
+                  <Store size={20} className="text-primary" />
+                  <div>
+                    <h3 className="mb-0">1. Outlet & Brand Identity</h3>
+                    <small className="text-muted">
+                      Your business title and contact details rendered across Top Header, Barcodes, and Invoices.
+                    </small>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <form onSubmit={handleSaveShopDetails}>
-              <div className="form-grid-2col mb-4">
+              <div className="form-grid-2col mb-3">
                 <div className="form-group mb-0">
                   <label className="form-label">Shop / Outlet Name *</label>
                   <input
@@ -234,24 +235,37 @@ export const SettingsView = () => {
                 </div>
               </div>
 
-              <div className="form-grid-2col mb-4">
-                <div className="form-group mb-0">
-                  <label className="form-label">Market Address & City *</label>
-                  <div className="input-with-icon">
-                    <MapPin size={16} className="input-icon" />
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={shopLocation}
-                      onChange={(e) => setShopLocation(e.target.value)}
-                      placeholder="e.g. Shop #14, Gate #3, Azam Market, Lahore, Pakistan"
-                      required
-                    />
+              <div className="form-group mb-0">
+                <label className="form-label">Market Address & City *</label>
+                <div className="input-with-icon">
+                  <MapPin size={16} className="input-icon" />
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={shopLocation}
+                    onChange={(e) => setShopLocation(e.target.value)}
+                    placeholder="e.g. Shop #14, Gate #3, Azam Market, Lahore, Pakistan"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Tax Registration & Currency */}
+            <div className="glass-card p-4 mb-4">
+              <div className="card-header-styled mb-3">
+                <div className="flex-align-center gap-2">
+                  <Building size={20} className="text-amber" />
+                  <div>
+                    <h3 className="mb-0">2. Tax & Legal Compliance</h3>
+                    <small className="text-muted">Federal board of revenue and currency parameters.</small>
                   </div>
                 </div>
+              </div>
 
+              <div className="form-grid-2col">
                 <div className="form-group mb-0">
-                  <label className="form-label">Tax Registration / NTN</label>
+                  <label className="form-label">Tax Registration / NTN #</label>
                   <input
                     type="text"
                     className="form-input font-mono"
@@ -260,45 +274,59 @@ export const SettingsView = () => {
                     placeholder="e.g. NTN-8492048-2"
                   />
                 </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">System Currency (Locked)</label>
+                  <input
+                    type="text"
+                    className="form-input font-mono"
+                    value="Pakistani Rupee (PKR - Rs.)"
+                    disabled
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: POS Thermal Receipt Policy & Footer Note */}
+            <div className="glass-card p-4 mb-4">
+              <div className="card-header-styled mb-3">
+                <div className="flex-align-center gap-2">
+                  <FileText size={20} className="text-primary" />
+                  <div>
+                    <h3 className="mb-0">3. Thermal Receipt Customization</h3>
+                    <small className="text-muted">Return/exchange terms printed at the bottom of customer receipts.</small>
+                  </div>
+                </div>
               </div>
 
-              <div className="form-group mb-4">
-                <label className="form-label">Thermal Receipt Footer Policy / Thank You Note</label>
+              <div className="form-group mb-0">
+                <label className="form-label">Receipt Footer Note / Return Policy</label>
                 <textarea
                   className="form-input"
                   rows="3"
                   value={receiptFooterNote}
                   onChange={(e) => setReceiptFooterNote(e.target.value)}
-                  placeholder="e.g. Thank you for shopping at SHAAN Textiles. Returns and exchanges accepted within 14 days with original receipt."
+                  placeholder="e.g. Thank you for shopping with us. Exchanges accepted within 14 days with original receipt."
                 />
               </div>
+            </div>
 
-              <div className="form-group mb-4">
-                <label className="form-label">System Currency (Locked)</label>
-                <input
-                  type="text"
-                  className="form-input font-mono"
-                  value="Pakistani Rupee (PKR - Rs.)"
-                  disabled
-                />
-              </div>
+            {/* Action Bar */}
+            <div className="glass-card p-3 flex-between">
+              <button type="submit" className="btn btn-primary btn-lg">
+                <Save size={16} /> Save Shop Profile
+              </button>
 
-              <div className="flex-between pt-3 border-top-divider">
-                <button type="submit" className="btn btn-primary">
-                  <Save size={16} /> Save Shop Profile
-                </button>
-
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={resetToDemoData}
-                  title="Reload Complete Pakistani Textile Dataset"
-                >
-                  <RotateCcw size={15} /> Reload Demo Data
-                </button>
-              </div>
-            </form>
-          </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={resetToDemoData}
+                title="Reload Complete Pakistani Textile Dataset"
+              >
+                <RotateCcw size={15} /> Reload Demo Data
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
