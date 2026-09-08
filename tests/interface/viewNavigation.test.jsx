@@ -45,8 +45,13 @@ describe('Interface & Component View Tests', () => {
     );
 
     expect(screen.getAllByText(/Shop Profile/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Product Templates/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Staff Accounts/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Roles & Authorities/i).length).toBeGreaterThan(0);
+
+    // Switch to Product Templates
+    fireEvent.click(screen.getByRole('button', { name: /Product Templates/i }));
+    expect(screen.getByText(/Product Categories & Attribute Templates/i)).toBeInTheDocument();
 
     // Switch to Staff Accounts
     fireEvent.click(screen.getByRole('button', { name: /Staff Accounts/i }));

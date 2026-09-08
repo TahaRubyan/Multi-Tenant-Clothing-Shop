@@ -28,20 +28,24 @@ export const ProductSetupView = () => {
     apparelCategories,
     addApparelCategory,
     vendors,
+    productTemplates = [],
   } = usePOS();
 
-  // Mode: 'unstitched' (Suits/Meters/Boxes) vs 'apparel' (Ready-Made Shirts/Trousers/Pants)
+  // Mode: 'unstitched' (Suits/Boxes) vs 'apparel' (Ready-Made Shirts/Trousers/Pants/Templates)
   const [productType, setProductType] = useState(() => {
     return hasModule('ready_made_apparel') && !hasModule('unstitched_fabric')
       ? 'apparel'
       : 'unstitched';
   });
 
+  // Department / Gender Classification
+  const [department, setDepartment] = useState('Gents'); // 'Gents' | 'Ladies' | 'Boxes' | 'Unisex'
+
   // Selected Vendor / Mill Sourcing
   const [selectedVendorId, setSelectedVendorId] = useState('');
 
   // UNSTITCHED FABRIC STATE
-  const [unitType, setUnitType] = useState('Suit'); // 'Suit' | 'Box' | 'Meter'
+  const [unitType, setUnitType] = useState('Suit'); // 'Suit' | 'Box' | 'Piece' | 'Set'
   const [fabricTypeSelect, setFabricTypeSelect] = useState('Lawn');
   const [customFabricType, setCustomFabricType] = useState('');
   const [isCustomFabric, setIsCustomFabric] = useState(false);
@@ -141,6 +145,36 @@ export const ProductSetupView = () => {
     setShowAddCategoryModal(false);
   };
 
+  const handleSelectTemplate = (tmplId) => {
+    const tmpl = productTemplates.find((t) => t.id === tmplId);
+    if (!tmpl) return;
+    setApparelCategory(tmpl.name);
+    setDepartment(tmpl.department || 'Gents');
+    setUnitType(tmpl.unitType || 'Piece');
+    if (tmpl.availableSizes?.length) {
+      setSelectedSizes(tmpl.availableSizes);
+      const prefix = tmpl.name.includes('Shirt')
+        ? 'SHT'
+        : tmpl.name.includes('Pant') || tmpl.name.includes('Trouser')
+        ? 'TRS'
+        : tmpl.name.includes('Waistcoat')
+        ? 'WST'
+        : 'APP';
+      const colorCode = (apparelColor || 'VAR').substring(0, 3).toUpperCase();
+      const newRows = tmpl.availableSizes.map((sz, idx) => ({
+        id: `v-${Date.now()}-${idx}`,
+        size: sz,
+        color: apparelColor || 'Standard',
+        sku: `${prefix}-${colorCode}-${sz.replace(/[^a-zA-Z0-9]/g, '')}`,
+        stock: 10,
+        retailPrice: parseFloat(apparelBaseRetail) || 2800,
+        wholesalePrice: parseFloat(apparelBaseWholesale) || 1200,
+      }));
+      setVariantRows(newRows);
+      showToast(`Loaded "${tmpl.name}" attribute matrix (${tmpl.availableSizes.length} sizes)`, 'info');
+    }
+  };
+
   const handleSaveProduct = (e) => {
     e.preventDefault();
 
@@ -153,6 +187,7 @@ export const ProductSetupView = () => {
       const activeBarcode = customBarcode || generateBarcodeString();
       const newProd = addProduct({
         productType: 'unstitched',
+        department,
         unitType,
         barcode: activeBarcode,
         fabricType: effectiveFabricType,
@@ -190,6 +225,7 @@ export const ProductSetupView = () => {
 
       const newProd = addProduct({
         productType: 'apparel',
+        department,
         barcode: masterBarcode,
         apparelCategory,
         fabricType: 'Apparel',
@@ -199,7 +235,7 @@ export const ProductSetupView = () => {
         retailPrice: parseFloat(apparelBaseRetail) || 0,
         initialStock: totalVariantStock,
         reorderLimit: parseFloat(apparelReorderLimit) || 10,
-        unitType: 'Piece',
+        unitType: unitType || 'Piece',
         variants: variantRows,
         vendorId: selectedVendorId,
       });

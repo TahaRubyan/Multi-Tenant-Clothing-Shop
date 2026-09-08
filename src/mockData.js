@@ -853,8 +853,84 @@ export const INITIAL_SHOP_SETTINGS = {
   shopPhone: '+92 300 1234567',
   shopLocation: 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan',
   currencySymbol: 'Rs.',
+  taxNumber: 'NTN-8492048-2',
+  discountPin: '1234',
   receiptFooterNote: 'Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original receipt.',
 };
+
+export const INITIAL_PRODUCT_TEMPLATES = [
+  {
+    id: 'tmpl-1',
+    name: 'Formal & Casual Shirt',
+    department: 'Gents',
+    unitType: 'Piece',
+    availableSizes: ['S (38)', 'M (40)', 'L (42)', 'XL (44)', 'XXL (46)'],
+    availableFabrics: ['Cotton Oxford', 'Linen', 'Egyptian Giza Cotton', 'Polyester Blend'],
+    fits: ['Slim Fit', 'Regular Fit', 'Classic'],
+  },
+  {
+    id: 'tmpl-2',
+    name: 'Dress Pants & Chinos',
+    department: 'Gents',
+    unitType: 'Piece',
+    availableSizes: ['W30 L32', 'W32 L32', 'W34 L32', 'W36 L32', 'W38 L32', 'W40 L32'],
+    availableFabrics: ['Stretch Cotton Twill', 'Wool Blend', 'Raw Denim', 'Tropical Poly-Viscose'],
+    fits: ['Slim Fit', 'Straight Fit', 'Tailored Fit'],
+  },
+  {
+    id: 'tmpl-3',
+    name: 'Gents Waistcoat & Blazer',
+    department: 'Gents',
+    unitType: 'Piece',
+    availableSizes: ['36', '38', '40', '42', '44', '46'],
+    availableFabrics: ['Raw Silk', 'Velvet', 'Jacquard', 'Tropical Wool'],
+    fits: ['Slim Fit', 'Standard'],
+  },
+  {
+    id: 'tmpl-4',
+    name: 'Gents Kurta & Shalwar Kameez',
+    department: 'Gents',
+    unitType: 'Suit',
+    availableSizes: ['S', 'M', 'L', 'XL'],
+    availableFabrics: ['Boski Silk', 'Cotton Latha', 'Wash & Wear', 'Khaddar'],
+    fits: ['Regular', 'Smart Fit'],
+  },
+  {
+    id: 'tmpl-5',
+    name: 'Ladies 3-Piece Stitched Pret',
+    department: 'Ladies',
+    unitType: 'Suit',
+    availableSizes: ['XS', 'S', 'M', 'L', 'XL'],
+    availableFabrics: ['Premium Printed Lawn', 'Chiffon Embroidered', 'Silk', 'Jacquard'],
+    fits: ['Standard', 'A-Line', 'Frock'],
+  },
+  {
+    id: 'tmpl-6',
+    name: 'Suit in Gift Box (Packaged)',
+    department: 'Boxes',
+    unitType: 'Box',
+    availableSizes: ['Standard Unstitched Box', 'Premium Gift Set Box'],
+    availableFabrics: ['Boski Pure Silk', 'Pasha Latha', 'Gul Ahmed Jacquard'],
+    fits: ['Box Packaging'],
+  },
+];
+
+export const INITIAL_DAY_SETTLEMENTS = [
+  {
+    id: 'set-2026-0901',
+    date: '01-09-2026',
+    closedAt: '01-09-2026 21:30',
+    closedBy: 'Haji Muhammad Ahmed (Admin)',
+    cashierName: 'Tariq Mahmood',
+    expectedCash: 34500,
+    actualCash: 34500,
+    discrepancy: 0,
+    digitalSales: 28000,
+    totalSales: 62500,
+    status: 'balanced',
+    reasonNote: 'Cashier drawer balanced perfectly with counter register.',
+  }
+];
 
 export const MOCK_SALES_LOG = [
   {

@@ -532,42 +532,72 @@ export const AnalyticsView = () => {
                 <div>Payment Mode: <strong>{selectedInvoice.paymentMethod}</strong></div>
               </div>
 
-              <h4 className="mt-3 mb-2 text-xs text-uppercase font-weight-700">Purchased Items</h4>
+              <h4 className="mt-3 mb-2 text-xs text-uppercase font-weight-700 flex-between">
+                <span>Itemized Breakdown & Profit Margin Analysis</span>
+                <span className="badge badge-sage badge-compact">
+                  Gross Profit: Rs. {selectedInvoice.grossProfit.toLocaleString()}
+                </span>
+              </h4>
               <div className="stock-table-container">
                 <table className="data-table analytics-data-table">
                   <thead>
                     <tr>
                       <th style={{ width: '110px' }}>Barcode</th>
                       <th>Item Description</th>
-                      <th style={{ width: '100px' }}>Unit Price</th>
+                      <th style={{ width: '90px' }}>Sale Price</th>
+                      <th style={{ width: '90px' }}>Cost Price</th>
                       <th style={{ width: '50px' }} className="text-center">Qty</th>
-                      <th style={{ width: '110px' }} className="text-right">Total</th>
+                      <th style={{ width: '95px' }} className="text-right">Line Total</th>
+                      <th style={{ width: '120px' }} className="text-right">Per-Item Profit</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedInvoice.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="font-mono text-highlight font-weight-600">{item.barcode}</td>
-                        <td className="item-details-stacked-cell">
-                          <div className="item-title font-weight-600">{item.fabric}</div>
-                          <div className="item-sub-detail text-subtle text-xs">
-                            {item.isReturn ? 'Return Item' : 'Garment Sale'}
-                          </div>
-                        </td>
-                        <td className="font-mono">Rs. {item.unitPrice.toLocaleString()}</td>
-                        <td className="text-center font-mono font-weight-700">{item.qty}</td>
-                        <td className="text-right font-mono font-weight-700">Rs. {item.total.toLocaleString()}</td>
-                      </tr>
-                    ))}
+                    {selectedInvoice.items.map((item, idx) => {
+                      const cost = item.wholesalePrice || Math.round(item.unitPrice * 0.45);
+                      const lineGross = item.unitPrice * item.qty - (item.itemDiscount || 0);
+                      const totalCost = cost * item.qty;
+                      const profit = item.isReturn ? 0 : lineGross - totalCost;
+                      const marginPct = lineGross > 0 ? ((profit / lineGross) * 100).toFixed(0) : '0';
+
+                      return (
+                        <tr key={idx}>
+                          <td className="font-mono text-highlight font-weight-600">{item.barcode}</td>
+                          <td className="item-details-stacked-cell">
+                            <div className="item-title font-weight-600">{item.fabric}</div>
+                            <div className="item-sub-detail text-subtle text-xs">
+                              {item.isReturn ? 'Customer Return (Negative Line)' : 'Garment Sale'}
+                            </div>
+                          </td>
+                          <td className="font-mono">Rs. {item.unitPrice.toLocaleString()}</td>
+                          <td className="font-mono text-muted text-xs">Rs. {cost.toLocaleString()}</td>
+                          <td className="text-center font-mono font-weight-700">{item.qty}</td>
+                          <td className="text-right font-mono font-weight-700">Rs. {item.total.toLocaleString()}</td>
+                          <td className="text-right font-mono font-weight-800">
+                            {item.isReturn ? (
+                              <span className="text-muted text-xs">Return</span>
+                            ) : (
+                              <span className="text-success">
+                                +Rs. {profit.toLocaleString()} <small className="text-xxs text-muted">({marginPct}%)</small>
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               <div className="drawer-financials-summary mt-3 font-mono">
                 <div className="d-row"><span>Subtotal:</span> <span>Rs. {selectedInvoice.subtotal.toLocaleString()}</span></div>
-                <div className="d-row"><span>Discount:</span> <span>-Rs. {((selectedInvoice.wholeSaleDiscount || 0) + (selectedInvoice.storewideDiscount || 0)).toLocaleString()}</span></div>
-                <div className="d-row d-bold border-top pt-1 mt-1"><span>NET TOTAL:</span> <span>Rs. {selectedInvoice.netTotal.toLocaleString()}</span></div>
-                <div className="d-row text-success"><span>Gross Profit:</span> <span>Rs. {selectedInvoice.grossProfit.toLocaleString()}</span></div>
+                <div className="d-row"><span>Discount:</span> <span className="text-amber">-Rs. {((selectedInvoice.wholeSaleDiscount || 0) + (selectedInvoice.storewideDiscount || 0)).toLocaleString()}</span></div>
+                <div className="d-row d-bold border-top pt-1 mt-1"><span>NET REVENUE:</span> <span>Rs. {selectedInvoice.netTotal.toLocaleString()}</span></div>
+                <div className="d-row text-success font-weight-800">
+                  <span>INVOICE GROSS PROFIT:</span>
+                  <span>
+                    Rs. {selectedInvoice.grossProfit.toLocaleString()} ({selectedInvoice.netTotal > 0 ? ((selectedInvoice.grossProfit / selectedInvoice.netTotal) * 100).toFixed(1) : 0}%)
+                  </span>
+                </div>
               </div>
 
               <div className="receipt-footer-print text-center mt-3 pt-2 border-top text-xs text-muted">

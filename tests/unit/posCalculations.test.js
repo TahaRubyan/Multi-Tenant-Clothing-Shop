@@ -104,4 +104,33 @@ describe('POS Unit Calculations', () => {
       expect(balanceOwed).toBe(85000);
     });
   });
+
+  describe('Per-Item Profit & Day Settlement Discrepancy Math', () => {
+    it('calculates per-item net profit correctly (Retail Gross - Wholesale Cost)', () => {
+      const unitPrice = 4200;
+      const wholesaleCost = 1850;
+      const qty = 2;
+      const itemDiscount = 400;
+
+      const lineGross = unitPrice * qty - itemDiscount; // 8400 - 400 = 8000
+      const totalCost = wholesaleCost * qty; // 3700
+      const itemProfit = lineGross - totalCost; // 4300
+      const marginPct = ((itemProfit / lineGross) * 100).toFixed(1);
+
+      expect(itemProfit).toBe(4300);
+      expect(marginPct).toBe('53.8');
+    });
+
+    it('calculates day-end cash register discrepancy (Actual - Expected)', () => {
+      const expectedCash = 45000;
+      const actualCashShortage = 44200;
+      const actualCashBalanced = 45000;
+
+      const shortageDiscrepancy = actualCashShortage - expectedCash;
+      const balancedDiscrepancy = actualCashBalanced - expectedCash;
+
+      expect(shortageDiscrepancy).toBe(-800);
+      expect(balancedDiscrepancy).toBe(0);
+    });
+  });
 });

@@ -21,6 +21,7 @@ import {
   Percent,
   Shirt,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const MakeSaleView = () => {
@@ -47,9 +48,17 @@ export const MakeSaleView = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedDepartment, setSelectedDepartment] = useState('all'); // 'all' | 'Gents' | 'Ladies' | 'Boxes'
   const [amountReceived, setAmountReceived] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // 'Cash' | 'Card' | 'Mobile Banking'
   const [completedSaleData, setCompletedSaleData] = useState(null);
+
+  // Wholesale Discount PIN Protection State
+  const [isDiscountPinUnlocked, setIsDiscountPinUnlocked] = useState(false);
+  const [showPinPromptModal, setShowPinPromptModal] = useState(false);
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pendingDiscountValue, setPendingDiscountValue] = useState('');
+  const [pinError, setPinError] = useState('');
 
   // Invoice Return / Exchange Lookup Modal State
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -71,6 +80,7 @@ export const MakeSaleView = () => {
           isVariant: true,
           variant: v,
           product: p,
+          department: p.department || 'Gents',
           barcode: v.sku,
           masterBarcode: p.barcode,
           fabricMaterial: p.fabricMaterial,
@@ -88,6 +98,7 @@ export const MakeSaleView = () => {
         isVariant: false,
         variant: null,
         product: p,
+        department: p.department || (p.unitType === 'Box' ? 'Boxes' : p.fabricMaterial.toLowerCase().includes('ladies') ? 'Ladies' : 'Gents'),
         barcode: p.barcode,
         masterBarcode: p.barcode,
         fabricMaterial: p.fabricMaterial,
@@ -101,10 +112,34 @@ export const MakeSaleView = () => {
     }
   });
 
+  // Department-filtered list
+  const departmentFilteredItems = flattenedSearchItems.filter((item) => {
+    if (selectedDepartment === 'all') return true;
+    if (selectedDepartment === 'Boxes') return item.unitType === 'Box';
+    if (selectedDepartment === 'Ladies') {
+      return (
+        item.department === 'Ladies' ||
+        item.fabricMaterial.toLowerCase().includes('ladies') ||
+        item.fabricType.toLowerCase().includes('pret')
+      );
+    }
+    if (selectedDepartment === 'Gents') {
+      return (
+        item.department === 'Gents' ||
+        item.fabricMaterial.toLowerCase().includes('gents') ||
+        item.fabricMaterial.toLowerCase().includes('latha') ||
+        item.fabricMaterial.toLowerCase().includes('boski') ||
+        item.fabricType.toLowerCase().includes('shirt') ||
+        item.fabricType.toLowerCase().includes('trouser')
+      );
+    }
+    return true;
+  });
+
   // When focused or search query typed: if empty query, show ALL items; otherwise filter by name, barcode, SKU
   const searchResults = isSearchFocused
     ? searchQuery.trim()
-      ? flattenedSearchItems.filter((item) => {
+      ? departmentFilteredItems.filter((item) => {
           const q = searchQuery.toLowerCase();
           return (
             item.barcode.toLowerCase().includes(q) ||
@@ -115,7 +150,7 @@ export const MakeSaleView = () => {
             (item.unitType && item.unitType.toLowerCase().includes(q))
           );
         })
-      : flattenedSearchItems
+      : departmentFilteredItems
     : [];
 
   // Scroll active item into view within search dropdown
@@ -127,6 +162,32 @@ export const MakeSaleView = () => {
       });
     }
   }, [selectedIndex]);
+
+  const handleDiscountChangeAttempt = (val) => {
+    if (isDiscountPinUnlocked) {
+      setWholeSaleDiscountPercent(val);
+    } else {
+      setPendingDiscountValue(val);
+      setShowPinPromptModal(true);
+      setPinError('');
+      setEnteredPin('');
+    }
+  };
+
+  const handleVerifyPinSubmit = (e) => {
+    e.preventDefault();
+    const correctPin = shopSettings?.discountPin || '1234';
+    if (enteredPin === correctPin) {
+      setIsDiscountPinUnlocked(true);
+      setWholeSaleDiscountPercent(pendingDiscountValue || '10');
+      setShowPinPromptModal(false);
+      setPinError('');
+      showToast('Manager PIN verified! Overall wholesale discount unlocked.', 'success');
+    } else {
+      setPinError('Incorrect Manager PIN. Authorization denied.');
+      setWholeSaleDiscountPercent('0');
+    }
+  };
 
   // Handle clicking outside of search dropdown
   useEffect(() => {
@@ -274,8 +335,51 @@ export const MakeSaleView = () => {
 
   return (
     <div className="view-container make-sale-full-view">
-      {/* TOP: Search Bar & Barcode Scanner */}
+      {/* TOP: Search Bar & Department Filter Tabs */}
       <div className="pos-search-header-card glass-card">
+        <div className="department-filter-bar flex-align-center gap-1 mb-2">
+          <button
+            type="button"
+            className={`dept-filter-pill ${selectedDepartment === 'all' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedDepartment('all');
+              setSelectedIndex(0);
+            }}
+          >
+            All Inventory
+          </button>
+          <button
+            type="button"
+            className={`dept-filter-pill ${selectedDepartment === 'Gents' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedDepartment('Gents');
+              setSelectedIndex(0);
+            }}
+          >
+            👔 Gents Collection
+          </button>
+          <button
+            type="button"
+            className={`dept-filter-pill ${selectedDepartment === 'Ladies' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedDepartment('Ladies');
+              setSelectedIndex(0);
+            }}
+          >
+            👗 Ladies Collection
+          </button>
+          <button
+            type="button"
+            className={`dept-filter-pill ${selectedDepartment === 'Boxes' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedDepartment('Boxes');
+              setSelectedIndex(0);
+            }}
+          >
+            🎁 Suit in Box
+          </button>
+        </div>
+
         <form onSubmit={handleBarcodeSubmit} className="search-barcode-form">
           <div className="search-barcode-input-group">
             <Search size={22} className="search-icon-accent" />
@@ -587,23 +691,34 @@ export const MakeSaleView = () => {
               </div>
             )}
 
-            {/* Percentage-Based Overall Wholesale Discount */}
+            {/* Percentage-Based Overall Wholesale Discount (PIN Protected) */}
             <div className="t-row whole-discount-box">
               <div className="flex-column">
-                <span>Wholesale Discount (%)</span>
+                <div className="flex-align-center gap-1">
+                  <span>Wholesale Discount (%)</span>
+                  {isDiscountPinUnlocked ? (
+                    <span className="badge badge-success badge-compact text-xxs">Unlocked</span>
+                  ) : (
+                    <span className="badge badge-warning badge-compact text-xxs">PIN Protected</span>
+                  )}
+                </div>
                 {wholeSaleDiscountAmt > 0 && (
                   <span className="text-xs font-mono text-amber">-Rs. {wholeSaleDiscountAmt.toLocaleString()}</span>
                 )}
               </div>
-              <div className="discount-input-field">
-                <Tag size={14} className="text-muted" />
+              <div
+                className="discount-input-field"
+                onClick={() => !isDiscountPinUnlocked && handleDiscountChangeAttempt('10')}
+              >
+                <Tag size={14} className={isDiscountPinUnlocked ? 'text-primary' : 'text-muted'} />
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={wholeSaleDiscountPercent || ''}
-                  onChange={(e) => setWholeSaleDiscountPercent(e.target.value)}
+                  onChange={(e) => handleDiscountChangeAttempt(e.target.value)}
                   placeholder="0"
+                  readOnly={!isDiscountPinUnlocked}
                 />
                 <span className="font-weight-700 text-subtle">%</span>
               </div>
@@ -933,6 +1048,59 @@ export const MakeSaleView = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wholesale Discount PIN Authorization Modal */}
+      {showPinPromptModal && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-sm glass-card p-4 text-center">
+            <div className="brand-icon-badge mx-auto mb-2">
+              <ShieldCheck size={28} className="text-primary" />
+            </div>
+            <h3 className="text-md font-weight-700 mb-1">Manager Authorization Required</h3>
+            <p className="text-xs text-muted mb-3">
+              Wholesale cart discounts require manager verification. Enter the 4-digit PIN.
+            </p>
+
+            <form onSubmit={handleVerifyPinSubmit}>
+              <div className="form-group mb-3">
+                <input
+                  type="password"
+                  maxLength="6"
+                  className="form-input text-center font-mono font-weight-800 text-lg tracking-wider"
+                  value={enteredPin}
+                  onChange={(e) => setEnteredPin(e.target.value)}
+                  placeholder="••••"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {pinError && (
+                <div className="text-danger text-xs mb-3 font-weight-600">
+                  {pinError}
+                </div>
+              )}
+
+              <div className="modal-actions flex-between">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setShowPinPromptModal(false);
+                    setEnteredPin('');
+                    setPinError('');
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary btn-sm">
+                  Authorize Discount
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

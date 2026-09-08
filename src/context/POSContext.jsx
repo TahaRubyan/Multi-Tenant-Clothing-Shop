@@ -7,6 +7,8 @@ import {
   INITIAL_VENDORS,
   INITIAL_PROMOTIONAL_DISCOUNTS,
   INITIAL_SHOP_SETTINGS,
+  INITIAL_PRODUCT_TEMPLATES,
+  INITIAL_DAY_SETTLEMENTS,
   MOCK_SALES_LOG,
   MOCK_STOCK_UPDATES,
   MOCK_DAMAGED_ITEMS,
@@ -14,7 +16,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v5.0_nova_fashion_jalalpur_jattan';
+const POS_DATA_VERSION = 'v6.0_nova_fashion_scenario_upgrades';
 
 const getStoredOrDefault = (key, defaultVal) => {
   try {
@@ -55,6 +57,17 @@ export const POSProvider = ({ children }) => {
   // Shop Settings
   const [shopSettings, setShopSettings] = useState(() => getStoredOrDefault('pos_shopSettings', INITIAL_SHOP_SETTINGS));
 
+  // Product Templates & Custom Attribute Sets
+  const [productTemplates, setProductTemplates] = useState(() =>
+    getStoredOrDefault('pos_product_templates', INITIAL_PRODUCT_TEMPLATES)
+  );
+
+  // Day-End Cash Register Settlements
+  const [daySettlements, setDaySettlements] = useState(() =>
+    getStoredOrDefault('pos_day_settlements', INITIAL_DAY_SETTLEMENTS)
+  );
+  const [showDaySettlementModal, setShowDaySettlementModal] = useState(false);
+
   // Apparel Categories List (Dynamic Category Addition)
   const DEFAULT_APPAREL_CATEGORIES = [
     'Formal Shirt',
@@ -89,6 +102,8 @@ export const POSProvider = ({ children }) => {
   useEffect(() => { localStorage.setItem('pos_roles', JSON.stringify(roles)); }, [roles]);
   useEffect(() => { localStorage.setItem('pos_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('pos_shopSettings', JSON.stringify(shopSettings)); }, [shopSettings]);
+  useEffect(() => { localStorage.setItem('pos_product_templates', JSON.stringify(productTemplates)); }, [productTemplates]);
+  useEffect(() => { localStorage.setItem('pos_day_settlements', JSON.stringify(daySettlements)); }, [daySettlements]);
   useEffect(() => { localStorage.setItem('pos_apparel_categories', JSON.stringify(apparelCategories)); }, [apparelCategories]);
   useEffect(() => { localStorage.setItem('pos_products', JSON.stringify(allProducts)); }, [allProducts]);
   useEffect(() => { localStorage.setItem('pos_vendors', JSON.stringify(allVendors)); }, [allVendors]);
@@ -117,6 +132,8 @@ export const POSProvider = ({ children }) => {
     setRoles(INITIAL_ROLES);
     setUsers(INITIAL_USERS);
     setShopSettings(INITIAL_SHOP_SETTINGS);
+    setProductTemplates(INITIAL_PRODUCT_TEMPLATES);
+    setDaySettlements(INITIAL_DAY_SETTLEMENTS);
     setApparelCategories(DEFAULT_APPAREL_CATEGORIES);
     setAllProducts(INITIAL_PRODUCTS);
     setAllVendors(INITIAL_VENDORS);
@@ -138,6 +155,50 @@ export const POSProvider = ({ children }) => {
       return true;
     }
     return false;
+  };
+
+  // Product Templates Management
+  const addProductTemplate = (templateData) => {
+    const newTemplate = {
+      ...templateData,
+      id: `tmpl-${Date.now()}`,
+    };
+    setProductTemplates(prev => [newTemplate, ...prev]);
+    showToast(`Created product template: "${templateData.name}"`, 'success');
+    return newTemplate;
+  };
+
+  const deleteProductTemplate = (templateId) => {
+    setProductTemplates(prev => prev.filter(t => t.id !== templateId));
+    showToast('Deleted product template', 'info');
+  };
+
+  // Staff Password Reset
+  const resetUserPassword = (userId, newPassword) => {
+    setUsers(prev =>
+      prev.map(u => (u.id === userId ? { ...u, password: newPassword } : u))
+    );
+    showToast('Password updated successfully', 'success');
+  };
+
+  // Day-End Cash Register Settlement
+  const recordDaySettlement = (settlementData) => {
+    const now = new Date();
+    const yr = now.getFullYear();
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    const da = String(now.getDate()).padStart(2, '0');
+    const hr = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const formattedDateTime = `${da}-${mo}-${yr} ${hr}:${mi}`;
+
+    const newEntry = {
+      id: `set-${Date.now()}`,
+      closedAt: formattedDateTime,
+      ...settlementData,
+    };
+    setDaySettlements(prev => [newEntry, ...prev]);
+    showToast('Day-end cash settlement recorded and register closed for today', 'success');
+    return newEntry;
   };
 
   // TENANT-ISOLATED DATA VIEWS (ROW-LEVEL FILTERING)
@@ -978,6 +1039,14 @@ export const POSProvider = ({ children }) => {
         deleteUser,
         toast,
         showToast,
+        productTemplates,
+        addProductTemplate,
+        deleteProductTemplate,
+        resetUserPassword,
+        daySettlements,
+        recordDaySettlement,
+        showDaySettlementModal,
+        setShowDaySettlementModal,
       }}
     >
       {children}

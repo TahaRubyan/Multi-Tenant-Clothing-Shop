@@ -3,6 +3,7 @@ import { POSProvider, usePOS } from './context/POSContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { ShopSwitcherModal } from './components/ShopSwitcherModal';
+import { DaySettlementModal } from './components/DaySettlementModal';
 import { LoginView } from './views/LoginView';
 import { SuperAdminPortalView } from './views/SuperAdminPortalView';
 import { DashboardView } from './views/DashboardView';
@@ -58,11 +59,18 @@ const POSAppContent = () => {
       <Sidebar />
       <div className="main-content-wrapper">
         <Navbar />
-        <main className="content-body">{renderActiveView()}</main>
+        <main className="content-body">
+          <div key={activeTab} className="view-transition-container">
+            {renderActiveView()}
+          </div>
+        </main>
       </div>
 
       {/* Multi-Shop Switcher Modal for Multi-Tenant Owners */}
       <ShopSwitcherModal />
+
+      {/* Day-End Cash Register Settlement Modal */}
+      <DaySettlementModal />
 
       {/* Global Toast Alert Notification */}
       {toast && (

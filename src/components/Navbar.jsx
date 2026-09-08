@@ -9,6 +9,7 @@ import {
   MapPin,
   Sparkles,
   Menu,
+  Banknote,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ export const Navbar = () => {
     currentTenant,
     shopSettings,
     setShowShopSwitcher,
+    setShowDaySettlementModal,
     isSidebarCollapsed,
     toggleSidebar,
   } = usePOS();
@@ -94,8 +96,18 @@ export const Navbar = () => {
         </div>
       </div>
 
-      {/* RIGHT: Active User Profile Card */}
+      {/* RIGHT: Active User Profile Card & Day Settlement Action */}
       <div className="nav-right">
+        <button
+          type="button"
+          className="btn-settle-day-header"
+          onClick={() => setShowDaySettlementModal(true)}
+          title="End Day Cash Register Settlement & Drawer Reconciliation"
+        >
+          <Banknote size={15} className="text-primary" />
+          <span>Close Day / Settle Cash</span>
+        </button>
+
         {currentUser && (
           <div className="user-profile-card">
             <img src={currentUser.avatar} alt={currentUser.fullName} className="user-avatar" />
