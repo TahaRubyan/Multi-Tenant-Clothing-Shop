@@ -64,9 +64,9 @@ export const Navbar = () => {
           <span className="time-mono">{timeStr}</span>
         </div>
 
-        <div className="offline-ready-pill" title="Offline SQLite engine active. Ready for sales with zero internet.">
+        <div className="status-live-pill" title="POS Terminal Engine Ready">
           <div className="status-dot-pulse"></div>
-          <span>Offline SQLite Active</span>
+          <span>Terminal Active</span>
         </div>
       </div>
 

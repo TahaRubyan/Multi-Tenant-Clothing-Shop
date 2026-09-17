@@ -13,7 +13,7 @@ describe('Accessibility & Keyboard Navigation Tests', () => {
       </POSProvider>
     );
 
-    const searchInput = screen.getByPlaceholderText(/Click to browse all items/i);
+    const searchInput = screen.getByPlaceholderText(/search/i);
     fireEvent.click(searchInput);
     expect(screen.getByText(/All Inventory Catalog/i)).toBeInTheDocument();
 

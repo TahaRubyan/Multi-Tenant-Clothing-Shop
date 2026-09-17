@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePOS } from '../context/POSContext';
+import confetti from 'canvas-confetti';
 import {
   Barcode,
   Printer,
@@ -17,435 +18,462 @@ import {
   Boxes,
   PlusCircle,
   Truck,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
+  Sparkles,
+  Watch,
+  Smile,
+  RefreshCw,
 } from 'lucide-react';
 
 export const ProductSetupView = () => {
   const {
     addProduct,
     shopSettings,
-    hasModule,
     showToast,
     apparelCategories,
     addApparelCategory,
     vendors,
     productTemplates = [],
+    setActiveTab,
   } = usePOS();
 
-  // Mode: 'unstitched' (Suits/Boxes) vs 'apparel' (Ready-Made Shirts/Trousers/Pants/Templates)
-  const [productType, setProductType] = useState(() => {
-    return hasModule('ready_made_apparel') && !hasModule('unstitched_fabric')
-      ? 'apparel'
-      : 'unstitched';
-  });
+  // 4-Phase Wizard Step State: 1 | 2 | 3 | 4
+  const [currentStep, setCurrentStep] = useState(1);
 
-  // Department / Gender Classification
-  const [department, setDepartment] = useState('Gents'); // 'Gents' | 'Ladies' | 'Boxes' | 'Unisex'
-
-  // Selected Vendor / Mill Sourcing
-  const [selectedVendorId, setSelectedVendorId] = useState('');
-
-  // UNSTITCHED FABRIC STATE
-  const [unitType, setUnitType] = useState('Suit'); // 'Suit' | 'Box' | 'Piece' | 'Set'
-  const [fabricTypeSelect, setFabricTypeSelect] = useState('Lawn');
-  const [customFabricType, setCustomFabricType] = useState('');
-  const [isCustomFabric, setIsCustomFabric] = useState(false);
-  const [fabricMaterial, setFabricMaterial] = useState('');
-  const [fabricColor, setFabricColor] = useState('');
-  const [customBarcode, setCustomBarcode] = useState('');
-  const [wholesalePrice, setWholesalePrice] = useState('');
-  const [retailPrice, setRetailPrice] = useState('');
-  const [initialStock, setInitialStock] = useState('');
-  const [reorderLimit, setReorderLimit] = useState('');
-
-  // APPAREL VARIANT STATE
-  const [apparelCategory, setApparelCategory] = useState('Formal Shirt');
+  // STEP 1: Sourcing & Category
+  const [selectedVendorId, setSelectedVendorId] = useState(vendors[0]?.id || '');
+  const [category, setCategory] = useState(apparelCategories[0] || 'Formal Shirt');
+  const [department, setDepartment] = useState('Gents'); // 'Gents' | 'Ladies' | 'Accessories' | 'Unisex'
+  const [unitType, setUnitType] = useState('Piece'); // 'Piece' | 'Suit' | 'Box' | 'Set'
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
-  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
 
-  const [apparelBrand, setApparelBrand] = useState('');
-  const [apparelColor, setApparelColor] = useState('White');
-  const [apparelBaseWholesale, setApparelBaseWholesale] = useState('');
-  const [apparelBaseRetail, setApparelBaseRetail] = useState('');
-  const [apparelReorderLimit, setApparelReorderLimit] = useState('10');
+  // STEP 2: Product Type/Fit, Size & Stock
+  const [productName, setProductName] = useState('Executive Royal Oxford Shirt');
+  const [itemType, setItemType] = useState('Formal'); // 'Formal' | 'Casual' | 'Party Wear' | 'Semi-Formal' | 'Traditional' | 'Sports' | 'Custom'
+  const [customItemType, setCustomItemType] = useState('');
+  const [size, setSize] = useState('L (42)');
+  const [color, setColor] = useState('Sky Blue');
+  const [fabricMaterial, setFabricMaterial] = useState('100% Giza Cotton');
+  const [initialStock, setInitialStock] = useState('20');
+  const [reorderLimit, setReorderLimit] = useState('5');
 
-  // Selected Sizes for Variant Grid
-  const shirtSizes = ['S (38)', 'M (40)', 'L (42)', 'XL (44)', 'XXL (46)'];
-  const trouserSizes = ['W28 L32', 'W30 L32', 'W32 L32', 'W34 L32', 'W36 L32', 'W38 L32'];
+  // STEP 3: Pricing & Barcode
+  const [wholesalePrice, setWholesalePrice] = useState('1400');
+  const [retailPrice, setRetailPrice] = useState('3200');
+  const [barcode, setBarcode] = useState('');
+  const [stickerPrintCount, setStickerPrintCount] = useState('20');
 
-  const [selectedSizes, setSelectedSizes] = useState(['M (40)', 'L (42)', 'XL (44)']);
-  const [variantRows, setVariantRows] = useState([
-    { id: 'v-1', size: 'M (40)', color: 'White', sku: 'SHT-WHT-M', stock: 15, retailPrice: 2800, wholesalePrice: 1200 },
-    { id: 'v-2', size: 'L (42)', color: 'White', sku: 'SHT-WHT-L', stock: 20, retailPrice: 2800, wholesalePrice: 1200 },
-    { id: 'v-3', size: 'XL (44)', color: 'White', sku: 'SHT-WHT-XL', stock: 10, retailPrice: 2800, wholesalePrice: 1200 },
-  ]);
+  // STEP 4: Saved Product Data
+  const [createdProductResult, setCreatedProductResult] = useState(null);
 
-  const [printBarcodeModalData, setPrintBarcodeModalData] = useState(null);
-
-  const fabricPresets = ['Lawn', 'Cotton', 'Wash & Wear', 'Silk', 'Khaddar', 'Karandi', 'Chiffon', 'Velvet', 'Jacquard', 'Linen', 'Wool', 'Boski'];
-
-  const effectiveFabricType = isCustomFabric ? (customFabricType || 'Custom Fabric') : fabricTypeSelect;
-
-  // Auto-generate barcode for unstitched item
-  const generateBarcodeString = () => {
-    const uomPrefix = unitType.substring(0, 3).toUpperCase();
-    const randomNum = Math.floor(100000 + Math.random() * 900000);
-    return `PAK-${uomPrefix}-${randomNum}`;
+  // Generate 12-digit Barcode
+  const generateNewBarcode = () => {
+    const prefix = 'PAK';
+    const catCode = (category.replace(/[^a-zA-Z]/g, '').substring(0, 3) || 'GAR').toUpperCase();
+    const randNum = Math.floor(100000 + Math.random() * 900000);
+    return `${prefix}-${catCode}-${randNum}`;
   };
 
   useEffect(() => {
-    if (!customBarcode) {
-      setCustomBarcode(generateBarcodeString());
+    if (!barcode) {
+      setBarcode(generateNewBarcode());
     }
-  }, [unitType, fabricTypeSelect, fabricColor]);
+  }, [category]);
 
-  // Sync apparel variant grid when sizes or color change
-  const handleToggleSize = (sizeStr) => {
-    let updatedSizes;
-    if (selectedSizes.includes(sizeStr)) {
-      updatedSizes = selectedSizes.filter(s => s !== sizeStr);
-    } else {
-      updatedSizes = [...selectedSizes, sizeStr];
+  // Sync sticker count with stock count by default
+  useEffect(() => {
+    if (initialStock) {
+      setStickerPrintCount(initialStock);
     }
-    setSelectedSizes(updatedSizes);
+  }, [initialStock]);
 
-    // Rebuild variant rows
-    const prefix = apparelCategory.includes('Shirt') ? 'SHT' : apparelCategory.includes('Trouser') ? 'TRS' : apparelCategory.includes('Jeans') ? 'JNS' : 'APP';
-    const colorCode = (apparelColor || 'VAR').substring(0, 3).toUpperCase();
-
-    const newRows = updatedSizes.map((sz, idx) => {
-      const cleanSize = sz.split(' ')[0];
-      const existing = variantRows.find(r => r.size === sz);
-      return {
-        id: existing?.id || `v-${Date.now()}-${idx}`,
-        size: sz,
-        color: apparelColor || 'Standard',
-        sku: existing?.sku || `${prefix}-${colorCode}-${cleanSize}`,
-        stock: existing?.stock ?? 10,
-        retailPrice: parseFloat(apparelBaseRetail) || existing?.retailPrice || 2500,
-        wholesalePrice: parseFloat(apparelBaseWholesale) || existing?.wholesalePrice || 1200,
-      };
-    });
-    setVariantRows(newRows);
-  };
-
-  const handleUpdateVariantField = (idx, field, value) => {
-    setVariantRows(prev =>
-      prev.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
-    );
-  };
-
-  const handleAddCustomCategory = (e) => {
+  const handleAddCategorySubmit = (e) => {
     e.preventDefault();
-    if (!newCategoryInput.trim()) return;
-    const added = addApparelCategory(newCategoryInput.trim());
+    if (!newCategoryName.trim()) return;
+    const added = addApparelCategory(newCategoryName.trim());
     if (added) {
-      setApparelCategory(newCategoryInput.trim());
+      setCategory(newCategoryName.trim());
     }
-    setNewCategoryInput('');
+    setNewCategoryName('');
     setShowAddCategoryModal(false);
   };
 
-  const handleSelectTemplate = (tmplId) => {
+  const handleApplyTemplate = (tmplId) => {
     const tmpl = productTemplates.find((t) => t.id === tmplId);
     if (!tmpl) return;
-    setApparelCategory(tmpl.name);
+    setCategory(tmpl.name);
     setDepartment(tmpl.department || 'Gents');
     setUnitType(tmpl.unitType || 'Piece');
-    if (tmpl.availableSizes?.length) {
-      setSelectedSizes(tmpl.availableSizes);
-      const prefix = tmpl.name.includes('Shirt')
-        ? 'SHT'
-        : tmpl.name.includes('Pant') || tmpl.name.includes('Trouser')
-        ? 'TRS'
-        : tmpl.name.includes('Waistcoat')
-        ? 'WST'
-        : 'APP';
-      const colorCode = (apparelColor || 'VAR').substring(0, 3).toUpperCase();
-      const newRows = tmpl.availableSizes.map((sz, idx) => ({
-        id: `v-${Date.now()}-${idx}`,
-        size: sz,
-        color: apparelColor || 'Standard',
-        sku: `${prefix}-${colorCode}-${sz.replace(/[^a-zA-Z0-9]/g, '')}`,
-        stock: 10,
-        retailPrice: parseFloat(apparelBaseRetail) || 2800,
-        wholesalePrice: parseFloat(apparelBaseWholesale) || 1200,
-      }));
-      setVariantRows(newRows);
-      showToast(`Loaded "${tmpl.name}" attribute matrix (${tmpl.availableSizes.length} sizes)`, 'info');
-    }
+    if (tmpl.availableSizes?.length) setSize(tmpl.availableSizes[0]);
+    if (tmpl.availableFabrics?.length) setFabricMaterial(tmpl.availableFabrics[0]);
+    if (tmpl.fits?.length) setItemType(tmpl.fits[0]);
+    showToast(`Loaded "${tmpl.name}" attribute template!`, 'info');
   };
 
-  const handleSaveProduct = (e) => {
+  const handleStep1Next = (e) => {
     e.preventDefault();
-
-    if (productType === 'unstitched') {
-      if (!fabricMaterial || !fabricColor || !retailPrice || !initialStock) {
-        showToast('Please fill in all required fabric fields', 'warning');
-        return;
-      }
-
-      const activeBarcode = customBarcode || generateBarcodeString();
-      const newProd = addProduct({
-        productType: 'unstitched',
-        department,
-        unitType,
-        barcode: activeBarcode,
-        fabricType: effectiveFabricType,
-        fabricMaterial,
-        fabricColor,
-        wholesalePrice,
-        retailPrice,
-        initialStock,
-        reorderLimit,
-        vendorId: selectedVendorId,
-      });
-
-      setPrintBarcodeModalData({
-        product: newProd,
-        qtyToPrint: Math.max(1, Math.round(parseFloat(initialStock) || 1)),
-      });
-
-      setFabricMaterial('');
-      setFabricColor('');
-      setWholesalePrice('');
-      setRetailPrice('');
-      setInitialStock('');
-      setReorderLimit('');
-      setSelectedVendorId('');
-      setCustomBarcode(generateBarcodeString());
-    } else {
-      // Apparel Ready-Made Save
-      if (!fabricMaterial || !apparelBaseRetail || variantRows.length === 0) {
-        showToast('Please specify garment title, retail price, and at least one size variant', 'warning');
-        return;
-      }
-
-      const totalVariantStock = variantRows.reduce((acc, r) => acc + (parseFloat(r.stock) || 0), 0);
-      const masterBarcode = `APP-${(apparelCategory.substring(0, 3)).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
-
-      const newProd = addProduct({
-        productType: 'apparel',
-        department,
-        barcode: masterBarcode,
-        apparelCategory,
-        fabricType: 'Apparel',
-        fabricMaterial: `${apparelBrand ? apparelBrand + ' ' : ''}${fabricMaterial}`,
-        fabricColor: apparelColor,
-        wholesalePrice: parseFloat(apparelBaseWholesale) || 0,
-        retailPrice: parseFloat(apparelBaseRetail) || 0,
-        initialStock: totalVariantStock,
-        reorderLimit: parseFloat(apparelReorderLimit) || 10,
-        unitType: unitType || 'Piece',
-        variants: variantRows,
-        vendorId: selectedVendorId,
-      });
-
-      setPrintBarcodeModalData({
-        product: newProd,
-        qtyToPrint: Math.min(8, Math.max(1, totalVariantStock)),
-      });
-
-      setFabricMaterial('');
-      setApparelBrand('');
-      setApparelBaseWholesale('');
-      setApparelBaseRetail('');
-      setSelectedVendorId('');
+    if (!category) {
+      showToast('Please select a category', 'warning');
+      return;
     }
+    setCurrentStep(2);
   };
 
-  const handleFullClear = () => {
-    setFabricMaterial('');
-    setFabricColor('');
-    setCustomBarcode('');
+  const handleStep2Next = (e) => {
+    e.preventDefault();
+    if (!productName.trim() || !size.trim()) {
+      showToast('Please enter item name and size', 'warning');
+      return;
+    }
+    const stockNum = parseFloat(initialStock) || 0;
+    if (stockNum < 0) {
+      showToast('Stock quantity cannot be negative', 'warning');
+      return;
+    }
+    setCurrentStep(3);
+  };
+
+  const handleSaveProductFinal = (e) => {
+    e.preventDefault();
+    const retailNum = parseFloat(retailPrice) || 0;
+    const wholesaleNum = parseFloat(wholesalePrice) || 0;
+    const stockNum = parseFloat(initialStock) || 0;
+
+    if (retailNum <= 0) {
+      showToast('Retail price must be greater than Rs. 0', 'warning');
+      return;
+    }
+
+    const activeBarcode = barcode.trim() || generateNewBarcode();
+    const effectiveType = itemType === 'Custom' ? (customItemType || 'Special') : itemType;
+
+    const newProd = addProduct({
+      productType: 'apparel',
+      department,
+      unitType,
+      barcode: activeBarcode,
+      apparelCategory: category,
+      fabricType: effectiveType,
+      fabricMaterial: `${productName.trim()} - ${effectiveType}`,
+      fabricColor: `${color.trim()} (${size.trim()})`,
+      wholesalePrice: wholesaleNum,
+      retailPrice: retailNum,
+      initialStock: stockNum,
+      stock: stockNum,
+      reorderLimit: parseFloat(reorderLimit) || 5,
+      vendorId: selectedVendorId,
+    });
+
+    confetti({
+      particleCount: 100,
+      spread: 75,
+      origin: { y: 0.6 },
+    });
+
+    setCreatedProductResult({
+      ...newProd,
+      printCount: parseInt(stickerPrintCount, 10) || stockNum || 1,
+    });
+
+    showToast(`Successfully created "${newProd.fabricMaterial}"!`, 'success');
+    setCurrentStep(4);
+  };
+
+  const handleResetForNextProduct = () => {
+    setProductName('');
+    setColor('Standard');
+    setInitialStock('15');
     setWholesalePrice('');
     setRetailPrice('');
-    setInitialStock('');
-    setReorderLimit('');
-    setSelectedVendorId('');
+    setBarcode(generateNewBarcode());
+    setCreatedProductResult(null);
+    setCurrentStep(1);
   };
+
+  const selectedVendor = vendors.find((v) => v.id === selectedVendorId);
+
+  // Profit margin calculation
+  const wPrice = parseFloat(wholesalePrice) || 0;
+  const rPrice = parseFloat(retailPrice) || 0;
+  const unitProfit = Math.max(0, rPrice - wPrice);
+  const profitMarginPct = rPrice > 0 ? ((unitProfit / rPrice) * 100).toFixed(1) : '0';
 
   return (
     <div className="view-container product-setup-view no-scroll-view">
+      {/* View Header with Stepper Progress */}
       <div className="view-header flex-between mb-2">
         <div>
-          <h2>Product & Inventory Setup</h2>
+          <h2>Product Setup & Inventory Intake Wizard</h2>
           <p className="view-subtitle">
-            Configure Unstitched Textiles (Suits/Meters/Boxes) or Ready-Made Apparel with Size/Color SKU Variants.
+            4-Step Guided Setup for Stitched Garments, Accessories & Thermal Barcode Sticker Generation.
           </p>
         </div>
 
-        {/* High-Contrast Product Type Toggle */}
-        <div className="product-type-toggle-bar glass-card">
-          <button
-            type="button"
-            className={`type-toggle-btn ${productType === 'unstitched' ? 'active' : ''}`}
-            onClick={() => setProductType('unstitched')}
-          >
-            <Layers size={15} /> Unstitched Fabric (Suits/Meters)
-          </button>
-          <button
-            type="button"
-            className={`type-toggle-btn ${productType === 'apparel' ? 'active' : ''}`}
-            onClick={() => setProductType('apparel')}
-          >
-            <Shirt size={15} /> Ready-Made Apparel & Size Grid
-          </button>
+        {/* 4-Step Visual Progress Bar */}
+        <div className="wizard-steps-indicator flex-align-center gap-2 glass-card p-2">
+          <div className={`step-dot-pill ${currentStep >= 1 ? 'active' : ''}`}>
+            <span className="dot-num">1</span>
+            <span>Category & Vendor</span>
+          </div>
+          <ArrowRight size={13} className="text-muted" />
+          <div className={`step-dot-pill ${currentStep >= 2 ? 'active' : ''}`}>
+            <span className="dot-num">2</span>
+            <span>Item Type & Stock</span>
+          </div>
+          <ArrowRight size={13} className="text-muted" />
+          <div className={`step-dot-pill ${currentStep >= 3 ? 'active' : ''}`}>
+            <span className="dot-num">3</span>
+            <span>Pricing & Barcode</span>
+          </div>
+          <ArrowRight size={13} className="text-muted" />
+          <div className={`step-dot-pill ${currentStep === 4 ? 'active' : ''}`}>
+            <span className="dot-num">4</span>
+            <span>Sticker Print & Save</span>
+          </div>
         </div>
       </div>
 
-      <form onSubmit={handleSaveProduct} className="setup-2col-workspace">
-        {/* LEFT COLUMN: Input Form Fields with Independent Scrollbar */}
+      {/* Main 2-Column Workspace */}
+      <div className="setup-2col-workspace">
+        {/* LEFT COLUMN: Guided Wizard Steps */}
         <div className="glass-card setup-form-card flex-1 scrollable-form-panel">
-          {productType === 'unstitched' ? (
-            /* UNSTITCHED FABRIC SETUP */
-            <>
-              <div className="form-section-title garment-spec-heading">
-                <Layers size={18} className="title-icon" />
-                <span>Unit Type & Fabric Specifications</span>
+          {/* ========================================================
+              PHASE 1: SOURCING & PRODUCT CATEGORY
+              ======================================================== */}
+          {currentStep === 1 && (
+            <form onSubmit={handleStep1Next} className="wizard-step-container">
+              <div className="form-section-title garment-spec-heading mb-3">
+                <Truck size={18} className="title-icon text-primary" />
+                <span>Phase 1: Sourcing Supplier & Garment Category</span>
               </div>
 
-              <div className="form-grid-2col gap-25">
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">Item Unit Type / Sell Unit *</label>
-                  <div className="input-with-icon">
-                    <PackageCheck size={16} className="input-icon" />
-                    <select
-                      className="form-select font-weight-700"
-                      value={unitType}
-                      onChange={(e) => setUnitType(e.target.value)}
-                    >
-                      <option value="Suit">Suit (3-Piece / Unstitched / Stitched)</option>
-                      <option value="Box">Box (Gift Box / Kurta Box Set)</option>
-                      <option value="Meter">Meter (Length Bolt / Fabric Roll)</option>
-                    </select>
+              {/* Template Quick Loader (Optional) */}
+              {productTemplates.length > 0 && (
+                <div className="template-quick-loader glass-card p-2 mb-3">
+                  <span className="text-xs text-muted font-weight-600 block mb-1">
+                    Quick-Load Category Template (Optional):
+                  </span>
+                  <div className="flex-align-center gap-1 flex-wrap">
+                    {productTemplates.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="btn btn-secondary btn-xs hover-lift font-weight-600"
+                        onClick={() => handleApplyTemplate(t.id)}
+                      >
+                        <Tag size={11} className="text-primary" /> {t.name}
+                      </button>
+                    ))}
                   </div>
+                </div>
+              )}
+
+              {/* Supplier Selection */}
+              <div className="form-group mb-3">
+                <label className="form-label">1. Supplier / Mill Partner (Optional)</label>
+                <div className="input-with-icon">
+                  <Truck size={16} className="input-icon" />
+                  <select
+                    className="form-select font-weight-600"
+                    value={selectedVendorId}
+                    onChange={(e) => setSelectedVendorId(e.target.value)}
+                  >
+                    <option value="">-- Direct Wholesale / Cash Purchase (No Ledger) --</option>
+                    {vendors.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.vendorName} ({v.city}) • Outstanding: Rs. {Math.max(0, v.totalInvoiced - v.totalPaid).toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Category Selection with Inline Creator */}
+              <div className="form-group mb-3">
+                <div className="flex-between mb-1">
+                  <label className="form-label mb-0">2. Garment / Item Category *</label>
+                  <button
+                    type="button"
+                    className="btn-add-inline-cat"
+                    onClick={() => setShowAddCategoryModal(true)}
+                  >
+                    <PlusCircle size={14} /> + Add Custom Category
+                  </button>
+                </div>
+                <select
+                  className="form-select font-weight-700 text-md"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  required
+                >
+                  {apparelCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Department & Unit Type */}
+              <div className="form-grid-2col mb-4">
+                <div className="form-group mb-0">
+                  <label className="form-label">Department / Section *</label>
+                  <select
+                    className="form-select font-weight-600"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                  >
+                    <option value="Gents">👔 Gents Department</option>
+                    <option value="Ladies">👗 Ladies Department</option>
+                    <option value="Accessories">🎁 Accessories & Perfumes</option>
+                    <option value="Unisex">✨ Unisex / General</option>
+                  </select>
                 </div>
 
                 <div className="form-group mb-0">
-                  <div className="flex-between mb-1">
-                    <label className="form-label mb-0">Fabric Type *</label>
-                    <button
-                      type="button"
-                      className="btn-text-link"
-                      onClick={() => setIsCustomFabric(!isCustomFabric)}
-                    >
-                      {isCustomFabric ? 'Choose Preset' : '+ Add Custom Type'}
-                    </button>
-                  </div>
+                  <label className="form-label">Unit Type *</label>
+                  <select
+                    className="form-select font-weight-600"
+                    value={unitType}
+                    onChange={(e) => setUnitType(e.target.value)}
+                  >
+                    <option value="Piece">Piece (Single Stitched Item)</option>
+                    <option value="Suit">Suit (2-Pc / 3-Pc Complete)</option>
+                    <option value="Box">Box (Packaged Gift Set)</option>
+                    <option value="Set">Set (Multi-Item Bundle)</option>
+                  </select>
+                </div>
+              </div>
 
-                  {isCustomFabric ? (
+              <div className="modal-actions flex-between pt-2">
+                <span className="text-xs text-muted">Step 1 of 3: Ready to configure item specifications</span>
+                <button type="submit" className="btn btn-primary flex-align-center gap-1">
+                  Continue to Item Specifications <ArrowRight size={16} />
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ========================================================
+              PHASE 2: ITEM TYPE/FIT, SIZE & STOCK QUANTITY
+              ======================================================== */}
+          {currentStep === 2 && (
+            <form onSubmit={handleStep2Next} className="wizard-step-container">
+              <div className="form-section-title garment-spec-heading mb-3">
+                <Shirt size={18} className="title-icon text-primary" />
+                <span>Phase 2: Product Name, Fit Type, Size & Initial Stock</span>
+              </div>
+
+              <div className="form-group mb-3">
+                <label className="form-label">Product / Article Name *</label>
+                <input
+                  type="text"
+                  className="form-input font-weight-700"
+                  placeholder="e.g. Executive Oxford Slim-Fit Shirt"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div className="form-grid-2col mb-3">
+                <div className="form-group mb-0">
+                  <label className="form-label">Product Type / Fit Style *</label>
+                  <select
+                    className="form-select font-weight-600"
+                    value={itemType}
+                    onChange={(e) => setItemType(e.target.value)}
+                  >
+                    <option value="Formal">Formal Wear</option>
+                    <option value="Casual">Casual Wear</option>
+                    <option value="Party Wear">Party / Festive Wear</option>
+                    <option value="Semi-Formal">Semi-Formal</option>
+                    <option value="Traditional">Traditional / Eastern</option>
+                    <option value="Slim Fit">Slim Fit</option>
+                    <option value="Regular Fit">Regular Fit</option>
+                    <option value="Custom">Other Custom Type</option>
+                  </select>
+                </div>
+
+                {itemType === 'Custom' ? (
+                  <div className="form-group mb-0">
+                    <label className="form-label">Specify Custom Type *</label>
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="Type fabric name (e.g. Boski, Banarsi)..."
-                      value={customFabricType}
-                      onChange={(e) => setCustomFabricType(e.target.value)}
+                      placeholder="e.g. Luxury Velvet Edition"
+                      value={customItemType}
+                      onChange={(e) => setCustomItemType(e.target.value)}
                       required
                     />
-                  ) : (
-                    <select
-                      className="form-select"
-                      value={fabricTypeSelect}
-                      onChange={(e) => setFabricTypeSelect(e.target.value)}
-                    >
-                      {fabricPresets.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="form-group mb-0">
+                    <label className="form-label">Size / Measurement *</label>
+                    <input
+                      type="text"
+                      className="form-input font-weight-600"
+                      placeholder="e.g. S, M, L, XL, XXL, 38, 40, Free Size, 100ml"
+                      value={size}
+                      onChange={(e) => setSize(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
               </div>
 
-              <div className="form-grid-2col gap-25 mt-2">
+              {itemType === 'Custom' && (
+                <div className="form-group mb-3">
+                  <label className="form-label">Size / Measurement *</label>
+                  <input
+                    type="text"
+                    className="form-input font-weight-600"
+                    placeholder="e.g. S, M, L, XL, XXL, Free Size, 100ml"
+                    value={size}
+                    onChange={(e) => setSize(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="form-grid-2col mb-3">
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">Fabric Material Description *</label>
+                  <label className="form-label">Color / Shade</label>
+                  <div className="input-with-icon">
+                    <Palette size={15} className="input-icon" />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Sky Blue, Jet Black, Maroon"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">Fabric / Material Details</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder={unitType === 'Meter' ? 'e.g. Pasha Superfine Latha 100% Cotton' : 'e.g. Gul Ahmed Printed Lawn (3pc)'}
+                    placeholder="e.g. 100% Giza Cotton, Pure Raw Silk"
                     value={fabricMaterial}
                     onChange={(e) => setFabricMaterial(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">Fabric Color Variant *</label>
-                  <div className="input-with-icon">
-                    <Palette size={16} className="input-icon" />
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Crisp White, Midnight Navy..."
-                      value={fabricColor}
-                      onChange={(e) => setFabricColor(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-group mt-2 mb-0">
-                <label className="form-label mb-1">Barcode (Auto-generated / Editable)</label>
-                <div className="input-with-icon">
-                  <Barcode size={16} className="input-icon" />
-                  <input
-                    type="text"
-                    className="form-input font-mono"
-                    placeholder="e.g. PAK-LAW-880123"
-                    value={customBarcode}
-                    onChange={(e) => setCustomBarcode(e.target.value)}
-                    required
                   />
                 </div>
               </div>
 
-              <div className="form-section-title sub-section-heading mt-3">
-                <DollarSign size={18} className="title-icon" />
-                <span>Pricing & Stock Inventory</span>
-              </div>
-
-              <div className="form-grid-4col gap-2">
+              <div className="form-grid-2col mb-4">
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">
-                    {unitType === 'Meter' ? 'Wholesale Price / Meter' : 'Wholesale COGS'}
-                  </label>
+                  <label className="form-label">Initial Stock Count ({unitType}) *</label>
                   <input
                     type="number"
-                    step="1"
-                    className="form-input font-mono"
-                    placeholder={unitType === 'Meter' ? 'e.g. 450' : 'e.g. 1850'}
-                    value={wholesalePrice}
-                    onChange={(e) => setWholesalePrice(e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">
-                    {unitType === 'Meter' ? 'Retail Price / Meter *' : 'Retail Price *'}
-                  </label>
-                  <input
-                    type="number"
-                    step="1"
-                    className="form-input font-mono"
-                    placeholder={unitType === 'Meter' ? 'e.g. 950' : 'e.g. 4200'}
-                    value={retailPrice}
-                    onChange={(e) => setRetailPrice(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">
-                    {unitType === 'Meter' ? 'Initial Stock (Meters) *' : 'Initial Stock Qty *'}
-                  </label>
-                  <input
-                    type="number"
-                    step={unitType === 'Meter' ? '0.25' : '1'}
-                    className="form-input font-mono"
-                    placeholder={unitType === 'Meter' ? 'e.g. 120.5' : 'e.g. 20'}
+                    min="0"
+                    className="form-input font-mono font-weight-800 text-lg"
                     value={initialStock}
                     onChange={(e) => setInitialStock(e.target.value)}
                     required
@@ -453,14 +481,11 @@ export const ProductSetupView = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label mb-1">
-                    {unitType === 'Meter' ? 'Reorder Limit (Meters) *' : 'Reorder Limit *'}
-                  </label>
+                  <label className="form-label">Low Stock Alert Level *</label>
                   <input
                     type="number"
-                    step={unitType === 'Meter' ? '0.25' : '1'}
+                    min="1"
                     className="form-input font-mono"
-                    placeholder={unitType === 'Meter' ? 'e.g. 25' : 'e.g. 5'}
                     value={reorderLimit}
                     onChange={(e) => setReorderLimit(e.target.value)}
                     required
@@ -468,339 +493,189 @@ export const ProductSetupView = () => {
                 </div>
               </div>
 
-              {/* Vendor / Mill Sourcing & Accounts Payable Linkage */}
-              <div className="form-section-title sub-section-heading mt-3">
-                <Truck size={18} className="title-icon text-primary" />
-                <span>Supplier / Mill Sourcing & Vendor Ledger</span>
+              <div className="modal-actions flex-between pt-2">
+                <button
+                  type="button"
+                  className="btn btn-secondary flex-align-center gap-1"
+                  onClick={() => setCurrentStep(1)}
+                >
+                  <ArrowLeft size={16} /> Back
+                </button>
+                <button type="submit" className="btn btn-primary flex-align-center gap-1">
+                  Continue to Pricing & Barcode <ArrowRight size={16} />
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ========================================================
+              PHASE 3: PRICING, BARCODE & STICKER COUNT
+              ======================================================== */}
+          {currentStep === 3 && (
+            <form onSubmit={handleSaveProductFinal} className="wizard-step-container">
+              <div className="form-section-title garment-spec-heading mb-3">
+                <DollarSign size={18} className="title-icon text-primary" />
+                <span>Phase 3: Cost, Retail Price & Barcode Sticker Details</span>
               </div>
 
-              <div className="form-group mb-2">
-                <label className="form-label mb-1">Select Sourcing Supplier / Mill (Optional)</label>
+              <div className="form-grid-2col mb-3">
+                <div className="form-group mb-0">
+                  <label className="form-label">Wholesale Cost Price (COGS in Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input font-mono"
+                    placeholder="e.g. 1400"
+                    value={wholesalePrice}
+                    onChange={(e) => setWholesalePrice(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">Customer Retail Price (Rs.) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-input font-mono font-weight-800 text-lg text-success"
+                    placeholder="e.g. 3200"
+                    value={retailPrice}
+                    onChange={(e) => setRetailPrice(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Profit Margin Indicator */}
+              <div className="live-simulation-banner glass-card p-3 mb-3 flex-between">
+                <div className="flex-align-center gap-2">
+                  <Sparkles size={18} className="text-primary" />
+                  <span className="text-xs text-muted">Estimated Margin per Item:</span>
+                </div>
+                <div className="font-mono">
+                  <span className="text-success font-weight-800 text-sm">
+                    +Rs. {unitProfit.toLocaleString()} ({profitMarginPct}% Gross Margin)
+                  </span>
+                </div>
+              </div>
+
+              <div className="form-group mb-3">
+                <div className="flex-between mb-1">
+                  <label className="form-label mb-0">Product Barcode (Auto-Generated / Scannable) *</label>
+                  <button
+                    type="button"
+                    className="btn-text-link flex-align-center gap-1"
+                    onClick={() => setBarcode(generateNewBarcode())}
+                  >
+                    <RefreshCw size={12} /> Regenerate
+                  </button>
+                </div>
                 <div className="input-with-icon">
-                  <Truck size={16} className="input-icon" />
-                  <select
-                    className="form-select font-weight-600"
-                    value={selectedVendorId}
-                    onChange={(e) => setSelectedVendorId(e.target.value)}
-                  >
-                    <option value="">-- Direct Mill / Cash Purchase (No Ledger) --</option>
-                    {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.vendorName} ({v.city})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Live Vendor Financial Ledger Summary Card */}
-              {selectedVendorId && (() => {
-                const selVen = vendors.find(v => v.id === selectedVendorId);
-                if (!selVen) return null;
-                const outstandingDue = (selVen.totalInvoiced || 0) - (selVen.totalPaid || 0);
-                const wholesaleNum = parseFloat(wholesalePrice) || 0;
-                const stockNum = parseFloat(initialStock) || 0;
-                const thisShipmentVal = wholesaleNum * stockNum;
-
-                return (
-                  <div className="vendor-ledger-mini-summary glass-card p-3 my-2">
-                    <div className="flex-between mb-2">
-                      <div className="flex-align-center gap-2">
-                        <Truck size={16} className="text-primary" />
-                        <strong className="text-main">{selVen.vendorName}</strong>
-                        <span className="text-xs text-muted">({selVen.city})</span>
-                      </div>
-                      <span className={`badge ${outstandingDue > 0 ? 'badge-danger' : 'badge-success'}`}>
-                        {outstandingDue > 0
-                          ? `We Owe: Rs. ${outstandingDue.toLocaleString()}`
-                          : 'Account Settled'}
-                      </span>
-                    </div>
-                    <div className="vendor-mini-stats-grid">
-                      <div className="v-stat">
-                        <span className="v-stat-lbl">Total Mill Invoiced</span>
-                        <strong className="v-stat-val font-mono">Rs. {selVen.totalInvoiced.toLocaleString()}</strong>
-                      </div>
-                      <div className="v-stat">
-                        <span className="v-stat-lbl">Total Paid So Far</span>
-                        <strong className="v-stat-val font-mono text-success">Rs. {selVen.totalPaid.toLocaleString()}</strong>
-                      </div>
-                      <div className="v-stat">
-                        <span className="v-stat-lbl">This Sourcing Value (Auto-Added)</span>
-                        <strong className="v-stat-val font-mono text-primary">
-                          +Rs. {thisShipmentVal.toLocaleString()}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </>
-          ) : (
-            /* READY-MADE APPAREL VARIANT GRID SETUP */
-            <>
-              <div className="form-section-title garment-spec-heading">
-                <Shirt size={18} className="title-icon" />
-                <span>Ready-Made Apparel Master & Variant Matrix</span>
-              </div>
-
-              <div className="form-grid-3col gap-2">
-                <div className="form-group mb-0">
-                  <div className="flex-between mb-1">
-                    <label className="form-label mb-0">Apparel Category *</label>
-                    <button
-                      type="button"
-                      className="btn-add-inline-cat"
-                      onClick={() => setShowAddCategoryModal(true)}
-                      title="Add Custom Apparel Category"
-                    >
-                      <PlusCircle size={14} /> Add New
-                    </button>
-                  </div>
-                  <select
-                    className="form-select font-weight-700"
-                    value={apparelCategory}
-                    onChange={(e) => setApparelCategory(e.target.value)}
-                  >
-                    {apparelCategories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">Garment / Model Title *</label>
+                  <Barcode size={18} className="input-icon" />
                   <input
                     type="text"
-                    className="form-input font-weight-600"
-                    placeholder="e.g. Cotton Oxford Slim-Fit Shirt"
-                    value={fabricMaterial}
-                    onChange={(e) => setFabricMaterial(e.target.value)}
+                    className="form-input font-mono font-weight-700"
+                    value={barcode}
+                    onChange={(e) => setBarcode(e.target.value)}
                     required
                   />
                 </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">Color Scheme</label>
-                  <div className="input-with-icon">
-                    <Palette size={16} className="input-icon" />
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Sky Blue, Navy, White"
-                      value={apparelColor}
-                      onChange={(e) => setApparelColor(e.target.value)}
-                    />
-                  </div>
-                </div>
               </div>
 
-              <div className="form-grid-3col gap-2 mt-2">
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">Base Wholesale COGS (Rs.)</label>
-                  <input
-                    type="number"
-                    className="form-input font-mono"
-                    placeholder="e.g. 1200"
-                    value={apparelBaseWholesale}
-                    onChange={(e) => setApparelBaseWholesale(e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">Base Retail Price (Rs.) *</label>
-                  <input
-                    type="number"
-                    className="form-input font-mono"
-                    placeholder="e.g. 2800"
-                    value={apparelBaseRetail}
-                    onChange={(e) => setApparelBaseRetail(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label mb-1">Reorder Limit / Size</label>
-                  <input
-                    type="number"
-                    className="form-input font-mono"
-                    value={apparelReorderLimit}
-                    onChange={(e) => setApparelReorderLimit(e.target.value)}
-                  />
-                </div>
+              <div className="form-group mb-4">
+                <label className="form-label">Thermal Stickers to Print Count</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="form-input font-mono font-weight-700"
+                  value={stickerPrintCount}
+                  onChange={(e) => setStickerPrintCount(e.target.value)}
+                  placeholder={initialStock || '1'}
+                />
               </div>
 
-              {/* Size Pill Selectors */}
-              <div className="size-selector-matrix-box mt-3">
-                <label className="form-label mb-1">Select Size Variants to Auto-Generate:</label>
-                <div className="size-pills-row">
-                  {(apparelCategory.includes('Trouser') || apparelCategory.includes('Jeans') ? trouserSizes : shirtSizes).map((sz) => {
-                    const isSelected = selectedSizes.includes(sz);
-                    return (
-                      <button
-                        key={sz}
-                        type="button"
-                        className={`size-select-pill ${isSelected ? 'active' : ''}`}
-                        onClick={() => handleToggleSize(sz)}
-                      >
-                        {sz}
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="modal-actions flex-between pt-2">
+                <button
+                  type="button"
+                  className="btn btn-secondary flex-align-center gap-1"
+                  onClick={() => setCurrentStep(2)}
+                >
+                  <ArrowLeft size={16} /> Back
+                </button>
+                <button type="submit" className="btn btn-primary btn-lg flex-align-center gap-2">
+                  <CheckCircle2 size={18} /> Save & Generate Barcode Tag
+                </button>
               </div>
+            </form>
+          )}
 
-              {/* Generated Variant Table */}
-              <div className="variant-table-container mt-3">
-                <div className="flex-between mb-1">
-                  <span className="text-xs font-weight-700 text-subtle text-uppercase">Generated Variant SKUs & Stock</span>
-                  <span className="badge badge-sage badge-compact">{variantRows.length} Size Variants</span>
-                </div>
-
-                <table className="data-table variant-sku-table">
-                  <thead>
-                    <tr>
-                      <th>Variant SKU</th>
-                      <th>Size</th>
-                      <th>Color</th>
-                      <th>Stock Qty</th>
-                      <th>Retail (Rs.)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {variantRows.map((v, idx) => (
-                      <tr key={v.id}>
-                        <td>
-                          <input
-                            type="text"
-                            className="form-input form-input-xs font-mono"
-                            value={v.sku}
-                            onChange={(e) => handleUpdateVariantField(idx, 'sku', e.target.value)}
-                          />
-                        </td>
-                        <td className="font-weight-600 font-mono text-xs">{v.size}</td>
-                        <td className="text-xs text-muted">{v.color}</td>
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            className="form-input form-input-xs font-mono text-center"
-                            value={v.stock}
-                            onChange={(e) => handleUpdateVariantField(idx, 'stock', parseFloat(e.target.value) || 0)}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            className="form-input form-input-xs font-mono"
-                            value={v.retailPrice}
-                            onChange={(e) => handleUpdateVariantField(idx, 'retailPrice', parseFloat(e.target.value) || 0)}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* ========================================================
+              PHASE 4: CELEBRATORY CONFIRMATION & STICKER PRINT
+              ======================================================== */}
+          {currentStep === 4 && createdProductResult && (
+            <div className="wizard-step-container text-center py-4">
+              <div className="brand-icon-badge mx-auto mb-2">
+                <CheckCircle2 size={46} className="text-success mx-auto" />
               </div>
+              <h3 className="text-main font-weight-800 mb-1">Product Added to Inventory!</h3>
+              <p className="text-muted text-xs mb-3">
+                <strong>{createdProductResult.fabricMaterial}</strong> ({createdProductResult.barcode}) is ready for sales counter.
+              </p>
 
-              {/* Apparel Vendor Sourcing Section */}
-              <div className="form-section-title sub-section-heading mt-3">
-                <Truck size={18} className="title-icon text-primary" />
-                <span>Supplier / Mill Sourcing & Vendor Ledger</span>
+              <div className="flex-align-center justify-center gap-3 mt-4">
+                <button
+                  type="button"
+                  className="btn btn-primary flex-align-center gap-2"
+                  onClick={() => window.print()}
+                >
+                  <Printer size={16} /> Print {createdProductResult.printCount} Barcode Stickers (1.8" × 0.9")
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleResetForNextProduct}
+                >
+                  + Add Another Product
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setActiveTab('check-stock')}
+                >
+                  View in Inventory
+                </button>
               </div>
-
-              <div className="form-group mb-2">
-                <label className="form-label mb-1">Select Sourcing Mill / Vendor (Optional)</label>
-                <div className="input-with-icon">
-                  <Truck size={16} className="input-icon" />
-                  <select
-                    className="form-select font-weight-600"
-                    value={selectedVendorId}
-                    onChange={(e) => setSelectedVendorId(e.target.value)}
-                  >
-                    <option value="">-- Direct Factory / Cash Sourcing (No Ledger) --</option>
-                    {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.vendorName} ({v.city})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Live Vendor Financial Ledger Summary Card for Apparel */}
-              {selectedVendorId && (() => {
-                const selVen = vendors.find(v => v.id === selectedVendorId);
-                if (!selVen) return null;
-                const outstandingDue = (selVen.totalInvoiced || 0) - (selVen.totalPaid || 0);
-                const wholesaleNum = parseFloat(apparelBaseWholesale) || 0;
-                const totalVariantStock = variantRows.reduce((acc, r) => acc + (parseFloat(r.stock) || 0), 0);
-                const thisShipmentVal = wholesaleNum * totalVariantStock;
-
-                return (
-                  <div className="vendor-ledger-mini-summary glass-card p-3 my-2">
-                    <div className="flex-between mb-2">
-                      <div className="flex-align-center gap-2">
-                        <Truck size={16} className="text-primary" />
-                        <strong className="text-main">{selVen.vendorName}</strong>
-                        <span className="text-xs text-muted">({selVen.city})</span>
-                      </div>
-                      <span className={`badge ${outstandingDue > 0 ? 'badge-danger' : 'badge-success'}`}>
-                        {outstandingDue > 0
-                          ? `We Owe: Rs. ${outstandingDue.toLocaleString()}`
-                          : 'Account Settled'}
-                      </span>
-                    </div>
-                    <div className="vendor-mini-stats-grid">
-                      <div className="v-stat">
-                        <span className="v-stat-lbl">Total Mill Invoiced</span>
-                        <strong className="v-stat-val font-mono">Rs. {selVen.totalInvoiced.toLocaleString()}</strong>
-                      </div>
-                      <div className="v-stat">
-                        <span className="v-stat-lbl">Total Paid So Far</span>
-                        <strong className="v-stat-val font-mono text-success">Rs. {selVen.totalPaid.toLocaleString()}</strong>
-                      </div>
-                      <div className="v-stat">
-                        <span className="v-stat-lbl">This Sourcing Value (Auto-Added)</span>
-                        <strong className="v-stat-val font-mono text-primary">
-                          +Rs. {thisShipmentVal.toLocaleString()}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </>
+            </div>
           )}
         </div>
 
-        {/* RIGHT COLUMN: 1.8" x 0.9" Thermal Barcode Sticker Preview & Action Buttons */}
+        {/* RIGHT COLUMN: Live 1.8" x 0.9" Thermal Barcode Sticker Preview */}
         <div className="glass-card setup-preview-side-card">
-          {/* Professional 1.8" x 0.9" Thermal Barcode Sticker (Standard Ratio) */}
-          <div className="thermal-barcode-label-18x09">
-            <div className="tbl-header-brand">
-              <span>{shopSettings.shopName || 'SHAAN GENTS CLOTH'}</span>
+          <div className="card-header-styled flex-between mb-2">
+            <div className="flex-align-center gap-2">
+              <Printer size={18} className="text-primary" />
+              <h4 className="mb-0">Thermal Sticker Preview</h4>
             </div>
-            
+            <span className="badge badge-sage">1.8" × 0.9"</span>
+          </div>
+
+          {/* Standard 1.8" x 0.9" Thermal Barcode Sticker */}
+          <div className="thermal-barcode-label-18x09 printable-sticker my-3 mx-auto">
+            <div className="tbl-header-brand">
+              <span>{shopSettings.shopName || 'NOVA MEN & WOMEN FASHION'}</span>
+            </div>
+
             <div className="tbl-item-title truncate-cell">
-              {fabricMaterial || (productType === 'apparel' ? 'Formal Shirt' : 'Lawn Fabric')}
+              {productName || 'Garment Item'}
             </div>
 
             <div className="tbl-spec-row">
-              <span className="tbl-category-tag">
-                {productType === 'apparel' ? apparelCategory : (unitType || 'Suit')}
-              </span>
+              <span className="tbl-category-tag">{category}</span>
               <span className="tbl-color-size truncate-cell">
-                {productType === 'apparel'
-                  ? `${variantRows[0]?.size || 'M'} • ${apparelColor || 'Standard'}`
-                  : `${effectiveFabricType} • ${fabricColor || 'Standard'}`}
+                {size} • {color || 'Standard'}
               </span>
             </div>
 
-            {/* Sharp Vector Barcode Stripes */}
             <div className="tbl-barcode-svg-wrapper">
               <svg viewBox="0 0 220 38" className="tbl-barcode-svg">
                 <rect x="0" y="0" width="220" height="38" fill="#ffffff" />
@@ -835,176 +710,65 @@ export const ProductSetupView = () => {
               </svg>
             </div>
 
-            <div className="tbl-sku-code font-mono">
-              {productType === 'apparel' ? variantRows[0]?.sku || 'SHT-BLU-M' : customBarcode}
-            </div>
-
+            <div className="tbl-sku-code font-mono">{barcode || 'PAK-SHT-882049'}</div>
             <div className="tbl-footer-price font-mono">
-              PRICE: Rs. {parseFloat((productType === 'apparel' ? apparelBaseRetail : retailPrice) || 0).toLocaleString()} {unitType === 'Meter' && productType === 'unstitched' ? '/ m' : ''}
+              PRICE: Rs. {(parseFloat(retailPrice) || 0).toLocaleString()}
             </div>
           </div>
 
-          <div className="side-card-actions">
-            <button type="submit" className="btn btn-primary btn-block hover-lift">
-              <Save size={18} /> Save & Print Tag
-            </button>
-            <button type="button" className="btn btn-secondary btn-block" onClick={handleFullClear}>
-              <RotateCcw size={16} /> Clear Form
-            </button>
+          <div className="p-2 text-xs text-muted text-center font-mono">
+            Directly compatible with Xprinter, TSC & standard 1.8" × 0.9" label rolls.
           </div>
         </div>
-      </form>
+      </div>
 
-      {/* Quick Modal to Add Custom Apparel Category */}
+      {/* ========================================================
+          MODAL: ADD CUSTOM APPAREL CATEGORY
+          ======================================================== */}
       {showAddCategoryModal && (
         <div className="modal-overlay">
-          <div className="modal-content modal-sm">
+          <div className="modal-content modal-sm glass-card p-4">
             <div className="modal-header">
-              <div className="modal-title">
-                <PlusCircle size={20} className="text-primary" />
-                <h3>Add New Apparel Category</h3>
+              <div className="modal-title flex-align-center gap-2">
+                <Tag size={18} className="text-primary" />
+                <h3 className="mb-0">Add Custom Product Category</h3>
               </div>
-              <button className="btn-close" onClick={() => setShowAddCategoryModal(false)}>
-                <X size={18} />
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowAddCategoryModal(false)}
+              >
+                <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleAddCustomCategory} className="modal-body">
+
+            <form onSubmit={handleAddCategorySubmit} className="modal-body">
               <div className="form-group mb-3">
-                <label className="form-label mb-1">Category Name (e.g. Blazer, Sherwani, Tracksuit):</label>
+                <label className="form-label">Category Name *</label>
                 <input
                   type="text"
-                  className="form-input font-weight-600"
-                  placeholder="Type new category..."
-                  value={newCategoryInput}
-                  onChange={(e) => setNewCategoryInput(e.target.value)}
+                  className="form-input font-weight-700"
+                  placeholder="e.g. Leather Jacket, Formal Waistcoat, Silk Scarf..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
                   autoFocus
                   required
                 />
               </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddCategoryModal(false)}>
+
+              <div className="modal-actions flex-between">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAddCategoryModal(false)}
+                >
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Add Category
+                  <Plus size={15} /> Add Category
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Barcode Print Confirmation Modal */}
-      {printBarcodeModalData && (
-        <div className="modal-overlay">
-          <div className="modal-content barcode-print-modal">
-            <div className="modal-header">
-              <div className="modal-title">
-                <Printer size={22} className="text-success" />
-                <h3>Print Barcode Tags</h3>
-              </div>
-              <button className="btn-close" onClick={() => setPrintBarcodeModalData(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <p className="mb-3">
-                <strong>
-                  {printBarcodeModalData.product.unitType === 'Meter'
-                    ? `${printBarcodeModalData.product.initialStock} meters`
-                    : `${printBarcodeModalData.product.initialStock} units`}
-                </strong> of{' '}
-                <strong>{printBarcodeModalData.product.fabricMaterial}</strong> have been added to inventory.
-              </p>
-              <div className="print-qty-box mb-4">
-                <label className="form-label">Number of Barcode Tags to Print:</label>
-                <input
-                  type="number"
-                  className="form-input font-mono text-center"
-                  value={printBarcodeModalData.qtyToPrint}
-                  onChange={(e) =>
-                    setPrintBarcodeModalData((prev) => ({
-                      ...prev,
-                      qtyToPrint: parseInt(e.target.value) || 1,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="tags-grid-preview">
-                {Array.from({ length: Math.min(4, printBarcodeModalData.qtyToPrint) }).map((_, i) => (
-                  <div key={i} className="thermal-barcode-label-18x09 printable-sticker">
-                    <div className="tbl-header-brand">
-                      <span>{shopSettings.shopName}</span>
-                    </div>
-                    <div className="tbl-item-title truncate-cell">
-                      {printBarcodeModalData.product.fabricMaterial}
-                    </div>
-                    <div className="tbl-spec-row">
-                      <span className="tbl-category-tag">
-                        {printBarcodeModalData.product.apparelCategory || printBarcodeModalData.product.unitType}
-                      </span>
-                      <span className="tbl-color-size truncate-cell">
-                        {printBarcodeModalData.product.fabricType} • {printBarcodeModalData.product.fabricColor}
-                      </span>
-                    </div>
-                    <div className="tbl-barcode-svg-wrapper">
-                      <svg viewBox="0 0 220 38" className="tbl-barcode-svg">
-                        <rect x="0" y="0" width="220" height="38" fill="#ffffff" />
-                        <rect x="6" y="0" width="4" height="38" fill="#000000" />
-                        <rect x="14" y="0" width="2" height="38" fill="#000000" />
-                        <rect x="20" y="0" width="6" height="38" fill="#000000" />
-                        <rect x="30" y="0" width="3" height="38" fill="#000000" />
-                        <rect x="36" y="0" width="5" height="38" fill="#000000" />
-                        <rect x="45" y="0" width="2" height="38" fill="#000000" />
-                        <rect x="50" y="0" width="4" height="38" fill="#000000" />
-                        <rect x="57" y="0" width="7" height="38" fill="#000000" />
-                        <rect x="68" y="0" width="3" height="38" fill="#000000" />
-                        <rect x="74" y="0" width="5" height="38" fill="#000000" />
-                        <rect x="83" y="0" width="2" height="38" fill="#000000" />
-                        <rect x="88" y="0" width="6" height="38" fill="#000000" />
-                        <rect x="97" y="0" width="4" height="38" fill="#000000" />
-                        <rect x="105" y="0" width="2" height="38" fill="#000000" />
-                        <rect x="110" y="0" width="5" height="38" fill="#000000" />
-                        <rect x="118" y="0" width="3" height="38" fill="#000000" />
-                        <rect x="124" y="0" width="6" height="38" fill="#000000" />
-                        <rect x="134" y="0" width="2" height="38" fill="#000000" />
-                        <rect x="139" y="0" width="5" height="38" fill="#000000" />
-                        <rect x="147" y="0" width="3" height="38" fill="#000000" />
-                        <rect x="153" y="0" width="7" height="38" fill="#000000" />
-                        <rect x="163" y="0" width="2" height="38" fill="#000000" />
-                        <rect x="168" y="0" width="4" height="38" fill="#000000" />
-                        <rect x="175" y="0" width="6" height="38" fill="#000000" />
-                        <rect x="185" y="0" width="3" height="38" fill="#000000" />
-                        <rect x="191" y="0" width="5" height="38" fill="#000000" />
-                        <rect x="200" y="0" width="4" height="38" fill="#000000" />
-                        <rect x="208" y="0" width="3" height="38" fill="#000000" />
-                      </svg>
-                    </div>
-                    <div className="tbl-sku-code font-mono">{printBarcodeModalData.product.barcode}</div>
-                    <div className="tbl-footer-price font-mono">
-                      PRICE: Rs. {printBarcodeModalData.product.retailPrice.toLocaleString()} {printBarcodeModalData.product.unitType === 'Meter' ? '/ m' : ''}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setPrintBarcodeModalData(null)}>
-                Skip Printing
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  window.print();
-                  setPrintBarcodeModalData(null);
-                }}
-              >
-                <Printer size={16} /> Confirm & Print {printBarcodeModalData.qtyToPrint} Barcodes
-              </button>
-            </div>
           </div>
         </div>
       )}

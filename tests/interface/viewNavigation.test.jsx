@@ -15,7 +15,7 @@ describe('Interface & Component View Tests', () => {
       </POSProvider>
     );
 
-    expect(screen.getByPlaceholderText(/Click to browse all items/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
     expect(screen.getByText(/Order Payment & Settlement/i)).toBeInTheDocument();
     expect(screen.getByText(/Cash/i)).toBeInTheDocument();
     expect(screen.getByText(/Card/i)).toBeInTheDocument();
@@ -29,7 +29,7 @@ describe('Interface & Component View Tests', () => {
       </POSProvider>
     );
 
-    const searchInput = screen.getByPlaceholderText(/Click to browse all items/i);
+    const searchInput = screen.getByPlaceholderText(/search/i);
     
     // Clicking the search bar opens dropdown
     fireEvent.click(searchInput);

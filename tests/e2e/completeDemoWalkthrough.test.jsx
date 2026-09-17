@@ -13,7 +13,7 @@ describe('End-to-End (E2E) Complete Demo Workflow Test', () => {
     );
 
     // 1. Verify terminal header and search input
-    const searchInput = screen.getByPlaceholderText(/Click to browse all items/i);
+    const searchInput = screen.getByPlaceholderText(/search/i);
     expect(searchInput).toBeInTheDocument();
 
     // 2. Click search input to open dropdown

@@ -10,6 +10,9 @@ import {
   Sparkles,
   ArrowRight,
   Boxes,
+  Banknote,
+  Store,
+  MapPin,
 } from 'lucide-react';
 
 const RETAIL_QUOTES = [
@@ -22,7 +25,17 @@ const RETAIL_QUOTES = [
 ];
 
 export const DashboardView = () => {
-  const { currentUser, products, salesLogs, shopSettings, setActiveTab } = usePOS();
+  const {
+    currentUser,
+    products,
+    salesLogs,
+    shopSettings,
+    setActiveTab,
+    setShowDaySettlementModal,
+    setShowShopSwitcher,
+    currentTenant,
+  } = usePOS();
+
   const [activeQuote, setActiveQuote] = useState(RETAIL_QUOTES[0]);
 
   useEffect(() => {
@@ -32,34 +45,61 @@ export const DashboardView = () => {
 
   const totalOrders = salesLogs.length;
   const todayStr = new Date().toISOString().split('T')[0];
-  const todaysSales = salesLogs.filter(s => s.dateTime.startsWith(todayStr));
-  const todaysRevenue = todaysSales.length > 0 
-    ? todaysSales.reduce((acc, curr) => acc + curr.netTotal, 0)
-    : salesLogs.reduce((acc, curr) => acc + curr.netTotal, 0); // fallback for demo if no today sales yet
+  const todaysSales = salesLogs.filter((s) => s.dateTime.startsWith(todayStr));
+  const todaysRevenue =
+    todaysSales.length > 0
+      ? todaysSales.reduce((acc, curr) => acc + curr.netTotal, 0)
+      : salesLogs.reduce((acc, curr) => acc + curr.netTotal, 0); // fallback for demo
   const totalGrossProfit = salesLogs.reduce((acc, curr) => acc + curr.grossProfit, 0);
 
-  const lowStockProducts = products.filter(p => p.stock <= p.reorderLimit);
+  const lowStockProducts = products.filter((p) => p.stock <= p.reorderLimit);
+
+  const displayShopName = shopSettings?.shopName || currentTenant?.name || 'NOVA MEN & WOMEN FASHION';
+  const displayShopLocation = shopSettings?.shopLocation || currentTenant?.address || currentTenant?.city || 'Jalal Pur Jattan, Gujrat';
 
   return (
     <div className="view-container dashboard-view">
-      {/* Welcome Banner with Random Inspiring Quote */}
+      {/* Welcome Banner with Shop Name & Quick Actions */}
       <div className="welcome-banner glass-card hover-glow">
         <div className="banner-content">
-          <div className="flex-align-center gap-2">
-            <h2>Welcome back, {currentUser?.fullName || 'Cashier'} 👋</h2>
+          <div className="flex-align-center gap-2 mb-1">
+            <h1 className="dashboard-shop-fullname">{displayShopName}</h1>
+          </div>
+          <div className="flex-align-center gap-2 text-xs text-muted mb-2">
+            <span className="flex-align-center gap-1 font-weight-600">
+              <MapPin size={13} className="text-primary" /> {displayShopLocation}
+            </span>
+            <span>•</span>
             <span className="badge badge-sage badge-compact flex-align-center gap-1">
-              <Sparkles size={11} /> POS Online
+              <Sparkles size={11} /> {currentUser?.fullName || 'Cashier'} on Terminal
             </span>
           </div>
           <p className="welcome-quote font-italic">
             "{activeQuote.text}" <span className="quote-author">— {activeQuote.author}</span>
           </p>
         </div>
-        <div className="banner-actions">
-          <button className="btn btn-primary btn-action-pulse" onClick={() => setActiveTab('make-sale')}>
+
+        <div className="banner-actions flex-align-center gap-2">
+          <button
+            type="button"
+            className="btn btn-primary btn-action-pulse"
+            onClick={() => setActiveTab('make-sale')}
+          >
             <ShoppingBag size={18} /> Make a Sale
           </button>
-          <button className="btn btn-secondary" onClick={() => setActiveTab('product-setup')}>
+          <button
+            type="button"
+            className="btn btn-settle-prominent"
+            onClick={() => setShowDaySettlementModal(true)}
+            title="Settle Cash Drawer & Close Day"
+          >
+            <Banknote size={18} /> Close / Settle Cash
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setActiveTab('product-setup')}
+          >
             <PlusCircle size={18} /> Add Product
           </button>
         </div>
@@ -78,7 +118,9 @@ export const DashboardView = () => {
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Today's Revenue</span>
-            <h3 className="kpi-value font-mono">{shopSettings.currencySymbol} {todaysRevenue.toLocaleString()}</h3>
+            <h3 className="kpi-value font-mono">
+              {shopSettings.currencySymbol} {todaysRevenue.toLocaleString()}
+            </h3>
             <span className="kpi-sub positive">
               <TrendingUp size={13} /> Net settled revenue
             </span>
@@ -96,7 +138,9 @@ export const DashboardView = () => {
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Total Gross Profit</span>
-            <h3 className="kpi-value font-mono">{shopSettings.currencySymbol} {totalGrossProfit.toLocaleString()}</h3>
+            <h3 className="kpi-value font-mono">
+              {shopSettings.currencySymbol} {totalGrossProfit.toLocaleString()}
+            </h3>
             <span className="kpi-sub neutral">Margin after wholesale COGS</span>
           </div>
         </div>
@@ -121,7 +165,9 @@ export const DashboardView = () => {
 
         {/* 4. Low Stock Items */}
         <div
-          className={`kpi-card glass-card kpi-interactive-card hover-lift ${lowStockProducts.length > 0 ? 'warning-kpi-card' : ''}`}
+          className={`kpi-card glass-card kpi-interactive-card hover-lift ${
+            lowStockProducts.length > 0 ? 'warning-kpi-card' : ''
+          }`}
           onClick={() => setActiveTab('check-stock')}
           title="Click to view Low Stock Inventory"
         >
@@ -130,7 +176,11 @@ export const DashboardView = () => {
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Low Stock Alerts</span>
-            <h3 className={`kpi-value font-mono ${lowStockProducts.length > 0 ? 'text-danger font-weight-800' : ''}`}>
+            <h3
+              className={`kpi-value font-mono ${
+                lowStockProducts.length > 0 ? 'text-danger font-weight-800' : ''
+              }`}
+            >
               {lowStockProducts.length} Items
             </h3>
             <span className="kpi-sub neutral flex-align-center gap-1">
@@ -138,6 +188,22 @@ export const DashboardView = () => {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Dashboard Footer Bar with Switch Shop Button on Right */}
+      <div className="dashboard-footer-bar flex-between mt-4">
+        <div className="text-xs text-muted font-mono">
+          Terminal ID: POS-T1 • Location: {displayShopName}
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm flex-align-center gap-2 hover-lift"
+          onClick={() => setShowShopSwitcher(true)}
+          title="Switch Active Outlet or Branch"
+        >
+          <Store size={15} className="text-primary" />
+          <span>Switch Shop</span>
+        </button>
       </div>
     </div>
   );

@@ -492,3 +492,32 @@
   transform: translateY(-1px);
 }
 
+/* =======================================================
+   CUSTOM HORIZONTAL & VERTICAL SCROLLBAR UTILITIES
+   ======================================================= */
+.custom-scrollbar-both {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-scrollbar-both::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.custom-scrollbar-both::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 999px;
+}
+
+.custom-scrollbar-both::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.custom-scrollbar-both::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+

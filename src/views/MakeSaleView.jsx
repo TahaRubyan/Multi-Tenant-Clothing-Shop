@@ -48,7 +48,6 @@ export const MakeSaleView = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [selectedDepartment, setSelectedDepartment] = useState('all'); // 'all' | 'Gents' | 'Ladies' | 'Boxes'
   const [amountReceived, setAmountReceived] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // 'Cash' | 'Card' | 'Mobile Banking'
   const [completedSaleData, setCompletedSaleData] = useState(null);
@@ -98,7 +97,7 @@ export const MakeSaleView = () => {
         isVariant: false,
         variant: null,
         product: p,
-        department: p.department || (p.unitType === 'Box' ? 'Boxes' : p.fabricMaterial.toLowerCase().includes('ladies') ? 'Ladies' : 'Gents'),
+        department: p.department || 'Garments',
         barcode: p.barcode,
         masterBarcode: p.barcode,
         fabricMaterial: p.fabricMaterial,
@@ -112,34 +111,10 @@ export const MakeSaleView = () => {
     }
   });
 
-  // Department-filtered list
-  const departmentFilteredItems = flattenedSearchItems.filter((item) => {
-    if (selectedDepartment === 'all') return true;
-    if (selectedDepartment === 'Boxes') return item.unitType === 'Box';
-    if (selectedDepartment === 'Ladies') {
-      return (
-        item.department === 'Ladies' ||
-        item.fabricMaterial.toLowerCase().includes('ladies') ||
-        item.fabricType.toLowerCase().includes('pret')
-      );
-    }
-    if (selectedDepartment === 'Gents') {
-      return (
-        item.department === 'Gents' ||
-        item.fabricMaterial.toLowerCase().includes('gents') ||
-        item.fabricMaterial.toLowerCase().includes('latha') ||
-        item.fabricMaterial.toLowerCase().includes('boski') ||
-        item.fabricType.toLowerCase().includes('shirt') ||
-        item.fabricType.toLowerCase().includes('trouser')
-      );
-    }
-    return true;
-  });
-
   // When focused or search query typed: if empty query, show ALL items; otherwise filter by name, barcode, SKU
   const searchResults = isSearchFocused
     ? searchQuery.trim()
-      ? departmentFilteredItems.filter((item) => {
+      ? flattenedSearchItems.filter((item) => {
           const q = searchQuery.toLowerCase();
           return (
             item.barcode.toLowerCase().includes(q) ||
@@ -150,7 +125,7 @@ export const MakeSaleView = () => {
             (item.unitType && item.unitType.toLowerCase().includes(q))
           );
         })
-      : departmentFilteredItems
+      : flattenedSearchItems
     : [];
 
   // Scroll active item into view within search dropdown
@@ -335,58 +310,15 @@ export const MakeSaleView = () => {
 
   return (
     <div className="view-container make-sale-full-view">
-      {/* TOP: Search Bar & Department Filter Tabs */}
+      {/* TOP: Quick Barcode & Article Search Bar */}
       <div className="pos-search-header-card glass-card">
-        <div className="department-filter-bar flex-align-center gap-1 mb-2">
-          <button
-            type="button"
-            className={`dept-filter-pill ${selectedDepartment === 'all' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedDepartment('all');
-              setSelectedIndex(0);
-            }}
-          >
-            All Inventory
-          </button>
-          <button
-            type="button"
-            className={`dept-filter-pill ${selectedDepartment === 'Gents' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedDepartment('Gents');
-              setSelectedIndex(0);
-            }}
-          >
-            👔 Gents Collection
-          </button>
-          <button
-            type="button"
-            className={`dept-filter-pill ${selectedDepartment === 'Ladies' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedDepartment('Ladies');
-              setSelectedIndex(0);
-            }}
-          >
-            👗 Ladies Collection
-          </button>
-          <button
-            type="button"
-            className={`dept-filter-pill ${selectedDepartment === 'Boxes' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedDepartment('Boxes');
-              setSelectedIndex(0);
-            }}
-          >
-            🎁 Suit in Box
-          </button>
-        </div>
-
         <form onSubmit={handleBarcodeSubmit} className="search-barcode-form">
           <div className="search-barcode-input-group">
             <Search size={22} className="search-icon-accent" />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Click to browse all items, search fabric name, suit, box, meter bolt, shirt size, or scan barcode..."
+              placeholder="Scan barcode or type to search all stitched suits, shirts, pants, perfumes, accessories..."
               value={searchQuery}
               onClick={() => setIsSearchFocused(true)}
               onFocus={() => setIsSearchFocused(true)}
@@ -691,15 +623,13 @@ export const MakeSaleView = () => {
               </div>
             )}
 
-            {/* Percentage-Based Overall Wholesale Discount (PIN Protected) */}
+            {/* Percentage-Based Overall Wholesale Discount */}
             <div className="t-row whole-discount-box">
               <div className="flex-column">
                 <div className="flex-align-center gap-1">
-                  <span>Wholesale Discount (%)</span>
-                  {isDiscountPinUnlocked ? (
+                  <span className="font-weight-600">Wholesale Discount (%)</span>
+                  {isDiscountPinUnlocked && (
                     <span className="badge badge-success badge-compact text-xxs">Unlocked</span>
-                  ) : (
-                    <span className="badge badge-warning badge-compact text-xxs">PIN Protected</span>
                   )}
                 </div>
                 {wholeSaleDiscountAmt > 0 && (
@@ -709,6 +639,7 @@ export const MakeSaleView = () => {
               <div
                 className="discount-input-field"
                 onClick={() => !isDiscountPinUnlocked && handleDiscountChangeAttempt('10')}
+                title={isDiscountPinUnlocked ? 'Wholesale Discount Unlocked' : 'Click to authorize Manager PIN'}
               >
                 <Tag size={14} className={isDiscountPinUnlocked ? 'text-primary' : 'text-muted'} />
                 <input

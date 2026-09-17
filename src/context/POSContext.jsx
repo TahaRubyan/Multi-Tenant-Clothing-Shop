@@ -68,18 +68,22 @@ export const POSProvider = ({ children }) => {
   );
   const [showDaySettlementModal, setShowDaySettlementModal] = useState(false);
 
-  // Apparel Categories List (Dynamic Category Addition)
+  // Dynamic Apparel & Garment Categories List
   const DEFAULT_APPAREL_CATEGORIES = [
+    'Stitched 3-Piece Suit',
+    'Stitched 2-Piece Suit',
+    'Kurta & Shalwar',
     'Formal Shirt',
     'Casual Shirt',
     'Dress Trouser',
     'Denim Jeans',
-    'Polo Shirt',
-    'Kurta',
-    'Waistcoat',
-    'Shalwar Kameez',
-    'Blazer / Coat',
+    'Waistcoat & Blazer',
+    'Polo & T-Shirt',
     'Ladies Pret',
+    'Perfume & Fragrance',
+    'Watch & Timepiece',
+    'Leather Wallet & Belt',
+    'Accessories',
   ];
   const [apparelCategories, setApparelCategories] = useState(() =>
     getStoredOrDefault('pos_apparel_categories', DEFAULT_APPAREL_CATEGORIES)
@@ -626,7 +630,14 @@ export const POSProvider = ({ children }) => {
   };
 
   const deleteProduct = (productId) => {
+    const prod = allProducts.find(p => p.id === productId);
+    if (prod && prod.stock > 0) {
+      showToast(`Cannot delete "${prod.fabricMaterial}" because it has ${prod.stock} items in stock!`, 'danger');
+      return false;
+    }
     setAllProducts(prev => prev.filter(p => p.id !== productId));
+    showToast('Product deleted from inventory', 'info');
+    return true;
   };
 
   // Cart State for POS
