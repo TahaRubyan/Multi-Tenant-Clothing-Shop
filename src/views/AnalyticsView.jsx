@@ -428,14 +428,14 @@ export const AnalyticsView = () => {
                 <span>100% Accounted</span>
               </div>
               <div className="progress-bar-stack" style={{ display: 'flex', height: '14px', borderRadius: '8px', overflow: 'hidden' }}>
-                <div style={{ width: `${totalRevenue > 0 ? (paymentMethodsMap.Cash.total / totalRevenue) * 100 : 50}%`, background: '#2d6a4f' }} title="Cash" />
+                <div style={{ width: `${totalRevenue > 0 ? (paymentMethodsMap.Cash.total / totalRevenue) * 100 : 50}%`, background: '#10b981' }} title="Cash" />
                 <div style={{ width: `${totalRevenue > 0 ? (paymentMethodsMap.Card.total / totalRevenue) * 100 : 25}%`, background: '#3b82f6' }} title="Card" />
-                <div style={{ width: `${totalRevenue > 0 ? (paymentMethodsMap['Mobile Banking'].total / totalRevenue) * 100 : 25}%`, background: '#d97706' }} title="Mobile Banking" />
+                <div style={{ width: `${totalRevenue > 0 ? (paymentMethodsMap['Mobile Banking'].total / totalRevenue) * 100 : 25}%`, background: '#f59e0b' }} title="Mobile Banking" />
               </div>
               <div className="flex-align-center justify-between text-xs text-muted mt-2">
-                <span className="flex-align-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 99, background: '#2d6a4f' }} /> Cash</span>
+                <span className="flex-align-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 99, background: '#10b981' }} /> Cash</span>
                 <span className="flex-align-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 99, background: '#3b82f6' }} /> Card</span>
-                <span className="flex-align-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 99, background: '#d97706' }} /> Mobile Banking</span>
+                <span className="flex-align-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 99, background: '#f59e0b' }} /> Mobile Banking</span>
               </div>
             </div>
           </div>

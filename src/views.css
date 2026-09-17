@@ -2077,7 +2077,7 @@
 .report-badge-pill {
   display: inline-block;
   padding: 0.25rem 0.85rem;
-  background: #2d6a4f;
+  background: var(--color-primary);
   color: #ffffff;
   border-radius: 4px;
   font-size: 0.78rem;
@@ -2122,7 +2122,7 @@
   font-size: 0.92rem;
   font-weight: 800;
   color: #0f172a;
-  border-bottom: 2px solid #2d6a4f;
+  border-bottom: 2px solid var(--color-primary);
   padding-bottom: 0.35rem;
   margin-top: 1.25rem;
   margin-bottom: 0.65rem;
