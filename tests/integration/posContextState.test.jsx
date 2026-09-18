@@ -13,7 +13,7 @@ describe('POS Context Integration State Tests', () => {
   it('initializes with complete Pakistani textile dataset and shop settings', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    expect(result.current.shopSettings.shopName).toBe('NOVA MEN & WOMEN FASHION');
+    expect(result.current.shopSettings.shopName).toBe('NOVA MEN AND WOMEN');
     expect(result.current.shopSettings.shopLocation).toContain('Jalal Pur Jattan');
     expect(result.current.products.length).toBeGreaterThan(0);
     expect(result.current.vendors.length).toBeGreaterThan(0);

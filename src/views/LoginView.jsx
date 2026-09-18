@@ -18,8 +18,8 @@ import {
 
 export const LoginView = () => {
   const { login, users, tenants } = usePOS();
-  const [username, setUsername] = useState('ahmed_owner');
-  const [password, setPassword] = useState('123');
+  const [username, setUsername] = useState('Nova.admin');
+  const [password, setPassword] = useState('Admin123');
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = (e) => {
@@ -38,44 +38,36 @@ export const LoginView = () => {
 
   const demoAccounts = [
     {
-      user: users.find(u => u.username === 'superadmin') || users[0],
-      title: 'Platform SaaS Master',
-      subtitle: 'Oversees all shops, databases & tenants',
+      user: users.find(u => u.username.toLowerCase() === 'masteradmin') || users[0],
+      title: 'Master Platform Admin',
+      subtitle: 'Platform Super Admin • Onboard & Manage All Tenants',
       icon: Crown,
       badgeColor: 'badge-danger',
-      badgeText: 'Super Admin',
+      badgeText: 'Master Admin',
     },
     {
-      user: users.find(u => u.username === 'ahmed_owner') || users[1],
-      title: 'Haji Muhammad Ahmed',
-      subtitle: 'Multi-Shop Owner (Gents & Ladies)',
+      user: users.find(u => u.username.toLowerCase() === 'nova.admin') || users[1],
+      title: 'NOVA MEN AND WOMEN',
+      subtitle: 'Store Admin • Mixed Ladies & Gents Garments',
       icon: Store,
       badgeColor: 'badge-amber',
-      badgeText: 'Shop Owner',
+      badgeText: 'Store Admin',
     },
     {
-      user: users.find(u => u.username === 'tariq_gents') || users[2],
-      title: 'Tariq Mahmood',
-      subtitle: 'SHAAN Gents POS Cashier Terminal',
-      icon: Scissors,
-      badgeColor: 'badge-sage',
-      badgeText: 'Gents POS',
-    },
-    {
-      user: users.find(u => u.username === 'usman_ladies') || users[3],
-      title: 'Usman Ghani',
-      subtitle: 'Gulberg Ladies Pret & Lawn Terminal',
+      user: users.find(u => u.username.toLowerCase() === 'testing.admin') || users[2],
+      title: 'Testing Portal Admin',
+      subtitle: 'Testing Sandbox • Ladies & Gents QA Outlet',
       icon: Sparkles,
       badgeColor: 'badge-info',
-      badgeText: 'Ladies Pret',
+      badgeText: 'Testing Admin',
     },
     {
-      user: users.find(u => u.username === 'rashid_apparel') || users[4],
-      title: 'Rashid Tariq',
-      subtitle: 'Royal Threads Ready-Made Apparel',
-      icon: ShoppingBag,
+      user: users.find(u => u.username.toLowerCase() === 'cashier1') || users[3],
+      title: 'Front-Desk Cashier Terminal',
+      subtitle: 'Cashier Terminal • Daily Billing & Fast Checkout',
+      icon: Scissors,
       badgeColor: 'badge-sage',
-      badgeText: 'Apparel POS',
+      badgeText: 'Cashier POS',
     },
   ];
 
@@ -89,8 +81,8 @@ export const LoginView = () => {
           <div className="login-brand-icon mx-auto mb-2">
             <Scissors size={28} />
           </div>
-          <h2 className="login-brand-title">SHAAN TEXTILES & APPAREL</h2>
-          <p className="login-subtitle">Multi-Tenant Retail POS & Fabric Inventory Management</p>
+          <h2 className="login-brand-title">NOVA MEN AND WOMEN</h2>
+          <p className="login-subtitle">Multi-Tenant Retail POS, Unstitched Fabrics & Ready-Made Apparel Platform</p>
         </div>
 
         <div className="login-grid-2col">
@@ -138,7 +130,7 @@ export const LoginView = () => {
               </button>
 
               <p className="text-xs text-muted text-center mt-3 mb-0">
-                🔒 Offline SQLite active • Demo password is <strong>123</strong> for all roles
+                🔒 Masteradmin & Store Admins password: <strong>Admin123</strong> • Cashier: <strong>1234</strong>
               </p>
             </form>
           </div>

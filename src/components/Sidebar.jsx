@@ -28,18 +28,23 @@ export const Sidebar = () => {
     toggleSidebar,
   } = usePOS();
 
-  const navItems = [
-    { id: 'super-admin-portal', label: 'Tenant Management', icon: ShieldCheck, badge: 'SaaS', perm: 'super_admin', superAdminOnly: true },
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: null },
-    { id: 'make-sale', label: 'Make a Sale', icon: ShoppingCart, badge: 'POS', perm: 'make_sale' },
-    { id: 'product-setup', label: 'Product Setup', icon: PackagePlus, perm: 'product_setup' },
-    { id: 'check-stock', label: 'Check Stock', icon: Boxes, perm: 'check_stock' },
-    { id: 'stock-updation', label: 'Stock Updation', icon: RefreshCw, perm: 'stock_updation' },
-    { id: 'vendor-ledger', label: 'Vendor Ledger', icon: Truck, perm: 'vendor_ledger', module: 'vendor_ledger' },
-    { id: 'discounts', label: 'Discounts & Offers', icon: Tag, perm: 'discounts', module: 'promotional_engine' },
-    { id: 'analytics', label: 'Analytics', icon: TrendingUp, perm: 'analytics', module: 'analytics' },
-    { id: 'settings', label: 'Settings', icon: Settings, perm: 'settings' },
-  ];
+  const isMasterAdmin = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin';
+
+  const navItems = isMasterAdmin
+    ? [
+        { id: 'super-admin-portal', label: 'Tenant Management', icon: ShieldCheck, badge: 'Master', perm: null },
+      ]
+    : [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: null },
+        { id: 'make-sale', label: 'Make a Sale', icon: ShoppingCart, badge: 'POS', perm: 'make_sale' },
+        { id: 'product-setup', label: 'Product Setup', icon: PackagePlus, perm: 'product_setup' },
+        { id: 'check-stock', label: 'Check Stock', icon: Boxes, perm: 'check_stock' },
+        { id: 'stock-updation', label: 'Stock Updation', icon: RefreshCw, perm: 'stock_updation' },
+        { id: 'vendor-ledger', label: 'Vendor Ledger', icon: Truck, perm: 'vendor_ledger', module: 'vendor_ledger' },
+        { id: 'discounts', label: 'Discounts & Offers', icon: Tag, perm: 'discounts', module: 'promotional_engine' },
+        { id: 'analytics', label: 'Analytics', icon: TrendingUp, perm: 'analytics', module: 'analytics' },
+        { id: 'settings', label: 'Settings', icon: Settings, perm: 'settings' },
+      ];
 
   return (
     <aside className={`sidebar-container ${isSidebarCollapsed ? 'collapsed' : ''}`}>

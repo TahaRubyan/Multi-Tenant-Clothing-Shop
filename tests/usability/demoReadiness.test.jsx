@@ -7,12 +7,12 @@ import { INITIAL_PRODUCTS, INITIAL_VENDORS, INITIAL_USERS } from '../../src/mock
 describe('Usability & Demo Readiness Validation', () => {
   const wrapper = ({ children }) => <POSProvider>{children}</POSProvider>;
 
-  it('validates demo brand identity is pre-configured to NOVA MEN & WOMEN FASHION', () => {
+  it('validates demo brand identity is pre-configured to NOVA MEN AND WOMEN', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    expect(result.current.shopSettings.shopName).toBe('NOVA MEN & WOMEN FASHION');
+    expect(result.current.shopSettings.shopName).toBe('NOVA MEN AND WOMEN');
     expect(result.current.shopSettings.shopLocation).toContain('Jalal Pur Jattan');
-    expect(result.current.shopSettings.receiptFooterNote).toContain('NOVA MEN & WOMEN FASHION');
+    expect(result.current.shopSettings.receiptFooterNote).toContain('NOVA MEN AND WOMEN');
   });
 
   it('verifies Pakistani textile sample dataset contains authentic fabric types and articles', () => {
@@ -34,10 +34,12 @@ describe('Usability & Demo Readiness Validation', () => {
   });
 
   it('validates demo staff logins and authority permissions are ready for presentation', () => {
-    expect(INITIAL_USERS.length).toBeGreaterThanOrEqual(3);
+    expect(INITIAL_USERS.length).toBeGreaterThanOrEqual(4);
 
     const usernames = INITIAL_USERS.map(u => u.username);
-    expect(usernames).toContain('ahmed_owner');
-    expect(usernames).toContain('tariq_gents');
+    expect(usernames).toContain('Masteradmin');
+    expect(usernames).toContain('Nova.admin');
+    expect(usernames).toContain('Testing.admin');
+    expect(usernames).toContain('Cashier1');
   });
 });

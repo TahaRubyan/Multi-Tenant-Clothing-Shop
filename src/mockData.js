@@ -2,17 +2,21 @@
 
 export const INITIAL_TENANTS = [
   {
-    id: 'tenant-gents-101',
-    name: 'NOVA MEN & WOMEN FASHION',
-    tagline: 'Exclusive Men & Women Ready-to-Wear and Unstitched Fabrics',
+    id: 'tenant-nova-101',
+    name: 'NOVA MEN AND WOMEN',
+    tagline: 'Exclusive Men & Women Ready-to-Wear, Suits & Unstitched Fabrics',
     city: 'Jalal Pur Jattan, Gujrat',
     address: 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan',
     phone: '+92 300 1234567',
-    shopType: 'mixed_garments', // 'gents_unstitched' | 'ladies_fashion' | 'ready_made_apparel' | 'mixed_garments'
+    shopType: 'mixed_garments',
     ownerName: 'Haji Muhammad Ahmed',
     modules: {
-      unstitched_fabric: true,
+      ladies_suits: true,
+      gents_suits: true,
+      cloth_meters: true,
       ready_made_apparel: true,
+      unstitched_fabric: true,
+      pin_protected_discounts: true,
       vendor_ledger: true,
       promotional_engine: true,
       analytics: true,
@@ -21,42 +25,27 @@ export const INITIAL_TENANTS = [
     createdAt: '01-06-2026',
   },
   {
-    id: 'tenant-ladies-102',
-    name: 'Gulberg Ladies Pret & Lawn Outlet',
-    tagline: 'Exclusive Designer 3-Piece & Silk Collections',
-    city: 'Gulberg III, Lahore',
-    address: 'Shop #8, MM Alam Road, Gulberg III, Lahore, Pakistan',
+    id: 'tenant-testing-102',
+    name: 'Testing Portal',
+    tagline: 'Ladies & Gents Retail Testing Sandbox & Verification Outlet',
+    city: 'Lahore, Pakistan',
+    address: 'Suite #4, Model Town Commercial Area, Lahore, Pakistan',
     phone: '+92 321 8899001',
-    shopType: 'ladies_fashion',
-    ownerName: 'Haji Muhammad Ahmed', // Multi-shop owner
+    shopType: 'mixed_garments',
+    ownerName: 'QA & Testing Administrator',
     modules: {
-      unstitched_fabric: true,
+      ladies_suits: true,
+      gents_suits: true,
+      cloth_meters: true,
       ready_made_apparel: true,
+      unstitched_fabric: true,
+      pin_protected_discounts: true,
       vendor_ledger: true,
       promotional_engine: true,
       analytics: true,
     },
     status: 'active',
     createdAt: '2026-07-15',
-  },
-  {
-    id: 'tenant-apparel-103',
-    name: 'Royal Threads Shirts & Trousers Hub',
-    tagline: 'Ready-Made Formal Shirts, Chinos & Denim Pants',
-    city: 'Tariq Road, Karachi',
-    address: 'Plot #45, Commercial Area, Tariq Road, Karachi, Pakistan',
-    phone: '+92 333 7766554',
-    shopType: 'ready_made_apparel',
-    ownerName: 'Chaudhry Rashid Tariq',
-    modules: {
-      unstitched_fabric: false,
-      ready_made_apparel: true,
-      vendor_ledger: true,
-      promotional_engine: true,
-      analytics: true,
-    },
-    status: 'active',
-    createdAt: '2026-08-01',
   },
 ];
 
@@ -66,7 +55,7 @@ export const INITIAL_PRODUCTS = [
   // ==========================================
   {
     id: 'prod-101',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-LAW-880101',
     fabricType: 'Lawn',
@@ -82,7 +71,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-102',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-COT-880102',
     fabricType: 'Cotton',
@@ -98,7 +87,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-103',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-BOX-880103',
     fabricType: 'Jacquard',
@@ -114,7 +103,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-104',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-WNW-880104',
     fabricType: 'Wash & Wear',
@@ -130,7 +119,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-105',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-KHD-880105',
     fabricType: 'Khaddar',
@@ -146,7 +135,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-106',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-BSK-880106',
     fabricType: 'Silk',
@@ -162,7 +151,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-107',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-EGY-880107',
     fabricType: 'Cotton',
@@ -178,7 +167,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-108',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-KAR-880108',
     fabricType: 'Karandi',
@@ -194,7 +183,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-109',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-LAT-880109',
     fabricType: 'Cotton',
@@ -210,7 +199,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-110',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'PAK-BOX-880110',
     fabricType: 'Lawn',
@@ -226,7 +215,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-111',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'apparel',
     barcode: 'APP-WST-880111',
     fabricType: 'Apparel',
@@ -250,7 +239,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-112',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     productType: 'apparel',
     barcode: 'APP-KRT-880112',
     fabricType: 'Apparel',
@@ -278,7 +267,7 @@ export const INITIAL_PRODUCTS = [
   // ==========================================
   {
     id: 'prod-201',
-    tenantId: 'tenant-ladies-102',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'LAD-SLK-770201',
     fabricType: 'Silk',
@@ -294,7 +283,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-202',
-    tenantId: 'tenant-ladies-102',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'LAD-CHF-770202',
     fabricType: 'Chiffon',
@@ -310,7 +299,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-203',
-    tenantId: 'tenant-ladies-102',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'LAD-VLV-770203',
     fabricType: 'Velvet',
@@ -326,7 +315,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-204',
-    tenantId: 'tenant-ladies-102',
+    tenantId: 'tenant-nova-101',
     productType: 'unstitched',
     barcode: 'LAD-LAW-770204',
     fabricType: 'Lawn',
@@ -342,7 +331,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-205',
-    tenantId: 'tenant-ladies-102',
+    tenantId: 'tenant-nova-101',
     productType: 'apparel',
     barcode: 'LAD-PRT-770205',
     fabricType: 'Apparel',
@@ -370,7 +359,7 @@ export const INITIAL_PRODUCTS = [
   // ==========================================
   {
     id: 'prod-301',
-    tenantId: 'tenant-apparel-103',
+    tenantId: 'tenant-testing-102',
     productType: 'apparel',
     barcode: 'APP-SHT-550301',
     fabricType: 'Apparel',
@@ -394,7 +383,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-302',
-    tenantId: 'tenant-apparel-103',
+    tenantId: 'tenant-testing-102',
     productType: 'apparel',
     barcode: 'APP-TRS-550302',
     fabricType: 'Apparel',
@@ -418,7 +407,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-303',
-    tenantId: 'tenant-apparel-103',
+    tenantId: 'tenant-testing-102',
     productType: 'apparel',
     barcode: 'APP-PNT-550303',
     fabricType: 'Apparel',
@@ -442,7 +431,7 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-304',
-    tenantId: 'tenant-apparel-103',
+    tenantId: 'tenant-testing-102',
     productType: 'apparel',
     barcode: 'APP-POL-550304',
     fabricType: 'Apparel',
@@ -532,71 +521,59 @@ export const INITIAL_ROLES = [
 ];
 
 export const INITIAL_USERS = [
-  // 1. SUPER ADMIN (SaaS Platform Master)
+  // 1. MASTER ADMIN (Platform Super Admin)
   {
     id: 'u-super',
-    username: 'superadmin',
-    password: '123',
-    fullName: 'Engr. Zeeshan (Platform Super Admin)',
+    username: 'Masteradmin',
+    password: 'Admin123',
+    fullName: 'Master Platform Admin',
     role: 'Super Admin',
-    tenantIds: ['tenant-gents-101', 'tenant-ladies-102', 'tenant-apparel-103'],
+    tenantIds: ['tenant-nova-101', 'tenant-testing-102'],
     isSuperAdmin: true,
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
   },
 
-  // 2. MULTI-SHOP OWNER (Owns Gents + Ladies Shops)
+  // 2. NOVA STORE ADMIN (NOVA MEN AND WOMEN)
   {
-    id: 'u-1',
-    username: 'ahmed_owner',
-    password: '123',
-    fullName: 'Haji Muhammad Ahmed',
+    id: 'u-nova',
+    username: 'Nova.admin',
+    password: 'Admin123',
+    fullName: 'NOVA Store Administrator',
     role: 'Admin',
-    tenantIds: ['tenant-gents-101', 'tenant-ladies-102'], // Multi-Shop Owner
+    tenantIds: ['tenant-nova-101'],
     isSuperAdmin: false,
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
   },
 
-  // 3. GENTS SHOP SALESMAN
+  // 3. TESTING PORTAL ADMIN (Testing Sandbox)
   {
-    id: 'u-2',
-    username: 'tariq_gents',
-    password: '123',
-    fullName: 'Tariq Mahmood (Gents POS)',
-    role: 'Salesman',
-    tenantIds: ['tenant-gents-101'],
-    isSuperAdmin: false,
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
-  },
-
-  // 4. LADIES SHOP SALESMAN
-  {
-    id: 'u-3',
-    username: 'usman_ladies',
-    password: '123',
-    fullName: 'Usman Ghani (Ladies Pret)',
-    role: 'Salesman',
-    tenantIds: ['tenant-ladies-102'],
+    id: 'u-testing',
+    username: 'Testing.admin',
+    password: 'Admin123',
+    fullName: 'Testing Portal Administrator',
+    role: 'Admin',
+    tenantIds: ['tenant-testing-102'],
     isSuperAdmin: false,
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
   },
 
-  // 5. APPAREL SHOP CASHIER
+  // 4. FRONT-DESK CASHIER TERMINAL
   {
-    id: 'u-4',
-    username: 'rashid_apparel',
-    password: '123',
-    fullName: 'Rashid Tariq (Apparel POS)',
-    role: 'Admin',
-    tenantIds: ['tenant-apparel-103'],
+    id: 'u-cashier',
+    username: 'Cashier1',
+    password: '1234',
+    fullName: 'Front-Desk Terminal Cashier',
+    role: 'Salesman',
+    tenantIds: ['tenant-nova-101', 'tenant-testing-102'],
     isSuperAdmin: false,
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
   },
 ];
 
 export const INITIAL_VENDORS = [
   {
     id: 'ven-1',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     vendorName: 'Gul Ahmed Textiles Wholesalers',
     contactPerson: 'Haji Farooq Gul',
     phone: '+92 321 9876543',
@@ -647,7 +624,7 @@ export const INITIAL_VENDORS = [
   },
   {
     id: 'ven-2',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     vendorName: 'Pasha Fabrics Mill Agency',
     contactPerson: 'Malik Zafar Pasha',
     phone: '+92 300 5544332',
@@ -689,7 +666,7 @@ export const INITIAL_VENDORS = [
   },
   {
     id: 'ven-3',
-    tenantId: 'tenant-apparel-103',
+    tenantId: 'tenant-testing-102',
     vendorName: 'Denim & Garments Manufacturing Ltd',
     contactPerson: 'Khurram Shehzad',
     phone: '+92 333 4455667',
@@ -740,7 +717,7 @@ export const INITIAL_VENDORS = [
   },
   {
     id: 'ven-4',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     vendorName: 'Sitara Textile Mills Ltd',
     contactPerson: 'Mian Tariq Sitara',
     phone: '+92 345 8877665',
@@ -773,7 +750,7 @@ export const INITIAL_VENDORS = [
   },
   {
     id: 'ven-5',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     vendorName: 'Dynasty Emperor Textiles Agency',
     contactPerson: 'Kamran Dynasty',
     phone: '+92 301 9988776',
@@ -809,7 +786,7 @@ export const INITIAL_VENDORS = [
 export const INITIAL_PROMOTIONAL_DISCOUNTS = [
   {
     id: 'disc-101',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     title: 'Gents Grand Opening Storewide Sale',
     type: 'storewide',
     discountPercent: 10,
@@ -822,7 +799,7 @@ export const INITIAL_PROMOTIONAL_DISCOUNTS = [
   },
   {
     id: 'disc-102',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     title: 'Gul Ahmed Brand Festival',
     type: 'brand',
     discountPercent: 15,
@@ -835,7 +812,7 @@ export const INITIAL_PROMOTIONAL_DISCOUNTS = [
   },
   {
     id: 'disc-103',
-    tenantId: 'tenant-apparel-103',
+    tenantId: 'tenant-testing-102',
     title: 'Formal Shirts Clearance Offer',
     type: 'article',
     discountPercent: 20,
@@ -849,13 +826,13 @@ export const INITIAL_PROMOTIONAL_DISCOUNTS = [
 ];
 
 export const INITIAL_SHOP_SETTINGS = {
-  shopName: 'NOVA MEN & WOMEN FASHION',
+  shopName: 'NOVA MEN AND WOMEN',
   shopPhone: '+92 300 1234567',
   shopLocation: 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan',
   currencySymbol: 'Rs.',
   taxNumber: 'NTN-8492048-2',
   discountPin: '1234',
-  receiptFooterNote: 'Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original receipt.',
+  receiptFooterNote: 'Thank you for shopping at NOVA MEN AND WOMEN. Exchanges accepted within 14 days with original receipt.',
 };
 
 export const INITIAL_PRODUCT_TEMPLATES = [
@@ -935,7 +912,7 @@ export const INITIAL_DAY_SETTLEMENTS = [
 export const MOCK_SALES_LOG = [
   {
     receiptNumber: 'INV-2026-9101',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     dateTime: '01-09-2026 11:20',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
@@ -955,7 +932,7 @@ export const MOCK_SALES_LOG = [
   },
   {
     receiptNumber: 'INV-2026-9102',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     dateTime: '01-09-2026 12:45',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
@@ -974,7 +951,7 @@ export const MOCK_SALES_LOG = [
   },
   {
     receiptNumber: 'INV-2026-9095',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     dateTime: '31-08-2026 16:15',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
@@ -993,7 +970,7 @@ export const MOCK_SALES_LOG = [
   },
   {
     receiptNumber: 'INV-2026-9080',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     dateTime: '29-08-2026 15:10',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
@@ -1012,7 +989,7 @@ export const MOCK_SALES_LOG = [
   },
   {
     receiptNumber: 'INV-2026-9062',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     dateTime: '25-08-2026 18:30',
     salesman: 'Tariq Mahmood',
     salesmanId: 'u-2',
@@ -1034,7 +1011,7 @@ export const MOCK_SALES_LOG = [
 export const MOCK_STOCK_UPDATES = [
   {
     id: 'stk-1',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     barcode: 'PAK-LAW-880101',
     itemName: 'Gul Ahmed Premium Printed Lawn (Emerald Mint)',
     type: 'Lawn',
@@ -1047,7 +1024,7 @@ export const MOCK_STOCK_UPDATES = [
   },
   {
     id: 'stk-2',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     barcode: 'PAK-COT-880102',
     itemName: 'Pasha Superfine Latha White Bolt',
     type: 'Cotton',
@@ -1060,7 +1037,7 @@ export const MOCK_STOCK_UPDATES = [
   },
   {
     id: 'stk-3',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     barcode: 'PAK-BOX-880103',
     itemName: 'J. Junaid Jamshed Jacquard Gift Box Set',
     type: 'Jacquard',
@@ -1076,7 +1053,7 @@ export const MOCK_STOCK_UPDATES = [
 export const MOCK_DAMAGED_ITEMS = [
   {
     id: 'dmg-1',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     barcode: 'PAK-COT-880102',
     itemName: 'Pasha Superfine Latha White Bolt',
     type: 'Cotton',
@@ -1088,7 +1065,7 @@ export const MOCK_DAMAGED_ITEMS = [
   },
   {
     id: 'dmg-2',
-    tenantId: 'tenant-gents-101',
+    tenantId: 'tenant-nova-101',
     barcode: 'PAK-LAW-880101',
     itemName: 'Gul Ahmed Premium Printed Lawn',
     type: 'Lawn',

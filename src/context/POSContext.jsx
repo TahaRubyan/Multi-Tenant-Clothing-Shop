@@ -16,7 +16,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v6.0_nova_fashion_scenario_upgrades';
+const POS_DATA_VERSION = 'v7.0_nova_testing_masteradmin';
 
 const getStoredOrDefault = (key, defaultVal) => {
   try {
@@ -206,7 +206,7 @@ export const POSProvider = ({ children }) => {
   };
 
   // TENANT-ISOLATED DATA VIEWS (ROW-LEVEL FILTERING)
-  const currentTenantId = currentTenant?.id || 'tenant-gents-101';
+  const currentTenantId = currentTenant?.id || 'tenant-nova-101';
 
   const products = allProducts.filter(p => p.tenantId === currentTenantId);
   const vendors = allVendors.filter(v => v.tenantId === currentTenantId);
@@ -232,23 +232,22 @@ export const POSProvider = ({ children }) => {
     return currentTenant.modules[moduleKey] !== false;
   };
 
-  const login = (username, password) => {
-    const user = users.find(u => u.username === username && u.password === password);
+  const login = (usernameInput, passwordInput) => {
+    const cleanUser = (usernameInput || '').trim().toLowerCase();
+    const user = users.find(
+      u => u.username.toLowerCase() === cleanUser && u.password === passwordInput
+    );
     if (user) {
       setCurrentUser(user);
 
-      if (user.isSuperAdmin) {
+      if (user.isSuperAdmin || user.role === 'Super Admin') {
         setActiveTab('super-admin-portal');
         return { success: true, user, isSuperAdmin: true };
       }
 
       // Check user tenant assignments
       const userTenants = tenants.filter(t => user.tenantIds && user.tenantIds.includes(t.id));
-      if (userTenants.length > 1) {
-        // Multi-shop owner!
-        setCurrentTenant(userTenants[0]);
-        setShowShopSwitcher(true);
-      } else if (userTenants.length === 1) {
+      if (userTenants.length > 0) {
         setCurrentTenant(userTenants[0]);
       }
 
@@ -285,8 +284,12 @@ export const POSProvider = ({ children }) => {
       shopType: tenantData.shopType || 'mixed_garments',
       ownerName: tenantData.ownerName || 'Shop Owner',
       modules: {
-        unstitched_fabric: tenantData.modules?.unstitched_fabric ?? true,
+        ladies_suits: tenantData.modules?.ladies_suits ?? true,
+        gents_suits: tenantData.modules?.gents_suits ?? true,
+        cloth_meters: tenantData.modules?.cloth_meters ?? true,
         ready_made_apparel: tenantData.modules?.ready_made_apparel ?? true,
+        unstitched_fabric: tenantData.modules?.unstitched_fabric ?? true,
+        pin_protected_discounts: tenantData.modules?.pin_protected_discounts ?? true,
         vendor_ledger: tenantData.modules?.vendor_ledger ?? true,
         promotional_engine: tenantData.modules?.promotional_engine ?? true,
         analytics: tenantData.modules?.analytics ?? true,
