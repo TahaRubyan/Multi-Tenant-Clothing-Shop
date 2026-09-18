@@ -1,7 +1,5 @@
 /* layout.css - Clean Layout Hierarchy & Proportions */
 
-/* layout.css - Clean Layout Hierarchy & Proportions */
-
 .navbar-container {
   display: flex;
   align-items: center;
@@ -10,9 +8,7 @@
   padding: 0 1.5rem;
   position: sticky;
   top: 0;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--bg-surface);
   border-bottom: 1px solid var(--border-default);
   box-shadow: var(--shadow-sm);
   z-index: 50;
@@ -43,12 +39,12 @@
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md);
-  background: var(--color-primary);
+  background: var(--brand-primary);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px var(--accent-glow);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
 }
 
 .center-brand-titles {
@@ -78,7 +74,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--bg-surface);
+  background: var(--bg-subtle);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: 0.35rem 0.85rem;
@@ -88,8 +84,9 @@
 }
 
 .nav-search-bar:focus-within {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  background: var(--bg-surface);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .nav-search-bar input {
@@ -141,7 +138,7 @@
   height: 30px;
   border-radius: var(--radius-pill);
   object-fit: cover;
-  border: 1.5px solid var(--color-primary);
+  border: 1.5px solid var(--brand-primary);
 }
 
 .user-info {
@@ -157,7 +154,7 @@
 
 .user-role-badge {
   font-size: 0.65rem;
-  color: var(--color-primary);
+  color: var(--brand-primary);
   display: flex;
   align-items: center;
   gap: 0.2rem;
@@ -181,10 +178,10 @@
   color: var(--status-danger);
 }
 
-/* SIDEBAR STYLING - Precise Spacing & Collapsible */
+/* SIDEBAR STYLING - 240px Width, Collections Master-Detail Standard */
 .sidebar-container {
-  width: 230px;
-  min-width: 230px;
+  width: 240px;
+  min-width: 240px;
   background: var(--bg-surface);
   border-right: 1px solid var(--border-default);
   display: flex;
@@ -206,7 +203,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
   padding: 0 0.35rem;
 }
 
@@ -230,7 +227,7 @@
 
 .btn-sidebar-toggle-mini:hover {
   background: var(--bg-subtle);
-  color: var(--color-primary);
+  color: var(--brand-primary);
 }
 
 .btn-toggle-sidebar-nav {
@@ -248,8 +245,8 @@
 
 .btn-toggle-sidebar-nav:hover {
   background: var(--bg-subtle);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
 }
 
 .sidebar-section-title {
@@ -308,45 +305,45 @@
 
 .sidebar-item:hover {
   background: var(--bg-subtle);
-  color: var(--color-primary);
+  color: var(--brand-primary);
   border-color: var(--border-default);
-  border-left: 3px solid var(--color-primary);
+  border-left: 3px solid var(--brand-primary);
   transform: translateX(2px);
   box-shadow: var(--shadow-sm);
 }
 
 .sidebar-container.collapsed .sidebar-item:hover {
   transform: scale(1.05);
-  border-left-color: var(--color-primary);
+  border-left-color: var(--brand-primary);
 }
 
 .sidebar-item:hover .nav-icon {
-  color: var(--color-primary);
+  color: var(--brand-primary);
 }
 
 .sidebar-item.active {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  border-color: rgba(79, 70, 229, 0.25);
-  border-left: 4px solid var(--color-primary);
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.12);
+  background: var(--brand-surface);
+  color: var(--brand-primary);
+  border-color: rgba(37, 99, 235, 0.2);
+  border-left: 3px solid var(--brand-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
 }
 
 .sidebar-container.collapsed .sidebar-item.active {
-  border-left: 1px solid rgba(79, 70, 229, 0.25);
+  border-left: 1px solid rgba(37, 99, 235, 0.25);
 }
 
 .sidebar-item.active .nav-icon {
-  color: var(--color-primary);
+  color: var(--brand-primary);
 }
 
 .sidebar-badge {
   font-size: 0.65rem;
   font-weight: 700;
   padding: 0.12rem 0.4rem;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
+  border-radius: var(--radius-badge);
+  background: var(--brand-primary);
   color: #ffffff;
 }
 
@@ -532,7 +529,140 @@
 }
 
 .custom-scrollbar-both::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-primary);
+  background: var(--brand-primary);
+}
+
+/* =======================================================
+   COLLECTIONS MANAGEMENT PLATFORM - 3-PANEL & QUICK-FILTER
+   ======================================================= */
+.quick-filter-ribbon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+}
+
+.quick-filter-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 280px;
+}
+
+.quick-filter-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0.4rem 0.75rem;
+  width: 100%;
+  max-width: 360px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.quick-filter-search-box:focus-within {
+  background: var(--bg-surface);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.quick-filter-search-box input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  width: 100%;
+  outline: none;
+}
+
+.kbd-shortcut-pill {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.35rem;
+  user-select: none;
+}
+
+.quick-filter-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-pill-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-md);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.filter-pill-select:hover, .filter-pill-select:focus {
+  border-color: var(--brand-primary);
+  background: var(--bg-app);
+}
+
+/* Side Detail Drawer (380px to 460px) */
+.side-drawer-container {
+  width: 420px;
+  min-width: 380px;
+  max-width: 460px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-default);
+  box-shadow: var(--shadow-drawer);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  z-index: 40;
+  overflow-y: auto;
+}
+
+.side-drawer-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.side-drawer-body {
+  flex: 1;
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+}
+
+.side-drawer-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 
