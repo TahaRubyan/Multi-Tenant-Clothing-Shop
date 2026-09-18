@@ -80,4 +80,40 @@ describe('POS Context Integration State Tests', () => {
     const updatedProduct = result.current.products.find(p => p.id === product.id);
     expect(updatedProduct.stock).toBe(initialStock + 10);
   });
+
+  it('authenticates Masteradmin, Nova.admin, Testing.admin and Cashier1 successfully', () => {
+    const { result } = renderHook(() => usePOS(), { wrapper });
+
+    // Masteradmin
+    let loginRes;
+    act(() => {
+      loginRes = result.current.login('Masteradmin', 'Admin123');
+    });
+    expect(loginRes.success).toBe(true);
+    expect(result.current.currentUser.username).toBe('Masteradmin');
+    expect(result.current.activeTab).toBe('super-admin-portal');
+
+    // Nova.admin (case-insensitive test)
+    act(() => {
+      loginRes = result.current.login('nova.admin', 'Admin123');
+    });
+    expect(loginRes.success).toBe(true);
+    expect(result.current.currentUser.username).toBe('Nova.admin');
+    expect(result.current.currentTenant.id).toBe('tenant-nova-101');
+
+    // Testing.admin
+    act(() => {
+      loginRes = result.current.login('testing.admin', 'Admin123');
+    });
+    expect(loginRes.success).toBe(true);
+    expect(result.current.currentUser.username).toBe('Testing.admin');
+    expect(result.current.currentTenant.id).toBe('tenant-testing-102');
+
+    // Cashier1
+    act(() => {
+      loginRes = result.current.login('Cashier1', '1234');
+    });
+    expect(loginRes.success).toBe(true);
+    expect(result.current.currentUser.username).toBe('Cashier1');
+  });
 });

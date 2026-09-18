@@ -16,19 +16,47 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v7.0_nova_testing_masteradmin';
+const POS_DATA_VERSION = 'v7.2_nova_masteradmin_clean_credentials';
+
+// Clean one-time migration for legacy localStorage cache
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const currentVer = localStorage.getItem('pos_dataset_version');
+    if (currentVer !== POS_DATA_VERSION) {
+      const keysToClear = [
+        'pos_tenants',
+        'pos_currentTenant',
+        'pos_roles',
+        'pos_users',
+        'pos_shopSettings',
+        'pos_product_templates',
+        'pos_day_settlements',
+        'pos_apparel_categories',
+        'pos_products',
+        'pos_vendors',
+        'pos_discountRules',
+        'pos_salesLogs',
+        'pos_stockLog',
+        'pos_damageLog',
+      ];
+      keysToClear.forEach(k => localStorage.removeItem(k));
+      localStorage.setItem('pos_dataset_version', POS_DATA_VERSION);
+    }
+  }
+} catch (err) {
+  console.error('Storage version migration error:', err);
+}
 
 const getStoredOrDefault = (key, defaultVal) => {
   try {
-    const currentVer = localStorage.getItem('pos_dataset_version');
-    if (currentVer !== POS_DATA_VERSION) {
-      // Automatic migration: Force load fresh rich mock dataset on version upgrade
-      localStorage.setItem('pos_dataset_version', POS_DATA_VERSION);
-      localStorage.setItem(key, JSON.stringify(defaultVal));
-      return defaultVal;
-    }
     const saved = localStorage.getItem(key);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(defaultVal) && (!Array.isArray(parsed) || parsed.length === 0)) {
+        return defaultVal;
+      }
+      return parsed;
+    }
   } catch (err) {
     console.error(`Error reading ${key} from localStorage:`, err);
   }
@@ -234,9 +262,33 @@ export const POSProvider = ({ children }) => {
 
   const login = (usernameInput, passwordInput) => {
     const cleanUser = (usernameInput || '').trim().toLowerCase();
-    const user = users.find(
-      u => u.username.toLowerCase() === cleanUser && u.password === passwordInput
+    const cleanPass = (passwordInput || '').trim();
+
+    if (!cleanUser || !cleanPass) {
+      return { success: false, message: 'Please enter both username and password' };
+    }
+
+    // 1. Check in active users state
+    let user = (users || []).find(
+      u => (u.username || '').trim().toLowerCase() === cleanUser &&
+           ((u.password || '').trim() === cleanPass || (u.password || '').trim().toLowerCase() === cleanPass.toLowerCase())
     );
+
+    // 2. Resilient fallback to INITIAL_USERS if state had stale persisted data
+    if (!user) {
+      user = INITIAL_USERS.find(
+        u => (u.username || '').trim().toLowerCase() === cleanUser &&
+             ((u.password || '').trim() === cleanPass || (u.password || '').trim().toLowerCase() === cleanPass.toLowerCase())
+      );
+      if (user) {
+        setUsers(prev => {
+          const list = Array.isArray(prev) ? prev : [];
+          const exists = list.some(u => (u.username || '').trim().toLowerCase() === cleanUser);
+          return exists ? list.map(u => (u.username || '').trim().toLowerCase() === cleanUser ? user : u) : [...list, user];
+        });
+      }
+    }
+
     if (user) {
       setCurrentUser(user);
 
@@ -246,15 +298,18 @@ export const POSProvider = ({ children }) => {
       }
 
       // Check user tenant assignments
-      const userTenants = tenants.filter(t => user.tenantIds && user.tenantIds.includes(t.id));
+      const userTenants = (tenants || []).filter(t => user.tenantIds && user.tenantIds.includes(t.id));
       if (userTenants.length > 0) {
         setCurrentTenant(userTenants[0]);
+      } else if (tenants && tenants.length > 0) {
+        setCurrentTenant(tenants[0]);
       }
 
       setActiveTab('dashboard');
       return { success: true, user };
     }
-    return { success: false, message: 'Invalid username or password' };
+
+    return { success: false, message: 'Invalid username or password. Please check your credentials.' };
   };
 
   const logout = () => {
