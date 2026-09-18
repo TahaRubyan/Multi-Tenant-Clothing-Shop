@@ -104,11 +104,11 @@ export const Sidebar = () => {
       </div>
 
       <div className="sidebar-footer">
-        <div className="system-status-pill" title={isSidebarCollapsed ? `${currentTenant?.name || 'POS'} • Online` : undefined}>
+        <div className="system-status-pill" title={isSidebarCollapsed ? (isMasterAdmin ? 'Master Platform Admin' : `${currentTenant?.name || 'POS'} • Online`) : undefined}>
           <div className="status-dot online"></div>
           {!isSidebarCollapsed && (
             <div className="status-text">
-              <span>{currentTenant?.name ? currentTenant.name.substring(0, 18) : 'POS Active'}</span>
+              <span>{isMasterAdmin ? 'Master Platform' : (currentTenant?.name ? currentTenant.name.substring(0, 18) : 'POS Active')}</span>
               <small>{currentUser ? currentUser.role : 'Guest'}</small>
             </div>
           )}

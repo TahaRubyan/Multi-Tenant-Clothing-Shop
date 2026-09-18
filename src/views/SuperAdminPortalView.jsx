@@ -17,7 +17,6 @@ import {
   Database,
   Server,
   X,
-  ExternalLink,
   Lock,
   Tag,
   Percent,
@@ -25,7 +24,6 @@ import {
   Scissors,
   ShoppingBag,
   Info,
-  AlertTriangle,
 } from 'lucide-react';
 
 export const SuperAdminPortalView = () => {
@@ -34,11 +32,6 @@ export const SuperAdminPortalView = () => {
     addTenant,
     toggleTenantStatus,
     deleteTenant,
-    switchTenant,
-    allProducts = [],
-    allSalesLogs = [],
-    users = [],
-    setActiveTab,
     showToast,
   } = usePOS();
 
@@ -55,7 +48,7 @@ export const SuperAdminPortalView = () => {
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('Admin123');
 
-  // Modular Capability Checkboxes (Phase 1 Specifications)
+  // Modular Capability Checkboxes
   const [modules, setModules] = useState({
     pin_protected_discounts: true,
     ladies_suits: true,
@@ -131,12 +124,12 @@ export const SuperAdminPortalView = () => {
 
   const handleAddTenantSubmit = (e) => {
     e.preventDefault();
-    if (!shopName || !ownerName || !adminUsername || !adminPassword) {
+    if (!shopName.trim() || !ownerName.trim() || !adminUsername.trim() || !adminPassword.trim()) {
       showToast('Please fill in all required shop and administrator fields', 'warning');
       return;
     }
 
-    const createdTenant = addTenant({
+    addTenant({
       name: shopName.trim(),
       tagline: tagline.trim(),
       ownerName: ownerName.trim(),
@@ -149,7 +142,7 @@ export const SuperAdminPortalView = () => {
       adminPassword: adminPassword.trim(),
     });
 
-    showToast(`Successfully created new client shop: ${shopName}`, 'success');
+    showToast(`Successfully registered new client shop: ${shopName}`, 'success');
     setShowAddModal(false);
     setShopName('');
     setTagline('');
@@ -162,7 +155,7 @@ export const SuperAdminPortalView = () => {
 
   return (
     <div className="view-container super-admin-view scrollable-panel">
-      {/* Top Header */}
+      {/* Platform Header */}
       <div className="view-header flex-between mb-3">
         <div>
           <div className="flex-align-center gap-2 mb-1">
@@ -171,7 +164,7 @@ export const SuperAdminPortalView = () => {
           </div>
           <h2>Multi-Tenant Enterprise Platform Management</h2>
           <p className="view-subtitle">
-            Create and onboard new cloth &amp; garment shop tenants, configure modular capabilities, and oversee all client stores.
+            Onboard new cloth &amp; garment client shops, configure enabled capabilities, and manage tenant organizations.
           </p>
         </div>
         <div className="flex-align-center gap-2">
@@ -181,59 +174,48 @@ export const SuperAdminPortalView = () => {
         </div>
       </div>
 
-      {/* Platform KPI Metrics */}
-      <div className="kpi-grid mb-4">
+      {/* Master Admin Relevant Metrics */}
+      <div className="kpi-grid-3col mb-4">
         <div className="kpi-card glass-card">
           <div className="kpi-icon icon-emerald">
             <Store size={24} />
           </div>
           <div className="kpi-info">
-            <span className="kpi-label">Active Client Tenants</span>
+            <span className="kpi-label">Registered Client Shops</span>
             <span className="kpi-value">{(tenants || []).length} Shops</span>
-            <span className="kpi-sub positive">● Multi-Tenant Isolated</span>
+            <span className="kpi-sub positive">● Multi-Tenant Active</span>
           </div>
         </div>
 
         <div className="kpi-card glass-card">
           <div className="kpi-icon icon-blue">
-            <Package size={24} />
+            <ShieldCheck size={24} />
           </div>
           <div className="kpi-info">
-            <span className="kpi-label">Total Catalog SKUs</span>
-            <span className="kpi-value">{(allProducts || []).length} Articles</span>
-            <span className="kpi-sub neutral">Ladies &amp; Gents Garments</span>
+            <span className="kpi-label">Tenant Isolation Engine</span>
+            <span className="kpi-value">Partitioned</span>
+            <span className="kpi-sub positive">● Row-Level Security</span>
           </div>
         </div>
 
         <div className="kpi-card glass-card">
           <div className="kpi-icon icon-amber">
-            <Layers size={24} />
-          </div>
-          <div className="kpi-info">
-            <span className="kpi-label">Total Invoices Processed</span>
-            <span className="kpi-value">{(allSalesLogs || []).length} Invoices</span>
-            <span className="kpi-sub positive">100% Tenant-Partitioned</span>
-          </div>
-        </div>
-
-        <div className="kpi-card glass-card">
-          <div className="kpi-icon icon-red">
             <Database size={24} />
           </div>
           <div className="kpi-info">
-            <span className="kpi-label">Database Engine</span>
+            <span className="kpi-label">Storage Engine</span>
             <span className="kpi-value">SQLite + Cloud</span>
-            <span className="kpi-sub positive">● Offline PWA Active</span>
+            <span className="kpi-sub positive">● Offline PWA Mesh</span>
           </div>
         </div>
       </div>
 
-      {/* Tenants Management Table Card */}
+      {/* Registered Tenants Management Table Card */}
       <div className="glass-card table-panel-full mb-4">
         <div className="card-header-styled flex-between mb-3">
           <div className="flex-align-center gap-2">
             <Building2 size={20} className="text-primary" />
-            <h3 className="mb-0">Client Shop Tenants Directory</h3>
+            <h3 className="mb-0">Registered Client Shops Directory</h3>
           </div>
           <span className="badge badge-sage">{(tenants || []).length} Registered Tenants</span>
         </div>
@@ -242,11 +224,11 @@ export const SuperAdminPortalView = () => {
           <table className="clean-ledger-table">
             <thead>
               <tr>
-                <th style={{ width: '24%' }}>Client Shop Name</th>
-                <th style={{ width: '28%' }}>Enabled Capabilities &amp; Modules</th>
-                <th style={{ width: '20%' }}>Owner &amp; Contact</th>
-                <th style={{ width: '16%' }}>City &amp; Location</th>
-                <th style={{ width: '12%' }} className="text-right">Actions</th>
+                <th style={{ width: '25%' }}>Client Shop Name</th>
+                <th style={{ width: '30%' }}>Enabled Capabilities &amp; Modules</th>
+                <th style={{ width: '18%' }}>Owner &amp; Contact</th>
+                <th style={{ width: '17%' }}>City &amp; Location</th>
+                <th style={{ width: '10%' }} className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -262,14 +244,14 @@ export const SuperAdminPortalView = () => {
                             {t.status === 'active' ? 'Active' : 'Suspended'}
                           </span>
                         </div>
-                        <small className="text-muted font-mono text-xs">{t.id} • {t.tagline || 'Textile & Apparel'}</small>
+                        <small className="text-muted font-mono text-xs">{t.id} • {t.tagline || 'Textile Retail'}</small>
                       </div>
                     </td>
                     <td>
                       <div className="flex-wrap gap-1">
                         {mods.ladies_suits && <span className="badge badge-info badge-compact">👗 Ladies Suits</span>}
                         {mods.gents_suits && <span className="badge badge-sage badge-compact">👔 Gents Suits</span>}
-                        {mods.cloth_meters && <span className="badge badge-amber badge-compact">📏 Fabric Meters</span>}
+                        {mods.cloth_meters && <span className="badge badge-amber badge-compact">📏 Meters</span>}
                         {mods.ready_made_apparel && <span className="badge badge-primary badge-compact">🛍️ Ready-Made</span>}
                         {mods.pin_protected_discounts && <span className="badge badge-danger badge-compact">🔒 PIN Discount</span>}
                         {mods.vendor_ledger && <span className="badge badge-compact">🚛 Vendor AP</span>}
@@ -288,21 +270,19 @@ export const SuperAdminPortalView = () => {
                       </div>
                     </td>
                     <td className="text-right">
-                      <div className="flex-align-center justify-end gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-danger btn-icon"
-                          onClick={() => {
-                            if (window.confirm(`Delete tenant "${t.name}"?`)) {
-                              deleteTenant(t.id);
-                              showToast(`Deleted tenant: ${t.name}`, 'danger');
-                            }
-                          }}
-                          title="Delete Client Shop"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger btn-icon"
+                        onClick={() => {
+                          if (window.confirm(`Delete tenant "${t.name}"?`)) {
+                            deleteTenant(t.id);
+                            showToast(`Deleted tenant: ${t.name}`, 'danger');
+                          }
+                        }}
+                        title="Delete Client Shop"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -312,7 +292,7 @@ export const SuperAdminPortalView = () => {
         </div>
       </div>
 
-      {/* HIGH-WIDTH ONBOARD NEW TENANT MODAL (Phase 1 Specifications) */}
+      {/* HIGH-WIDTH ONBOARD NEW TENANT MODAL */}
       {showAddModal && (
         <div className="modal-overlay">
           <div className="modal-content modal-xl glass-card">
@@ -329,11 +309,11 @@ export const SuperAdminPortalView = () => {
               </button>
             </div>
 
-            <form onSubmit={handleAddTenantSubmit} className="modal-body p-4">
-              {/* SECTION 1: Shop & Business Profile */}
-              <div className="mb-4">
-                <h4 className="sub-heading mb-3 flex-align-center gap-2">
-                  <Building2 size={16} className="text-primary" /> 1. Store Profile &amp; Location Information
+            <form onSubmit={handleAddTenantSubmit} className="modal-body">
+              {/* SECTION 1: Store Profile & Location Information */}
+              <div className="modal-section-card">
+                <h4 className="modal-section-title">
+                  <Store size={15} className="text-primary" /> 1. Store Profile &amp; Location Information
                 </h4>
                 
                 <div className="form-grid-2col mb-3">
@@ -363,7 +343,7 @@ export const SuperAdminPortalView = () => {
 
                 <div className="form-grid-3col mb-3">
                   <div className="form-group mb-0">
-                    <label className="form-label">Owner Full Name *</label>
+                    <label className="form-label font-weight-600">Owner Full Name *</label>
                     <input
                       type="text"
                       className="form-input"
@@ -375,7 +355,7 @@ export const SuperAdminPortalView = () => {
                   </div>
 
                   <div className="form-group mb-0">
-                    <label className="form-label">Phone Number *</label>
+                    <label className="form-label font-weight-600">Phone Number *</label>
                     <input
                       type="text"
                       className="form-input"
@@ -387,7 +367,7 @@ export const SuperAdminPortalView = () => {
                   </div>
 
                   <div className="form-group mb-0">
-                    <label className="form-label">City / Region *</label>
+                    <label className="form-label font-weight-600">City / Region *</label>
                     <input
                       type="text"
                       className="form-input"
@@ -412,7 +392,7 @@ export const SuperAdminPortalView = () => {
                   </div>
 
                   <div className="form-group mb-0">
-                    <label className="form-label">Shop Template / Business Category *</label>
+                    <label className="form-label font-weight-600">Shop Template / Business Category *</label>
                     <select
                       className="form-select font-weight-600"
                       value={shopType}
@@ -427,10 +407,10 @@ export const SuperAdminPortalView = () => {
                 </div>
               </div>
 
-              {/* SECTION 2: Modular Capabilities & Feature Checkboxes */}
-              <div className="mb-4">
-                <h4 className="sub-heading mb-3 flex-align-center gap-2">
-                  <Layers size={16} className="text-primary" /> 2. Enabled Business Modules &amp; Capabilities
+              {/* SECTION 2: Modular Business Capabilities */}
+              <div className="modal-section-card">
+                <h4 className="modal-section-title">
+                  <Layers size={15} className="text-primary" /> 2. Enabled Business Modules &amp; Capabilities
                 </h4>
 
                 <div className="tenant-modal-grid">
@@ -447,7 +427,7 @@ export const SuperAdminPortalView = () => {
                         <Lock size={13} className="text-primary" /> PIN-Protected Wholesale Discount
                       </div>
                       <div className="tenant-checkbox-desc">
-                        Requires a secure admin/manager PIN before applying wholesale or custom discounts at the POS counter.
+                        Requires admin/manager PIN before applying wholesale or manual discounts at POS.
                       </div>
                     </div>
                   </label>
@@ -483,7 +463,7 @@ export const SuperAdminPortalView = () => {
                         <Scissors size={13} className="text-sage" /> Sell Gents Suits / Menswear
                       </div>
                       <div className="tenant-checkbox-desc">
-                        Enables gents unstitched suits, Boski pure silk, Latha, Wash &amp; Wear, and boxed gift sets.
+                        Enables gents unstitched suits, Boski pure silk, Latha, Wash &amp; Wear, and gift boxes.
                       </div>
                     </div>
                   </label>
@@ -501,7 +481,7 @@ export const SuperAdminPortalView = () => {
                         <Tag size={13} className="text-amber" /> Sell Cloth in Meter / Fabric Bolts
                       </div>
                       <div className="tenant-checkbox-desc">
-                        Supports decimal/fractional meter cuts (e.g. 4.5m, 2.25m) with automatic rate calculations.
+                        Supports decimal/fractional meter cuts (e.g. 4.5m, 2.25m) with automated calculations.
                       </div>
                     </div>
                   </label>
@@ -519,7 +499,7 @@ export const SuperAdminPortalView = () => {
                         <ShoppingBag size={13} className="text-primary" /> Sell Ready-Made Apparel &amp; Variants
                       </div>
                       <div className="tenant-checkbox-desc">
-                        Enables dynamic variant matrices (Size S/M/L/XL, Fits, Colors) for shirts, pants, and chinos.
+                        Enables variant matrices (Size S/M/L/XL, Fits, Colors) for shirts, pants, and chinos.
                       </div>
                     </div>
                   </label>
@@ -570,10 +550,10 @@ export const SuperAdminPortalView = () => {
                     />
                     <div className="tenant-checkbox-content">
                       <div className="tenant-checkbox-title flex-align-center gap-1">
-                        <Layers size={13} className="text-info" /> Sales Analytics &amp; Profit Margin Reports
+                        <Layers size={13} className="text-info" /> Sales Analytics &amp; Profit Reports
                       </div>
                       <div className="tenant-checkbox-desc">
-                        Calculates COGS, gross margins, category-wise revenue, and cashier settlement performance.
+                        Calculates COGS, gross margins, category-wise revenue, and settlement logs.
                       </div>
                     </div>
                   </label>
@@ -581,9 +561,9 @@ export const SuperAdminPortalView = () => {
               </div>
 
               {/* SECTION 3: Initial Administrator Credentials & Onboarding Notice */}
-              <div className="glass-card p-3 mb-4">
-                <h4 className="sub-heading mb-2 flex-align-center gap-2">
-                  <Users size={16} className="text-primary" /> 3. Store Administrator Initial Credentials
+              <div className="modal-section-card mb-0">
+                <h4 className="modal-section-title">
+                  <Users size={15} className="text-primary" /> 3. Store Administrator Initial Credentials
                 </h4>
 
                 <div className="form-grid-2col mb-3">
@@ -614,18 +594,18 @@ export const SuperAdminPortalView = () => {
 
                 {/* Onboarding Guidance Notice */}
                 <div className="onboarding-alert-note">
-                  <Info size={18} className="text-amber flex-shrink-0 mt-0.5" />
+                  <Info size={16} className="text-amber flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong>Onboarding Security Note for Store Owners:</strong>
+                    <strong>Onboarding Security Note:</strong>
                     <div className="text-xs mt-0.5">
-                      Hand over these credentials to the client store owner / manager. Instruct them to immediately change this temporary password upon first login via <strong>Settings &gt; Staff Access &amp; Security</strong>.
+                      Hand over these credentials to the shop manager. Instruct them to immediately change this temporary password upon first login via <strong>Settings &gt; Staff Access &amp; Security</strong>.
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Modal Actions */}
-              <div className="modal-actions flex-between pt-2">
+              <div className="modal-actions flex-between pt-3">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
                   Cancel
                 </button>

@@ -28,7 +28,8 @@ export const Navbar = () => {
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
 
-  const isMultiShopOwner = currentUser?.isSuperAdmin || (currentUser?.tenantIds && currentUser.tenantIds.length > 1);
+  const isMasterAdmin = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin';
+  const isMultiShopOwner = !isMasterAdmin && (currentUser?.tenantIds && currentUser.tenantIds.length > 1);
 
   useEffect(() => {
     const updateTime = () => {
@@ -41,8 +42,13 @@ export const Navbar = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const activeShopTitle = shopSettings.shopName || currentTenant?.name || 'SHAAN Gents Cloth House';
-  const activeShopLocation = shopSettings.shopLocation || currentTenant?.city || 'Azam Cloth Market, Lahore';
+  const activeShopTitle = isMasterAdmin
+    ? 'PLATFORM SAAS CONTROLLER'
+    : (shopSettings.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN');
+
+  const activeShopLocation = isMasterAdmin
+    ? 'Master Multi-Tenant Cloud Mesh • Platform Admin Scope'
+    : (shopSettings.shopLocation || currentTenant?.city || 'Jalal Pur Jattan, Gujrat');
 
   return (
     <header className="navbar-container">
@@ -64,17 +70,17 @@ export const Navbar = () => {
           <span className="time-mono">{timeStr}</span>
         </div>
 
-        <div className="status-live-pill" title="POS Terminal Engine Ready">
+        <div className="status-live-pill" title={isMasterAdmin ? 'Master Platform Online' : 'POS Terminal Active'}>
           <div className="status-dot-pulse"></div>
-          <span>Terminal Active</span>
+          <span>{isMasterAdmin ? 'Platform Live' : 'Terminal Active'}</span>
         </div>
       </div>
 
-      {/* CENTER: Active Tenant Shop Title & Switcher */}
+      {/* CENTER: Active Context / Shop Title */}
       <div className="nav-center text-center">
         <div className="center-brand-group">
           <div className="brand-icon-sm">
-            <Scissors size={18} />
+            {isMasterAdmin ? <ShieldCheck size={18} /> : <Scissors size={18} />}
           </div>
           <div className="center-brand-titles">
             <div className="flex-align-center justify-center gap-2">
@@ -90,7 +96,7 @@ export const Navbar = () => {
               )}
             </div>
             <span className="navbar-shop-subheading">
-              <MapPin size={11} /> {activeShopLocation} • Multi-Tenant Enterprise
+              <MapPin size={11} /> {activeShopLocation}
             </span>
           </div>
         </div>
@@ -98,22 +104,24 @@ export const Navbar = () => {
 
       {/* RIGHT: Active User Profile Card & Day Settlement Action */}
       <div className="nav-right">
-        <button
-          type="button"
-          className="btn-settle-day-header"
-          onClick={() => setShowDaySettlementModal(true)}
-          title="End Day Cash Register Settlement & Drawer Reconciliation"
-        >
-          <Banknote size={15} className="text-primary" />
-          <span>Close Day / Settle Cash</span>
-        </button>
+        {!isMasterAdmin && (
+          <button
+            type="button"
+            className="btn-settle-day-header"
+            onClick={() => setShowDaySettlementModal(true)}
+            title="End Day Cash Register Settlement & Drawer Reconciliation"
+          >
+            <Banknote size={15} className="text-primary" />
+            <span>Close Day / Settle Cash</span>
+          </button>
+        )}
 
         {currentUser && (
           <div className="user-profile-card">
             <img src={currentUser.avatar} alt={currentUser.fullName} className="user-avatar" />
             <div className="user-info">
               <span className="user-name">{currentUser.fullName}</span>
-              <span className={`user-role-badge ${currentUser.role.toLowerCase()}`}>
+              <span className={`user-role-badge ${currentUser.role.toLowerCase().replace(/\s+/g, '-')}`}>
                 <ShieldCheck size={12} /> {currentUser.role}
               </span>
             </div>
