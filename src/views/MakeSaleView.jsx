@@ -22,6 +22,10 @@ import {
   Shirt,
   Sparkles,
   ShieldCheck,
+  Lock,
+  Package,
+  ShoppingBag,
+  HelpCircle,
 } from 'lucide-react';
 
 export const MakeSaleView = () => {
@@ -30,7 +34,6 @@ export const MakeSaleView = () => {
     cart,
     addToCart,
     updateCartQty,
-    setCartItemMetersAndInches,
     toggleCartReturn,
     setItemDiscountPercent,
     removeFromCart,
@@ -46,6 +49,7 @@ export const MakeSaleView = () => {
   } = usePOS();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDeptFilter, setActiveDeptFilter] = useState('All');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [amountReceived, setAmountReceived] = useState('');
@@ -71,6 +75,7 @@ export const MakeSaleView = () => {
   // Flattened searchable items list (Master Products + Variant SKUs)
   const flattenedSearchItems = [];
   products.forEach((p) => {
+    const dept = p.department || 'Garments';
     if (p.hasVariants && p.variants?.length) {
       p.variants.forEach((v) => {
         flattenedSearchItems.push({
@@ -79,16 +84,16 @@ export const MakeSaleView = () => {
           isVariant: true,
           variant: v,
           product: p,
-          department: p.department || 'Gents',
+          department: dept,
           barcode: v.sku,
           masterBarcode: p.barcode,
           fabricMaterial: p.fabricMaterial,
-          fabricType: p.apparelCategory || p.fabricType || 'Apparel',
-          fabricColor: `${v.color} - Size ${v.size}`,
+          fabricType: p.fabricType || 'Garments',
+          fabricColor: `${v.color} • Size ${v.size}`,
           retailPrice: v.retailPrice,
           wholesalePrice: v.wholesalePrice,
           stock: v.stock,
-          unitType: 'Piece',
+          unitType: p.unitType || 'Piece',
         });
       });
     } else {
@@ -97,11 +102,11 @@ export const MakeSaleView = () => {
         isVariant: false,
         variant: null,
         product: p,
-        department: p.department || 'Garments',
+        department: dept,
         barcode: p.barcode,
         masterBarcode: p.barcode,
         fabricMaterial: p.fabricMaterial,
-        fabricType: p.fabricType,
+        fabricType: p.fabricType || 'Garments',
         fabricColor: p.fabricColor,
         retailPrice: p.retailPrice,
         wholesalePrice: p.wholesalePrice,
@@ -111,7 +116,12 @@ export const MakeSaleView = () => {
     }
   });
 
-  // When focused or search query typed: if empty query, show ALL items; otherwise filter by name, barcode, SKU
+  // Filter by active department chip
+  const itemsInSelectedDept = activeDeptFilter === 'All'
+    ? flattenedSearchItems
+    : flattenedSearchItems.filter((item) => item.department === activeDeptFilter);
+
+  // Filter by search query (barcode, SKU, product name, color)
   const searchResults = isSearchFocused
     ? searchQuery.trim()
       ? flattenedSearchItems.filter((item) => {
@@ -122,10 +132,11 @@ export const MakeSaleView = () => {
             item.fabricMaterial.toLowerCase().includes(q) ||
             item.fabricType.toLowerCase().includes(q) ||
             item.fabricColor.toLowerCase().includes(q) ||
+            item.department.toLowerCase().includes(q) ||
             (item.unitType && item.unitType.toLowerCase().includes(q))
           );
         })
-      : flattenedSearchItems
+      : itemsInSelectedDept
     : [];
 
   // Scroll active item into view within search dropdown
@@ -157,10 +168,10 @@ export const MakeSaleView = () => {
       setWholeSaleDiscountPercent(pendingDiscountValue || '10');
       setShowPinPromptModal(false);
       setPinError('');
-      showToast('Manager PIN verified! Overall wholesale discount unlocked.', 'success');
+      showToast('Manager PIN verified! Wholesale discount unlocked.', 'success');
     } else {
       setPinError('Incorrect Manager PIN. Authorization denied.');
-      setWholeSaleDiscountPercent('0');
+      setWholeSaleDiscountPercent(0);
     }
   };
 
@@ -193,7 +204,7 @@ export const MakeSaleView = () => {
       e.preventDefault();
       const targetItem = searchResults[selectedIndex] || searchResults[0];
       if (targetItem) {
-        addToCart(targetItem.product, targetItem.unitType === 'Meter' ? 4.0 : 1, targetItem.variant);
+        addToCart(targetItem.product, 1, targetItem.variant);
         setSearchQuery('');
         setSelectedIndex(0);
         setIsSearchFocused(false);
@@ -219,13 +230,13 @@ export const MakeSaleView = () => {
     );
 
     if (matchedItem) {
-      addToCart(matchedItem.product, matchedItem.unitType === 'Meter' ? 4.0 : 1, matchedItem.variant);
+      addToCart(matchedItem.product, 1, matchedItem.variant);
       setSearchQuery('');
       setSelectedIndex(0);
       setIsSearchFocused(false);
     } else if (searchResults.length > 0) {
       const itemToAdd = searchResults[selectedIndex] || searchResults[0];
-      addToCart(itemToAdd.product, itemToAdd.unitType === 'Meter' ? 4.0 : 1, itemToAdd.variant);
+      addToCart(itemToAdd.product, 1, itemToAdd.variant);
       setSearchQuery('');
       setSelectedIndex(0);
       setIsSearchFocused(false);
@@ -266,14 +277,6 @@ export const MakeSaleView = () => {
       return;
     }
 
-    if (cartSubtotal < 0) {
-      showToast(
-        `Exchange balance is -Rs. ${Math.abs(cartSubtotal).toLocaleString()}. Please add purchase items to settle or exceed the return credit.`,
-        'warning'
-      );
-      return;
-    }
-
     const saleResult = completeSale(paymentMethod, amountRecNum);
     if (saleResult) {
       setCompletedSaleData(saleResult);
@@ -282,17 +285,9 @@ export const MakeSaleView = () => {
         spread: 75,
         origin: { y: 0.6 },
       });
-      showToast('Order saved & sale completed successfully!', 'success');
+      showToast('Sale completed successfully!', 'success');
       setAmountReceived('');
     }
-  };
-
-  // Helper for meter & inch decomposition
-  const getMeterAndInchSplit = (decimalMeters) => {
-    const fullMeters = Math.floor(decimalMeters);
-    const fractionMeters = decimalMeters - fullMeters;
-    const totalInches = Math.round(fractionMeters * 39.3701);
-    return { meters: fullMeters, inches: totalInches };
   };
 
   // Filtered Invoices for Return Lookup
@@ -310,15 +305,39 @@ export const MakeSaleView = () => {
 
   return (
     <div className="view-container make-sale-full-view">
-      {/* TOP: Quick Barcode & Article Search Bar */}
+      {/* TOP: Universal Barcode Search & Clean 4-Department Filter Bar */}
       <div className="pos-search-header-card glass-card">
+        {/* Department Quick-Filter Chips */}
+        <div className="pos-dept-filter-bar mb-2 flex-align-center gap-2 flex-wrap">
+          {[
+            { id: 'All', label: '🛍️ All Store Catalog' },
+            { id: 'Ladies Pret', label: '👗 Ladies Pret' },
+            { id: 'Gents Wear', label: '👔 Gents Wear' },
+            { id: 'Packaged Gift Boxes', label: '🎁 Gift Boxes' },
+            { id: 'Accessories', label: '👜 Accessories' },
+          ].map((dept) => (
+            <button
+              key={dept.id}
+              type="button"
+              className={`btn-dept-chip ${activeDeptFilter === dept.id ? 'active' : ''}`}
+              onClick={() => {
+                setActiveDeptFilter(dept.id);
+                setIsSearchFocused(true);
+              }}
+            >
+              {dept.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Universal Search / Barcode Gun Form */}
         <form onSubmit={handleBarcodeSubmit} className="search-barcode-form">
           <div className="search-barcode-input-group">
             <Search size={22} className="search-icon-accent" />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Scan barcode or type to search all stitched suits, shirts, pants, perfumes, accessories..."
+              placeholder="Scan barcode gun or search Ladies Pret, Gents Suits, Shirts, Chinos, Perfumes & Wallets..."
               value={searchQuery}
               onClick={() => setIsSearchFocused(true)}
               onFocus={() => setIsSearchFocused(true)}
@@ -342,17 +361,23 @@ export const MakeSaleView = () => {
               </button>
             )}
             <button type="submit" className="btn btn-primary">
-              <Barcode size={18} /> Add to Cart
+              <Barcode size={18} /> Scan / Add
             </button>
           </div>
         </form>
 
-        {/* Search Results Dropdown List (Lists ALL items when focused, filtered while typing) */}
+        {/* Search Results Dropdown List */}
         {isSearchFocused && searchResults.length > 0 && (
           <div ref={dropdownRef} className="search-results-dropdown glass-card">
             <div className="dropdown-header-note flex-between">
-              <span>{searchQuery ? `Matching Items (${searchResults.length})` : `All Inventory Catalog (${searchResults.length} items)`}</span>
-              <small className="text-muted">Use ↑ ↓ arrows and Enter to select</small>
+              <span>
+                {searchQuery
+                  ? `Matching Articles (${searchResults.length})`
+                  : activeDeptFilter === 'All'
+                  ? `All Inventory Catalog (${searchResults.length} articles)`
+                  : `${activeDeptFilter} Catalog (${searchResults.length} articles)`}
+              </span>
+              <small className="text-muted">Use ↑ ↓ arrows &amp; Enter to select</small>
             </div>
             <div className="dropdown-items-scroll">
               {searchResults.map((it, idx) => (
@@ -361,7 +386,7 @@ export const MakeSaleView = () => {
                   ref={idx === selectedIndex ? selectedRowRef : null}
                   className={`search-result-row ${idx === selectedIndex ? 'selected-row' : ''}`}
                   onClick={() => {
-                    addToCart(it.product, it.unitType === 'Meter' ? 4.0 : 1, it.variant);
+                    addToCart(it.product, 1, it.variant);
                     setSearchQuery('');
                     setSelectedIndex(0);
                     setIsSearchFocused(false);
@@ -371,25 +396,30 @@ export const MakeSaleView = () => {
                   <div className="res-info">
                     <div className="flex-align-center gap-2">
                       <span className={`badge ${
-                        it.isVariant
-                          ? 'badge-warning'
-                          : it.unitType === 'Meter'
-                          ? 'badge-warning'
-                          : it.unitType === 'Box'
+                        it.department === 'Ladies Pret'
                           ? 'badge-info'
-                          : 'badge-sage'
+                          : it.department === 'Gents Wear'
+                          ? 'badge-sage'
+                          : it.department === 'Packaged Gift Boxes'
+                          ? 'badge-warning'
+                          : 'badge-amber'
                       } badge-compact`}>
-                        {it.isVariant ? (it.variant?.size || 'Apparel') : (it.unitType || 'Suit')}
+                        {it.department}
                       </span>
-                      <span className="res-title">{it.fabricMaterial}</span>
+                      {it.isVariant && (
+                        <span className="badge badge-compact font-mono">
+                          {it.variant?.size}
+                        </span>
+                      )}
+                      <strong className="res-title">{it.fabricMaterial}</strong>
                     </div>
                     <span className="res-sub">
-                      {it.barcode} • {it.fabricType} • {it.fabricColor} • Stock: <strong>{it.stock} {it.unitType === 'Meter' ? 'm' : 'pcs'}</strong>
+                      {it.barcode} • {it.fabricColor} • Available Stock: <strong>{it.stock} {it.unitType}s</strong>
                     </span>
                   </div>
                   <div className="res-right">
-                    <span className="res-price">
-                      Rs. {it.retailPrice.toLocaleString()} {it.unitType === 'Meter' ? '/ m' : ''}
+                    <span className="res-price font-mono">
+                      Rs. {it.retailPrice.toLocaleString()}
                     </span>
                     <button className="btn btn-secondary btn-sm">
                       <Plus size={14} /> Add
@@ -430,7 +460,7 @@ export const MakeSaleView = () => {
               </button>
               {cart.length > 0 && (
                 <button className="btn btn-danger btn-sm" onClick={clearCart}>
-                  <Trash2 size={13} /> Clear All
+                  <Trash2 size={13} /> Clear Cart
                 </button>
               )}
             </div>
@@ -441,26 +471,26 @@ export const MakeSaleView = () => {
               <div className="empty-cart-display">
                 <ShoppingCart size={44} className="text-subtle mb-2" />
                 <h4>No Items Added to Sale Order</h4>
-                <p className="text-muted">Click the search bar above to browse full stock, scan a barcode, or look up an invoice to log a return/exchange.</p>
+                <p className="text-muted">
+                  Scan a barcode with the barcode gun, type in the search bar, or click a department chip above to add items to the cart.
+                </p>
               </div>
             ) : (
               <table className="cart-data-table">
                 <thead>
                   <tr>
-                    <th style={{ minWidth: '180px' }}>Item Description</th>
+                    <th style={{ minWidth: '180px' }}>Article Description</th>
                     <th style={{ width: '135px' }}>Barcode / SKU</th>
                     <th style={{ width: '95px' }}>Rate</th>
                     <th style={{ width: '105px' }} className="text-center">Qty</th>
                     <th style={{ width: '75px' }} className="text-center">Disc%</th>
-                    <th style={{ width: '65px' }} className="text-center">Mode</th>
-                    <th style={{ width: '105px' }} className="text-right">Line Total</th>
+                    <th style={{ width: '75px' }} className="text-center">Mode</th>
+                    <th style={{ width: '110px' }} className="text-right">Line Total</th>
                     <th style={{ width: '36px' }} className="text-center"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {cart.map((item, idx) => {
-                    const isMeter = item.unitType === 'Meter';
-                    const split = isMeter ? getMeterAndInchSplit(item.qty) : null;
                     const isVariant = Boolean(item.variantDetails);
                     const lineGross = item.unitPrice * item.qty;
 
@@ -473,12 +503,10 @@ export const MakeSaleView = () => {
                           <div className="compact-item-cell">
                             <div className="flex-align-center gap-1">
                               {item.isReturn && (
-                                <span className="badge badge-danger badge-compact">RET</span>
+                                <span className="badge badge-danger badge-compact">RETURN</span>
                               )}
                               <span className={`badge ${
                                 isVariant
-                                  ? 'badge-warning'
-                                  : isMeter
                                   ? 'badge-warning'
                                   : item.unitType === 'Box'
                                   ? 'badge-info'
@@ -498,65 +526,26 @@ export const MakeSaleView = () => {
                         </td>
                         <td className="font-mono text-highlight font-weight-600 text-xs white-space-nowrap">{item.barcode}</td>
                         <td className="font-mono text-xs white-space-nowrap">
-                          Rs. {item.unitPrice.toLocaleString()}{isMeter ? '/m' : ''}
+                          Rs. {item.unitPrice.toLocaleString()}
                         </td>
                         <td className="text-center">
-                          {isMeter ? (
-                            <div className="meter-qty-container-compact">
-                              <div className="meter-inch-inline-row-compact">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.5"
-                                  className="form-input-compact font-mono"
-                                  value={split.meters || ''}
-                                  onChange={(e) =>
-                                    setCartItemMetersAndInches(
-                                      item.cartItemId,
-                                      parseFloat(e.target.value) || 0,
-                                      split.inches,
-                                      item.isReturn
-                                    )
-                                  }
-                                />
-                                <span className="unit-compact-lbl">m</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="39"
-                                  className="form-input-compact font-mono ml-1"
-                                  value={split.inches || ''}
-                                  onChange={(e) =>
-                                    setCartItemMetersAndInches(
-                                      item.cartItemId,
-                                      split.meters,
-                                      parseFloat(e.target.value) || 0,
-                                      item.isReturn
-                                    )
-                                  }
-                                />
-                                <span className="unit-compact-lbl">in</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="cart-qty-counter-compact">
-                              <button
-                                type="button"
-                                className="btn-qty-compact"
-                                onClick={() => updateCartQty(item.cartItemId, -1, item.isReturn)}
-                              >
-                                <Minus size={10} />
-                              </button>
-                              <span className="qty-number-compact font-mono">{item.qty}</span>
-                              <button
-                                type="button"
-                                className="btn-qty-compact"
-                                onClick={() => updateCartQty(item.cartItemId, 1, item.isReturn)}
-                              >
-                                <Plus size={10} />
-                              </button>
-                            </div>
-                          )}
+                          <div className="cart-qty-counter-compact">
+                            <button
+                              type="button"
+                              className="btn-qty-compact"
+                              onClick={() => updateCartQty(item.cartItemId, -1, item.isReturn)}
+                            >
+                              <Minus size={10} />
+                            </button>
+                            <span className="qty-number-compact font-mono">{item.qty}</span>
+                            <button
+                              type="button"
+                              className="btn-qty-compact"
+                              onClick={() => updateCartQty(item.cartItemId, 1, item.isReturn)}
+                            >
+                              <Plus size={10} />
+                            </button>
+                          </div>
                         </td>
                         <td className="text-center">
                           <div className="item-disc-compact">
@@ -606,7 +595,7 @@ export const MakeSaleView = () => {
 
         {/* RIGHT: Payment & Order Settlement Panel */}
         <div className="checkout-summary-panel glass-card">
-          <h3 className="checkout-panel-title">Order Payment & Settlement</h3>
+          <h3 className="checkout-panel-title">Order Payment &amp; Settlement</h3>
 
           <div className="totals-breakdown-card">
             <div className="t-row">
@@ -623,13 +612,17 @@ export const MakeSaleView = () => {
               </div>
             )}
 
-            {/* Percentage-Based Overall Wholesale Discount */}
+            {/* PIN-PROTECTED WHOLESALE / MANAGER DISCOUNT */}
             <div className="t-row whole-discount-box">
               <div className="flex-column">
                 <div className="flex-align-center gap-1">
                   <span className="font-weight-600">Wholesale Discount (%)</span>
-                  {isDiscountPinUnlocked && (
-                    <span className="badge badge-success badge-compact text-xxs">Unlocked</span>
+                  {isDiscountPinUnlocked ? (
+                    <span className="badge badge-success badge-compact text-xxs">PIN Verified</span>
+                  ) : (
+                    <span className="badge badge-danger badge-compact text-xxs flex-align-center gap-0.5">
+                      <Lock size={9} /> PIN Protected
+                    </span>
                   )}
                 </div>
                 {wholeSaleDiscountAmt > 0 && (
@@ -637,11 +630,11 @@ export const MakeSaleView = () => {
                 )}
               </div>
               <div
-                className="discount-input-field"
+                className={`discount-input-field ${!isDiscountPinUnlocked ? 'locked-field' : ''}`}
                 onClick={() => !isDiscountPinUnlocked && handleDiscountChangeAttempt('10')}
-                title={isDiscountPinUnlocked ? 'Wholesale Discount Unlocked' : 'Click to authorize Manager PIN'}
+                title={isDiscountPinUnlocked ? 'Wholesale Discount Unlocked' : 'Click to authorize with Manager PIN (1234)'}
               >
-                <Tag size={14} className={isDiscountPinUnlocked ? 'text-primary' : 'text-muted'} />
+                {isDiscountPinUnlocked ? <Tag size={14} className="text-primary" /> : <Lock size={14} className="text-danger" />}
                 <input
                   type="number"
                   min="0"
@@ -699,11 +692,11 @@ export const MakeSaleView = () => {
             </div>
           </div>
 
-          {/* Minimalist Card / Mobile Banking Alert vs Cash Amount Inputs */}
+          {/* Payment Cash Tender Inputs */}
           {isCash ? (
             <div className="calc-inputs-grid mb-3">
               <div className="calc-group">
-                <label className="form-label">Amount Received (Rs.) *</label>
+                <label className="form-label font-weight-600">Amount Received (Rs.) *</label>
                 <input
                   type="number"
                   className="form-input font-mono calc-input font-weight-700"
@@ -714,7 +707,7 @@ export const MakeSaleView = () => {
               </div>
 
               <div className="calc-group">
-                <label className="form-label">Change Returned</label>
+                <label className="form-label font-weight-600">Change Returned</label>
                 <div className="change-returned-badge font-mono">
                   Rs. {changeReturned.toLocaleString()}
                 </div>
@@ -726,42 +719,37 @@ export const MakeSaleView = () => {
                 <CheckCircle2 size={18} className="text-success flex-shrink-0" />
                 <div>
                   <div className="font-weight-700 text-main text-sm">
-                    Fixed price (Rs. {cartNetTotal.toLocaleString()}) paid via {paymentMethod}
+                    Amount Rs. {cartNetTotal.toLocaleString()} paid via {paymentMethod}
                   </div>
                   <p className="text-xs text-muted mb-0">
-                    Settled directly via digital terminal. No cash change required.
+                    Direct terminal transaction. Fixed price digital settlement. No cash change required.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Save Order & Print Receipt Button */}
+          {/* Checkout & Print Button */}
           <button
             type="button"
             className="btn btn-primary btn-checkout-primary hover-lift"
-            disabled={cart.length === 0 || cartSubtotal < 0}
+            disabled={cart.length === 0}
             onClick={handleCheckout}
+            aria-label="Save Order & Print Receipt"
           >
-            <Printer size={18} /> Save Order & Print Receipt
+            <Printer size={18} /> Save Order &amp; Print Receipt
           </button>
-
-          {cartSubtotal < 0 && (
-            <p className="text-danger text-xs text-center mt-2 mb-0 font-weight-600">
-              * Add items of at least Rs. {Math.abs(cartSubtotal).toLocaleString()} to complete the exchange.
-            </p>
-          )}
         </div>
       </div>
 
-      {/* PRINTABLE RECEIPT MODAL */}
+      {/* 80mm THERMAL RECEIPT MODAL */}
       {completedSaleData && (
         <div className="modal-overlay">
           <div className="modal-content receipt-modal-card">
             <div className="modal-header">
               <div className="modal-title">
                 <CheckCircle2 size={24} className="text-success" />
-                <h3>Order Saved & Printed</h3>
+                <h3>Order Saved &amp; Printed • Sale Completed</h3>
               </div>
               <button className="btn-close" onClick={() => setCompletedSaleData(null)}>
                 <X size={18} />
@@ -770,17 +758,17 @@ export const MakeSaleView = () => {
 
             <div className="thermal-receipt-preview printable-area">
               <div className="receipt-header-center">
-                <Scissors size={28} />
-                <h2>{shopSettings.shopName}</h2>
-                <p>{shopSettings.shopLocation}</p>
-                <p>Tel: {shopSettings.shopPhone}</p>
+                <Scissors size={26} className="text-primary mb-1" />
+                <h2>{shopSettings.shopName || 'NOVA MEN AND WOMEN'}</h2>
+                <p>{shopSettings.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat'}</p>
+                <p>Tel: {shopSettings.shopPhone || '+92 300 1234567'}</p>
                 <div className="receipt-divider">================================</div>
               </div>
 
               <div className="receipt-meta-grid">
-                <div>Receipt #: <strong>{completedSaleData.receiptNumber}</strong></div>
+                <div>Invoice #: <strong>{completedSaleData.receiptNumber}</strong></div>
                 <div>Date: {completedSaleData.dateTime}</div>
-                <div>Salesman: {completedSaleData.salesman}</div>
+                <div>Cashier: {completedSaleData.salesman}</div>
                 <div>Payment: {completedSaleData.paymentMethod}</div>
               </div>
 
@@ -789,8 +777,8 @@ export const MakeSaleView = () => {
               <table className="receipt-table">
                 <thead>
                   <tr>
-                    <th>Item / Fabric</th>
-                    <th className="text-center">Qty / Length</th>
+                    <th>Article / Variant</th>
+                    <th className="text-center">Qty</th>
                     <th className="text-right">Price</th>
                     <th className="text-right">Total</th>
                   </tr>
@@ -799,12 +787,10 @@ export const MakeSaleView = () => {
                   {completedSaleData.items.map((it, i) => (
                     <tr key={i}>
                       <td>
-                        [{it.variantDetails ? it.variantDetails.size : it.unitType || 'Suit'}] {it.fabric}
+                        [{it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece'}] {it.fabric}
                         {it.isReturn && <span className="ret-tag"> (RETURN)</span>}
                       </td>
-                      <td className="text-center">
-                        {it.unitType === 'Meter' ? `${it.qty} m` : `${it.qty}`}
-                      </td>
+                      <td className="text-center">{it.qty}</td>
                       <td className="text-right">Rs. {it.unitPrice.toLocaleString()}</td>
                       <td className="text-right">Rs. {it.total.toLocaleString()}</td>
                     </tr>
@@ -817,7 +803,7 @@ export const MakeSaleView = () => {
               <div className="receipt-totals-section">
                 <div className="r-row"><span>Subtotal:</span> <span>Rs. {completedSaleData.subtotal.toLocaleString()}</span></div>
                 {completedSaleData.storewideDiscount > 0 && (
-                  <div className="r-row"><span>Storewide Sale Promo:</span> <span>-Rs. {completedSaleData.storewideDiscount.toLocaleString()}</span></div>
+                  <div className="r-row"><span>Storewide Promo:</span> <span>-Rs. {completedSaleData.storewideDiscount.toLocaleString()}</span></div>
                 )}
                 {completedSaleData.wholeSaleDiscount > 0 && (
                   <div className="r-row"><span>Wholesale Discount ({completedSaleData.wholeSaleDiscountPercent || 0}%):</span> <span>-Rs. {completedSaleData.wholeSaleDiscount.toLocaleString()}</span></div>
@@ -831,17 +817,25 @@ export const MakeSaleView = () => {
 
               <div className="receipt-divider">================================</div>
               <div className="receipt-footer-center">
-                <p>{shopSettings.receiptFooterNote}</p>
+                <p>{shopSettings.receiptFooterNote || 'Thank you for shopping at NOVA MEN AND WOMEN.'}</p>
                 <p className="barcode-font">* {completedSaleData.receiptNumber} *</p>
+                <small className="text-xs text-muted">Scan barcode above for rapid returns</small>
               </div>
             </div>
 
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => window.print()}>
-                <Printer size={16} /> Trigger Print
+            <div className="modal-actions flex-between">
+              <button className="btn btn-secondary" onClick={() => window.print()} aria-label="Trigger Print Receipt">
+                <Printer size={16} /> Trigger Print Receipt
               </button>
-              <button className="btn btn-primary" onClick={() => setCompletedSaleData(null)}>
-                Done & Next Customer
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setCompletedSaleData(null);
+                  clearCart();
+                }}
+                aria-label="Done & Next Customer"
+              >
+                Done &amp; Next Customer
               </button>
             </div>
           </div>
@@ -856,8 +850,8 @@ export const MakeSaleView = () => {
               <div className="flex-align-center gap-2">
                 <RotateCcw size={22} className="text-amber" />
                 <div>
-                  <h3 className="mb-0">Invoice Return & Exchange Lookup</h3>
-                  <small className="text-muted">Search previous sales invoices and select items to return for customer exchange.</small>
+                  <h3 className="mb-0">Invoice Return &amp; Exchange Lookup</h3>
+                  <small className="text-muted">Search customer invoice number to select items for exchange or refund credit.</small>
                 </div>
               </div>
               <button className="btn-close" onClick={() => setShowReturnModal(false)}>
@@ -871,7 +865,7 @@ export const MakeSaleView = () => {
                 <Search size={18} className="search-icon-accent" />
                 <input
                   type="text"
-                  placeholder="Search by Invoice # (e.g. REC-2026-0801), Date (DD-MM-YYYY), Salesman, or Fabric..."
+                  placeholder="Search by Invoice # (e.g. INV-2026-9101), Date, or Article Name..."
                   value={returnSearchQuery}
                   onChange={(e) => setReturnSearchQuery(e.target.value)}
                   autoFocus
@@ -899,8 +893,8 @@ export const MakeSaleView = () => {
                     ) : (
                       filteredInvoices.map((inv) => (
                         <div
-                          key={inv.id}
-                          className={`return-invoice-card ${selectedInvoice?.id === inv.id ? 'active' : ''}`}
+                          key={inv.receiptNumber}
+                          className={`return-invoice-card ${selectedInvoice?.receiptNumber === inv.receiptNumber ? 'active' : ''}`}
                           onClick={() => setSelectedInvoice(inv)}
                         >
                           <div className="flex-between">
@@ -922,7 +916,7 @@ export const MakeSaleView = () => {
 
                 <div className="return-items-col">
                   <div className="text-xs font-weight-700 text-subtle text-uppercase mb-2">
-                    {selectedInvoice ? `Items in Invoice ${selectedInvoice.receiptNumber}` : 'Select an invoice to view line items'}
+                    {selectedInvoice ? `Purchased Items in Invoice ${selectedInvoice.receiptNumber}` : 'Select an invoice to view line items'}
                   </div>
 
                   {!selectedInvoice ? (
@@ -937,12 +931,12 @@ export const MakeSaleView = () => {
                             <div>
                               <div className="flex-align-center gap-2">
                                 <span className="badge badge-sage badge-compact">
-                                  {it.variantDetails ? it.variantDetails.size : it.unitType || 'Suit'}
+                                  {it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece'}
                                 </span>
                                 <strong className="text-main">{it.fabric}</strong>
                               </div>
                               <div className="text-xs text-muted font-mono mt-1">
-                                {it.barcode} • Sold Qty: {it.unitType === 'Meter' ? `${it.qty} m` : it.qty} @ Rs. {it.unitPrice.toLocaleString()}
+                                {it.barcode} • Purchased Qty: {it.qty} @ Rs. {it.unitPrice.toLocaleString()}
                               </div>
                             </div>
 
@@ -955,7 +949,7 @@ export const MakeSaleView = () => {
                                 className="btn btn-warning btn-sm flex-align-center gap-1"
                                 onClick={() => {
                                   addReturnItemToCart(it, selectedInvoice.receiptNumber);
-                                  showToast(`Returned item "${it.fabric}" added with -Rs. ${it.total.toLocaleString()} for exchange`, 'success');
+                                  showToast(`Returned "${it.fabric}" added with -Rs. ${it.total.toLocaleString()} for exchange`, 'success');
                                   setShowReturnModal(false);
                                 }}
                               >
@@ -973,7 +967,7 @@ export const MakeSaleView = () => {
 
             <div className="modal-actions flex-between p-3">
               <span className="text-xs text-muted font-weight-600">
-                Returned items will be added with negative value (-Rs. X,XXX) and returned back to stock upon checkout.
+                Returned items will be added with negative credit (-Rs. X,XXX) for instant exchange or cash refund.
               </span>
               <button className="btn btn-secondary" onClick={() => setShowReturnModal(false)}>
                 Close
@@ -983,7 +977,7 @@ export const MakeSaleView = () => {
         </div>
       )}
 
-      {/* Wholesale Discount PIN Authorization Modal */}
+      {/* WHOLESALE DISCOUNT PIN AUTHORIZATION MODAL */}
       {showPinPromptModal && (
         <div className="modal-overlay">
           <div className="modal-content modal-sm glass-card p-4 text-center">
@@ -992,7 +986,7 @@ export const MakeSaleView = () => {
             </div>
             <h3 className="text-md font-weight-700 mb-1">Manager Authorization Required</h3>
             <p className="text-xs text-muted mb-3">
-              Wholesale cart discounts require manager verification. Enter the 4-digit PIN.
+              Enter the 4-digit Manager PIN (<strong>1234</strong>) to unlock wholesale &amp; custom discounts.
             </p>
 
             <form onSubmit={handleVerifyPinSubmit}>
@@ -1023,6 +1017,7 @@ export const MakeSaleView = () => {
                     setShowPinPromptModal(false);
                     setEnteredPin('');
                     setPinError('');
+                    setWholeSaleDiscountPercent(0);
                   }}
                 >
                   Cancel

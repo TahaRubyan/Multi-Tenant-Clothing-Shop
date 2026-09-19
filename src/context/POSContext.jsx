@@ -16,7 +16,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v7.2_nova_masteradmin_clean_credentials';
+const POS_DATA_VERSION = 'v8.0_nova_single_counter';
 
 // Clean one-time migration for legacy localStorage cache
 try {

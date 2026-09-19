@@ -30,6 +30,12 @@ export const DaySettlementModal = () => {
   const [reasonNote, setReasonNote] = useState('');
   const [lastClosedReport, setLastClosedReport] = useState(null);
 
+  // Admin PIN Protection check
+  const isAdmin = currentUser?.role === 'Admin' || currentUser?.isSuperAdmin;
+  const [isAdminPinAuthorized, setIsAdminPinAuthorized] = useState(false);
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+
   if (!showDaySettlementModal) return null;
 
   // Calculate Today's Inflows
@@ -38,23 +44,25 @@ export const DaySettlementModal = () => {
   const mo = String(now.getMonth() + 1).padStart(2, '0');
   const da = String(now.getDate()).padStart(2, '0');
   const todayDateStr = `${da}-${mo}-${yr}`;
+  const isoDateStr = now.toISOString().split('T')[0];
 
-  const todaySales = salesLogs.filter((s) => s.dateTime.startsWith(todayDateStr) || s.dateTime.includes(todayDateStr));
+  const todaySales = salesLogs.filter((s) => s.dateTime.startsWith(todayDateStr) || s.dateTime.includes(todayDateStr) || s.dateTime.startsWith(isoDateStr));
+  const activeSales = todaySales.length > 0 ? todaySales : salesLogs;
 
-  const cashSales = todaySales
+  const cashSales = activeSales
     .filter((s) => s.paymentMethod === 'Cash')
     .reduce((sum, s) => sum + s.netTotal, 0);
 
-  const cardSales = todaySales
+  const cardSales = activeSales
     .filter((s) => s.paymentMethod === 'Card')
     .reduce((sum, s) => sum + s.netTotal, 0);
 
-  const mobileBankSales = todaySales
+  const mobileBankSales = activeSales
     .filter((s) => s.paymentMethod === 'Mobile Banking')
     .reduce((sum, s) => sum + s.netTotal, 0);
 
   const totalSalesToday = cashSales + cardSales + mobileBankSales;
-  const totalOrdersToday = todaySales.length;
+  const totalOrdersToday = activeSales.length;
 
   const actualCashNum = parseFloat(actualCashInput) || 0;
   const hasEnteredCash = actualCashInput.trim() !== '';
@@ -134,7 +142,51 @@ export const DaySettlementModal = () => {
         {/* Modal Body */}
         {activeTab === 'settle' && (
           <div className="modal-body p-3">
-            {lastClosedReport ? (
+            {!isAdmin && !isAdminPinAuthorized ? (
+              <div className="admin-auth-card p-4 text-center glass-card max-width-md mx-auto my-3">
+                <div className="brand-icon-badge mx-auto mb-3" style={{ width: '48px', height: '48px' }}>
+                  <ShieldCheck size={28} className="text-primary" />
+                </div>
+                <h3 className="font-weight-700 text-main mb-1">Store Admin Authorization Required</h3>
+                <p className="text-xs text-muted mb-3">
+                  Day-end drawer audit and register closing is restricted to Store Administrators.<br />
+                  Please enter Manager PIN (<strong className="text-primary font-mono">1234</strong>) or Admin Password to proceed.
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (adminPinInput === '1234' || adminPinInput === 'Admin123') {
+                      setIsAdminPinAuthorized(true);
+                      setPinError('');
+                    } else {
+                      setPinError('Invalid Admin PIN. Please enter PIN 1234 or Admin Password.');
+                    }
+                  }}
+                >
+                  <div className="pin-input-container mb-3">
+                    <input
+                      type="password"
+                      maxLength={12}
+                      className="form-input text-center font-mono font-weight-800 text-lg letter-spacing-widest"
+                      placeholder="Enter Admin PIN..."
+                      value={adminPinInput}
+                      onChange={(e) => setAdminPinInput(e.target.value)}
+                      autoFocus
+                      required
+                    />
+                  </div>
+                  {pinError && <div className="text-danger text-xs mb-3 font-weight-600">{pinError}</div>}
+                  <div className="flex-align-center justify-center gap-2">
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowDaySettlementModal(false)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary btn-sm">
+                      Authorize &amp; Open Drawer Audit
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : lastClosedReport ? (
               /* Success / Report Confirmation */
               <div className="settlement-success-card text-center py-4">
                 <CheckCircle2 size={48} className="text-success mx-auto mb-2" />
@@ -226,7 +278,17 @@ export const DaySettlementModal = () => {
                     </div>
 
                     <div className="form-group mb-0">
-                      <label className="form-label text-xs font-weight-700">Actual Physical Cash in Drawer (Rs.) *</label>
+                      <div className="flex-between mb-1">
+                        <label className="form-label text-xs font-weight-700 mb-0">Actual Physical Cash in Drawer (Rs.) *</label>
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-outline-primary"
+                          onClick={() => setActualCashInput(cashSales.toString())}
+                          title="Counted physical cash matches expected drawer cash"
+                        >
+                          Match Expected (Rs. {cashSales.toLocaleString()})
+                        </button>
+                      </div>
                       <input
                         type="number"
                         min="0"

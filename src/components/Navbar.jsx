@@ -104,7 +104,7 @@ export const Navbar = () => {
 
       {/* RIGHT: Active User Profile Card & Day Settlement Action */}
       <div className="nav-right">
-        {!isMasterAdmin && (
+        {currentUser?.role === 'Admin' && !isMasterAdmin && (
           <button
             type="button"
             className="btn-settle-day-header"

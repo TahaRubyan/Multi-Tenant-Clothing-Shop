@@ -13,6 +13,9 @@ import {
   Banknote,
   Store,
   MapPin,
+  CreditCard,
+  Layers,
+  ArrowUpRight,
 } from 'lucide-react';
 
 const RETAIL_QUOTES = [
@@ -43,23 +46,67 @@ export const DashboardView = () => {
     setActiveQuote(RETAIL_QUOTES[randomIndex]);
   }, []);
 
-  const totalOrders = salesLogs.length;
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todaysSales = salesLogs.filter((s) => s.dateTime.startsWith(todayStr));
-  const todaysRevenue =
-    todaysSales.length > 0
-      ? todaysSales.reduce((acc, curr) => acc + curr.netTotal, 0)
-      : salesLogs.reduce((acc, curr) => acc + curr.netTotal, 0); // fallback for demo
-  const totalGrossProfit = salesLogs.reduce((acc, curr) => acc + curr.grossProfit, 0);
+  const now = new Date();
+  const yr = now.getFullYear();
+  const mo = String(now.getMonth() + 1).padStart(2, '0');
+  const da = String(now.getDate()).padStart(2, '0');
+  const formattedToday = `${da}-${mo}-${yr}`;
+  const isoToday = now.toISOString().split('T')[0];
+
+  // Match today's sales or fall back to recent sales session for demo
+  const todaysSales = salesLogs.filter((s) => s.dateTime.startsWith(formattedToday) || s.dateTime.startsWith(isoToday));
+  const sessionSales = todaysSales.length > 0 ? todaysSales : salesLogs;
+
+  const totalOrders = sessionSales.length;
+  const todaysRevenue = sessionSales.reduce((acc, curr) => acc + curr.netTotal, 0);
+  const todaysCashSales = sessionSales
+    .filter((s) => s.paymentMethod === 'Cash')
+    .reduce((acc, curr) => acc + curr.netTotal, 0);
+  const todaysDigitalSales = sessionSales
+    .filter((s) => s.paymentMethod === 'Card' || s.paymentMethod === 'Mobile Banking')
+    .reduce((acc, curr) => acc + curr.netTotal, 0);
+  const totalGrossProfit = sessionSales.reduce((acc, curr) => acc + curr.grossProfit, 0);
 
   const lowStockProducts = products.filter((p) => p.stock <= p.reorderLimit);
 
-  const displayShopName = shopSettings?.shopName || currentTenant?.name || 'NOVA MEN & WOMEN FASHION';
-  const displayShopLocation = shopSettings?.shopLocation || currentTenant?.address || currentTenant?.city || 'Jalal Pur Jattan, Gujrat';
+  const displayShopName = shopSettings?.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN';
+  const displayShopLocation = shopSettings?.shopLocation || currentTenant?.address || currentTenant?.city || 'Main Bazar, Jalal Pur Jattan, Gujrat';
+
+  // 4-Department Breakdown for Shop NOVA
+  const DEPARTMENTS = [
+    { id: 'Ladies Pret', label: 'Ladies Pret', icon: '👗', badgeClass: 'badge-primary' },
+    { id: 'Gents Wear', label: 'Gents Wear', icon: '👔', badgeClass: 'badge-info' },
+    { id: 'Packaged Gift Boxes', label: 'Gift Boxes', icon: '🎁', badgeClass: 'badge-warning' },
+    { id: 'Accessories', label: 'Accessories', icon: '👜', badgeClass: 'badge-sage' },
+  ];
+
+  const departmentMetrics = DEPARTMENTS.map((dept) => {
+    const deptProducts = products.filter((p) => p.department === dept.id);
+    const stockUnits = deptProducts.reduce((sum, p) => sum + (p.stock || 0), 0);
+    let soldUnits = 0;
+    let soldRevenue = 0;
+
+    sessionSales.forEach((sale) => {
+      sale.items?.forEach((it) => {
+        if (it.department === dept.id || deptProducts.some((p) => p.barcode === it.barcode)) {
+          soldUnits += (it.qty || 1);
+          soldRevenue += (it.total || (it.unitPrice * (it.qty || 1)));
+        }
+      });
+    });
+
+    return {
+      ...dept,
+      productCount: deptProducts.length,
+      stockUnits,
+      soldUnits,
+      soldRevenue,
+    };
+  });
 
   return (
     <div className="view-container dashboard-view">
-      {/* Welcome Banner with Shop Name & Quick Actions */}
+      {/* Welcome Banner with Full Shop Name & Prominent Actions */}
       <div className="welcome-banner glass-card hover-glow">
         <div className="banner-content">
           <div className="flex-align-center gap-2 mb-1">
@@ -71,7 +118,7 @@ export const DashboardView = () => {
             </span>
             <span>•</span>
             <span className="badge badge-sage badge-compact flex-align-center gap-1">
-              <Sparkles size={11} /> {currentUser?.fullName || 'Cashier'} on Terminal
+              <Sparkles size={11} /> {currentUser?.fullName || 'Terminal Cashier'} ({currentUser?.role || 'Staff'})
             </span>
           </div>
           <p className="welcome-quote font-italic">
@@ -91,7 +138,7 @@ export const DashboardView = () => {
             type="button"
             className="btn btn-settle-prominent"
             onClick={() => setShowDaySettlementModal(true)}
-            title="Settle Cash Drawer & Close Day"
+            title="Settle Cash Drawer & Close Day Shift"
           >
             <Banknote size={18} /> Close / Settle Cash
           </button>
@@ -105,9 +152,9 @@ export const DashboardView = () => {
         </div>
       </div>
 
-      {/* Interactive KPI Cards with Prominent Hover and Active States */}
+      {/* Main KPI Overview Grid */}
       <div className="kpi-grid">
-        {/* 1. Today's Revenue */}
+        {/* 1. Today's Total Revenue */}
         <div
           className="kpi-card glass-card kpi-interactive-card hover-lift"
           onClick={() => setActiveTab('analytics')}
@@ -127,43 +174,63 @@ export const DashboardView = () => {
           </div>
         </div>
 
-        {/* 2. Total Gross Profit */}
+        {/* 2. Cash in Register */}
         <div
           className="kpi-card glass-card kpi-interactive-card hover-lift"
-          onClick={() => setActiveTab('analytics')}
-          title="Click to view Profit Margins"
+          onClick={() => setShowDaySettlementModal(true)}
+          title="Click to audit physical Cash in Register"
         >
           <div className="kpi-icon icon-amber">
-            <TrendingUp size={22} />
+            <Banknote size={22} />
           </div>
           <div className="kpi-info">
-            <span className="kpi-label">Total Gross Profit</span>
+            <span className="kpi-label">Cash in Register</span>
             <h3 className="kpi-value font-mono">
-              {shopSettings.currencySymbol} {totalGrossProfit.toLocaleString()}
+              {shopSettings.currencySymbol} {todaysCashSales.toLocaleString()}
             </h3>
-            <span className="kpi-sub neutral">Margin after wholesale COGS</span>
+            <span className="kpi-sub neutral">Physical drawer tally</span>
           </div>
         </div>
 
-        {/* 3. Total Order Count */}
+        {/* 3. Digital Sales */}
+        <div
+          className="kpi-card glass-card kpi-interactive-card hover-lift"
+          onClick={() => setActiveTab('analytics')}
+          title="Click to view Card & Bank settlements"
+        >
+          <div className="kpi-icon icon-blue">
+            <CreditCard size={22} />
+          </div>
+          <div className="kpi-info">
+            <span className="kpi-label">Digital Sales</span>
+            <h3 className="kpi-value font-mono">
+              {shopSettings.currencySymbol} {todaysDigitalSales.toLocaleString()}
+            </h3>
+            <span className="kpi-sub positive">
+              <CheckCircle2 size={13} /> Card &amp; Mobile Bank
+            </span>
+          </div>
+        </div>
+
+        {/* 4. Total Invoices Processed */}
         <div
           className="kpi-card glass-card kpi-interactive-card hover-lift"
           onClick={() => setActiveTab('analytics')}
           title="Click to view Sales Invoices Log"
         >
-          <div className="kpi-icon icon-blue">
+          <div className="kpi-icon icon-purple">
             <ShoppingBag size={22} />
           </div>
           <div className="kpi-info">
-            <span className="kpi-label">Total Order Count</span>
+            <span className="kpi-label">Total Invoices</span>
             <h3 className="kpi-value font-mono">{totalOrders} Sales</h3>
             <span className="kpi-sub positive">
-              <CheckCircle2 size={13} /> Processed invoices
+              <CheckCircle2 size={13} /> Processed checkouts
             </span>
           </div>
         </div>
 
-        {/* 4. Low Stock Items */}
+        {/* 5. Low Stock Items */}
         <div
           className={`kpi-card glass-card kpi-interactive-card hover-lift ${
             lowStockProducts.length > 0 ? 'warning-kpi-card' : ''
@@ -187,6 +254,60 @@ export const DashboardView = () => {
               <Boxes size={11} /> Below reorder limits
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* 4-Department Live Breakdown Section */}
+      <div className="department-overview-section mt-4 mb-4">
+        <div className="section-header-compact flex-between mb-2">
+          <div className="flex-align-center gap-2">
+            <Layers size={18} className="text-primary" />
+            <h3 className="text-sm font-weight-700 mb-0">Shop NOVA Department Performance</h3>
+            <span className="text-xs text-muted">Ladies Pret • Gents Wear • Packaged Gift Boxes • Accessories</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-xs flex-align-center gap-1"
+            onClick={() => setActiveTab('make-sale')}
+          >
+            <span>Unified Counter POS</span>
+            <ArrowUpRight size={13} />
+          </button>
+        </div>
+
+        <div className="grid-4col gap-3">
+          {departmentMetrics.map((dept) => (
+            <div
+              key={dept.id}
+              className="dept-kpi-card glass-card p-3 hover-lift cursor-pointer"
+              onClick={() => setActiveTab('make-sale')}
+              title={`Click to open ${dept.label} on POS Counter`}
+            >
+              <div className="flex-between mb-2">
+                <div className="flex-align-center gap-2">
+                  <span className="text-xl">{dept.icon}</span>
+                  <div>
+                    <h4 className="text-sm font-weight-700 mb-0">{dept.label}</h4>
+                    <span className="text-xxs text-muted">{dept.productCount} active articles</span>
+                  </div>
+                </div>
+                <span className={`badge ${dept.badgeClass} badge-compact font-mono`}>
+                  {dept.stockUnits} in stock
+                </span>
+              </div>
+
+              <div className="dept-stats-row flex-between border-top pt-2 mt-2 text-xs">
+                <div>
+                  <span className="text-muted block text-xxs">Sold Units:</span>
+                  <strong className="font-mono">{dept.soldUnits} pcs</strong>
+                </div>
+                <div className="text-right">
+                  <span className="text-muted block text-xxs">Revenue:</span>
+                  <strong className="font-mono text-primary">Rs. {dept.soldRevenue.toLocaleString()}</strong>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
