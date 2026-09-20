@@ -133,4 +133,28 @@ describe('POS Unit Calculations', () => {
       expect(balancedDiscrepancy).toBe(0);
     });
   });
+
+  describe('Analytics Date Parsing (parseSaleDate)', () => {
+    it('correctly parses DD-MM-YYYY HH:mm format without Invalid Date', async () => {
+      const { parseSaleDate } = await import('../../src/views/AnalyticsView');
+      const date = parseSaleDate('20-09-2026 14:30');
+      expect(date).toBeInstanceOf(Date);
+      expect(isNaN(date.getTime())).toBe(false);
+      expect(date.getFullYear()).toBe(2026);
+      expect(date.getMonth()).toBe(8); // 0-indexed September
+      expect(date.getDate()).toBe(20);
+      expect(date.getHours()).toBe(14);
+      expect(date.getMinutes()).toBe(30);
+    });
+
+    it('correctly parses ISO YYYY-MM-DD format', async () => {
+      const { parseSaleDate } = await import('../../src/views/AnalyticsView');
+      const date = parseSaleDate('2026-09-20 18:00');
+      expect(date).toBeInstanceOf(Date);
+      expect(isNaN(date.getTime())).toBe(false);
+      expect(date.getFullYear()).toBe(2026);
+      expect(date.getMonth()).toBe(8);
+      expect(date.getDate()).toBe(20);
+    });
+  });
 });

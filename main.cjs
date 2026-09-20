@@ -11,11 +11,12 @@ let mainWindow;
 function rawPrint(printerName, content, docName = 'Barcode Label') {
   return new Promise((resolve) => {
     try {
-      const tempFile = path.join(os.tmpdir(), `raw_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
-      fs.writeFileSync(tempFile, content, 'utf8');
+      const tempContentFile = path.join(os.tmpdir(), `raw_data_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+      const tempPs1File = path.join(os.tmpdir(), `raw_spool_${Date.now()}_${Math.random().toString(36).slice(2)}.ps1`);
+      
+      fs.writeFileSync(tempContentFile, content, 'utf8');
 
-      const psScript = `
-Add-Type -TypeDefinition @"
+      const psScript = `Add-Type -TypeDefinition @"
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -64,13 +65,16 @@ public class RawPrinter {
     }
 }
 "@
-$content = [System.IO.File]::ReadAllText('${tempFile.replace(/\\/g, '\\\\')}')
-$res = [RawPrinter]::SendStringToPrinter('${printerName.replace(/'/g, "''")}', $content)
+$rawContent = [System.IO.File]::ReadAllText('${tempContentFile.replace(/\\/g, '\\\\')}')
+$res = [RawPrinter]::SendStringToPrinter('${printerName.replace(/'/g, "''")}', $rawContent)
 Write-Output "SUCCESS:$res"
 `;
 
-      execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript], (err, stdout) => {
-        try { fs.unlinkSync(tempFile); } catch (_) {}
+      fs.writeFileSync(tempPs1File, psScript, 'utf8');
+
+      execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', tempPs1File], (err, stdout) => {
+        try { fs.unlinkSync(tempContentFile); } catch (_) {}
+        try { fs.unlinkSync(tempPs1File); } catch (_) {}
         if (err) {
           console.warn('Raw print error:', err);
           return resolve({ success: false, error: err.message });

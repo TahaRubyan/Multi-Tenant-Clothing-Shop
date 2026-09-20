@@ -13,7 +13,23 @@ import {
   Filter,
   CreditCard,
   Banknote,
+  Search,
 } from 'lucide-react';
+
+// Helper: Parse DD-MM-YYYY HH:mm and YYYY-MM-DD dateTime strings safely
+export function parseSaleDate(dateTimeStr) {
+  if (!dateTimeStr) return new Date();
+  const parts = String(dateTimeStr).trim().split(/[\sT]+/);
+  const datePart = parts[0] || '';
+  const timePart = parts[1] || '00:00';
+
+  if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(datePart)) {
+    const [d, m, y] = datePart.split(/[-/]/);
+    const [hr, min] = timePart.split(':');
+    return new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10), parseInt(hr || 0, 10), parseInt(min || 0, 10));
+  }
+  return new Date(dateTimeStr.replace(' ', 'T'));
+}
 
 export const AnalyticsView = () => {
   const { salesLogs, shopSettings } = usePOS();
@@ -23,6 +39,7 @@ export const AnalyticsView = () => {
   const [dateFilterMode, setDateFilterMode] = useState('all'); // 'today' | '7days' | '30days' | 'custom' | 'all'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isClosingInvoice, setIsClosingInvoice] = useState(false);
@@ -39,21 +56,31 @@ export const AnalyticsView = () => {
   const filteredSalesLogs = salesLogs.filter((sale) => {
     if (dateFilterMode === 'all') return true;
     
-    const saleDate = new Date(sale.dateTime.replace(' ', 'T'));
+    const saleDate = parseSaleDate(sale.dateTime);
     const now = new Date();
 
     if (dateFilterMode === 'today') {
-      return sale.dateTime.startsWith(now.toISOString().split('T')[0]);
+      const da = String(now.getDate()).padStart(2, '0');
+      const mo = String(now.getMonth() + 1).padStart(2, '0');
+      const yr = now.getFullYear();
+      const ddMm = `${da}-${mo}-${yr}`;
+      const iso = `${yr}-${mo}-${da}`;
+      return (
+        sale.dateTime.startsWith(ddMm) ||
+        sale.dateTime.startsWith(iso) ||
+        sale.dateTime.includes(ddMm) ||
+        (saleDate.getFullYear() === yr && saleDate.getMonth() === now.getMonth() && saleDate.getDate() === now.getDate())
+      );
     }
     if (dateFilterMode === '7days') {
-      const diffTime = Math.abs(now - saleDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= 7;
+      const diffTime = Math.abs(now.getTime() - saleDate.getTime());
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      return diffDays <= 7.05;
     }
     if (dateFilterMode === '30days') {
-      const diffTime = Math.abs(now - saleDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= 30;
+      const diffTime = Math.abs(now.getTime() - saleDate.getTime());
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      return diffDays <= 30.05;
     }
     if (dateFilterMode === 'custom') {
       if (!customStartDate && !customEndDate) return true;
@@ -62,6 +89,22 @@ export const AnalyticsView = () => {
       return saleDate >= start && saleDate <= end;
     }
     return true;
+  });
+
+  // Filter Invoices by Search Query
+  const searchedInvoices = filteredSalesLogs.filter((sale) => {
+    if (!invoiceSearchQuery.trim()) return true;
+    const q = invoiceSearchQuery.trim().toLowerCase();
+    const receiptMatch = (sale.receiptNumber || '').toLowerCase().includes(q);
+    const salesmanMatch = (sale.salesman || '').toLowerCase().includes(q);
+    const paymentMatch = (sale.paymentMethod || '').toLowerCase().includes(q);
+    const itemMatch = (sale.items || []).some((it) => {
+      const name = (it.fabric || it.name || '').toLowerCase();
+      const code = (it.barcode || '').toLowerCase();
+      const sku = (it.variantDetails?.sku || '').toLowerCase();
+      return name.includes(q) || code.includes(q) || sku.includes(q);
+    });
+    return receiptMatch || salesmanMatch || paymentMatch || itemMatch;
   });
 
   const totalRevenue = filteredSalesLogs.reduce((sum, s) => sum + s.netTotal, 0);
@@ -388,7 +431,30 @@ export const AnalyticsView = () => {
               <FileText size={18} className="text-primary" />
               <h3 className="mb-0">Detailed Sales Invoices & Margin Log</h3>
             </div>
-            <span className="badge badge-sage">{filteredSalesLogs.length} Receipts</span>
+            <span className="badge badge-sage">
+              {invoiceSearchQuery ? `${searchedInvoices.length} of ${filteredSalesLogs.length} Receipts` : `${filteredSalesLogs.length} Receipts`}
+            </span>
+          </div>
+
+          {/* Dedicated Invoice Search Bar */}
+          <div className="filter-search-box full-width-search mb-3">
+            <Search size={18} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search invoices by Receipt # (e.g. INV-2026), Cashier/Salesman, Payment Method, or Article / Barcode..."
+              value={invoiceSearchQuery}
+              onChange={(e) => setInvoiceSearchQuery(e.target.value)}
+            />
+            {invoiceSearchQuery && (
+              <button
+                type="button"
+                className="clear-search-btn"
+                onClick={() => setInvoiceSearchQuery('')}
+                title="Clear search query"
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
 
           <table className="data-table analytics-data-table" style={{ width: '100%', minWidth: '880px' }}>
@@ -406,12 +472,14 @@ export const AnalyticsView = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredSalesLogs.length === 0 ? (
+              {searchedInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="text-center text-muted py-6">No sales logs found for this date range.</td>
+                  <td colSpan="9" className="text-center text-muted py-6">
+                    {invoiceSearchQuery ? `No invoices matching "${invoiceSearchQuery}" found.` : 'No sales logs found for this date range.'}
+                  </td>
                 </tr>
               ) : (
-                filteredSalesLogs.map((sale) => (
+                searchedInvoices.map((sale) => (
                   <tr key={sale.receiptNumber}>
                     <td className="font-mono text-highlight font-weight-600">{sale.receiptNumber}</td>
                     <td className="font-mono text-xs">{sale.dateTime}</td>

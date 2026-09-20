@@ -81,6 +81,54 @@ describe('POS Context Integration State Tests', () => {
     expect(updatedProduct.stock).toBe(initialStock + 10);
   });
 
+  it('increments stock count upon processing exchange return in completeSale', () => {
+    const { result } = renderHook(() => usePOS(), { wrapper });
+    const product = result.current.products.find(p => p.stock > 0);
+    if (!product) return;
+
+    const initialStock = product.stock;
+
+    act(() => {
+      result.current.addReturnItemToCart({
+        id: product.id,
+        barcode: product.barcode,
+        fabric: product.fabricMaterial,
+        unitPrice: product.retailPrice,
+        qty: 1,
+      });
+    });
+
+    expect(result.current.cart.length).toBe(1);
+    expect(result.current.cart[0].isReturn).toBe(true);
+
+    act(() => {
+      result.current.completeSale('Cash', 0);
+    });
+
+    const updatedProduct = result.current.products.find(p => p.id === product.id);
+    expect(updatedProduct.stock).toBe(initialStock + 1);
+  });
+
+  it('updates variant stock when restocking by variant SKU', () => {
+    const { result } = renderHook(() => usePOS(), { wrapper });
+    const productWithVariants = result.current.products.find(p => p.variants && p.variants.length > 0);
+    if (!productWithVariants) return;
+
+    const targetVariant = productWithVariants.variants[0];
+    const initialMasterStock = productWithVariants.stock;
+    const initialVarStock = targetVariant.stock;
+
+    act(() => {
+      result.current.updateProductStock(targetVariant.sku, 5, 'Variant restock intake');
+    });
+
+    const updatedProduct = result.current.products.find(p => p.id === productWithVariants.id);
+    const updatedVariant = updatedProduct.variants.find(v => v.sku === targetVariant.sku);
+
+    expect(updatedVariant.stock).toBe(initialVarStock + 5);
+    expect(updatedProduct.stock).toBe(initialMasterStock + 5);
+  });
+
   it('authenticates Masteradmin, Nova.admin, Testing.admin and Cashier1 successfully', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 

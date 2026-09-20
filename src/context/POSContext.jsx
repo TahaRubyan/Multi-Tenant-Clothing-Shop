@@ -275,72 +275,85 @@ export const POSProvider = ({ children }) => {
     showToast('Printer hardware configuration updated successfully', 'success');
   };
 
-  const refreshPrinters = async () => {
+  const fetchSystemPrinters = async () => {
     if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
       try {
         const sysPrinters = await window.electronAPI.getPrinters();
-        if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
-          const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
-          setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
-
-          const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
-          const bixolonMatch = names.find(n => /bixolon|srp/i.test(n));
-          const zebraMatch = names.find(n => /zdesigner|imz|zpl|zebra|gk888/i.test(n));
-          const targetReceipt = bixolonMatch || detectedReceipt || 'BIXOLON SRP-Q302';
-          const targetLabel = zebraMatch || detectedLabel || 'ZDesigner iMZ220 (ZPL)';
-
-          setPrinterSettings(prev => ({
-            ...prev,
-            receiptPrinter: targetReceipt,
-            labelPrinter: targetLabel,
-            silentPrinting: true,
-          }));
-          setShopSettings(prev => ({
-            ...prev,
-            receiptPrinter: targetReceipt,
-            labelPrinter: targetLabel,
-            silentPrinting: true,
-          }));
-
-          showToast(`Printers Connected: Receipt (${targetReceipt}), Label (${targetLabel})`, 'success');
-          return;
-        }
-      } catch (err) {
-        console.warn('Could not fetch hardware printers via Electron API:', err);
+        if (Array.isArray(sysPrinters) && sysPrinters.length > 0) return sysPrinters;
+      } catch (_) {}
+    }
+    try {
+      const res = await fetch('/api/printers');
+      if (res.ok) {
+        const sysPrinters = await res.json();
+        if (Array.isArray(sysPrinters) && sysPrinters.length > 0) return sysPrinters;
       }
+    } catch (_) {}
+    return [];
+  };
+
+  const refreshPrinters = async () => {
+    try {
+      const sysPrinters = await fetchSystemPrinters();
+      if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
+        const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
+        setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
+
+        const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
+        const bixolonMatch = names.find(n => /bixolon|srp/i.test(n));
+        const zebraMatch = names.find(n => /zdesigner|imz|zpl|zebra|gk888/i.test(n));
+        const targetReceipt = bixolonMatch || detectedReceipt || 'BIXOLON SRP-Q302';
+        const targetLabel = zebraMatch || detectedLabel || 'ZDesigner iMZ220 (ZPL)';
+
+        setPrinterSettings(prev => ({
+          ...prev,
+          receiptPrinter: targetReceipt,
+          labelPrinter: targetLabel,
+          silentPrinting: true,
+        }));
+        setShopSettings(prev => ({
+          ...prev,
+          receiptPrinter: targetReceipt,
+          labelPrinter: targetLabel,
+          silentPrinting: true,
+        }));
+
+        showToast(`Printers Connected: Receipt (${targetReceipt}), Label (${targetLabel})`, 'success');
+        return;
+      }
+    } catch (err) {
+      console.warn('Could not fetch hardware printers:', err);
     }
     showToast('Hardware printer list refreshed', 'info');
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
-      window.electronAPI.getPrinters().then(sysPrinters => {
-        if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
-          const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
-          setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
+    fetchSystemPrinters().then(sysPrinters => {
+      if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
+        const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
+        setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
 
-          const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
-          const bixolonMatch = names.find(n => /bixolon|srp/i.test(n));
-          const zebraMatch = names.find(n => /zdesigner|imz|zpl|zebra|gk888/i.test(n));
-          const targetReceipt = bixolonMatch || detectedReceipt || 'BIXOLON SRP-Q302';
-          const targetLabel = zebraMatch || detectedLabel || 'ZDesigner iMZ220 (ZPL)';
+        const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
+        const bixolonMatch = names.find(n => /bixolon|srp/i.test(n));
+        const zebraMatch = names.find(n => /zdesigner|imz|zpl|zebra|gk888/i.test(n));
+        const targetReceipt = bixolonMatch || detectedReceipt || 'BIXOLON SRP-Q302';
+        const targetLabel = zebraMatch || detectedLabel || 'ZDesigner iMZ220 (ZPL)';
 
-          setPrinterSettings(prev => ({
-            ...prev,
-            receiptPrinter: targetReceipt,
-            labelPrinter: targetLabel,
-            silentPrinting: true,
-          }));
+        setPrinterSettings(prev => ({
+          ...prev,
+          receiptPrinter: targetReceipt,
+          labelPrinter: targetLabel,
+          silentPrinting: true,
+        }));
 
-          setShopSettings(prev => ({
-            ...prev,
-            receiptPrinter: targetReceipt,
-            labelPrinter: targetLabel,
-            silentPrinting: true,
-          }));
-        }
-      }).catch(() => {});
-    }
+        setShopSettings(prev => ({
+          ...prev,
+          receiptPrinter: targetReceipt,
+          labelPrinter: targetLabel,
+          silentPrinting: true,
+        }));
+      }
+    }).catch(() => {});
   }, []);
 
   // TENANT-ISOLATED DATA VIEWS (ROW-LEVEL FILTERING)
@@ -742,7 +755,11 @@ export const POSProvider = ({ children }) => {
   };
 
   const updateProductStock = (barcodeOrId, qtyToAdd, reason, vendorId = '') => {
-    let targetProd = products.find(p => p.barcode === barcodeOrId || p.id === barcodeOrId);
+    let targetProd = products.find(p =>
+      p.barcode === barcodeOrId ||
+      p.id === barcodeOrId ||
+      (p.variants && p.variants.some(v => v.sku === barcodeOrId))
+    );
     if (!targetProd) return false;
 
     const numQty = parseFloat(qtyToAdd) || 0;
@@ -750,7 +767,17 @@ export const POSProvider = ({ children }) => {
     setAllProducts(prev =>
       prev.map(p => {
         if (p.id === targetProd.id) {
-          return { ...p, stock: Math.max(0, p.stock + numQty) };
+          let updatedVariants = p.variants ? [...p.variants] : [];
+          if (updatedVariants.length > 0) {
+            updatedVariants = updatedVariants.map(v =>
+              v.sku === barcodeOrId ? { ...v, stock: Math.max(0, parseFloat((v.stock + numQty).toFixed(4))) } : v
+            );
+          }
+          return {
+            ...p,
+            stock: Math.max(0, parseFloat((p.stock + numQty).toFixed(4))),
+            variants: updatedVariants,
+          };
         }
         return p;
       })
@@ -961,7 +988,14 @@ export const POSProvider = ({ children }) => {
   };
 
   const addReturnItemToCart = (invoiceItem, originalInvoiceNumber = '') => {
-    const cartItemId = `return-${invoiceItem.barcode || Date.now()}-${Date.now()}`;
+    const itemBarcode = String(invoiceItem.barcode || '').trim();
+    const matchedProd = products.find(p =>
+      p.barcode === itemBarcode ||
+      p.id === invoiceItem.id ||
+      (p.variants && p.variants.some(v => v.sku === itemBarcode))
+    );
+
+    const cartItemId = `return-${itemBarcode || Date.now()}-${Date.now()}`;
     const unitPrice = parseFloat(invoiceItem.unitPrice) || 0;
     const wholesalePrice = parseFloat(invoiceItem.wholesalePrice) || (unitPrice * 0.5);
 
@@ -972,10 +1006,10 @@ export const POSProvider = ({ children }) => {
     setCart(prev => [
       ...prev,
       {
-        id: invoiceItem.barcode || `item-${Date.now()}`,
+        id: matchedProd ? matchedProd.id : (itemBarcode || `item-${Date.now()}`),
         cartItemId,
-        barcode: invoiceItem.barcode || 'RET-ITEM',
-        masterBarcode: invoiceItem.barcode || 'RET-ITEM',
+        barcode: itemBarcode || 'RET-ITEM',
+        masterBarcode: matchedProd ? matchedProd.barcode : itemBarcode,
         fabricMaterial: cleanName,
         fabricType: invoiceItem.fabricType || invoiceItem.unitType || 'Garment',
         fabricColor: invoiceItem.fabricColor || 'Exchange Return',
@@ -983,7 +1017,7 @@ export const POSProvider = ({ children }) => {
         unitType: invoiceItem.unitType || 'Suit',
         unitPrice: unitPrice,
         wholesalePrice: wholesalePrice,
-        stock: 999,
+        stock: matchedProd ? matchedProd.stock : 999,
         qty: parseFloat(invoiceItem.qty) || 1,
         itemDiscountPercent: 0,
         itemDiscount: 0,
@@ -1072,10 +1106,15 @@ export const POSProvider = ({ children }) => {
       })),
     };
 
-    // Update stock in products and variant tables
+    // Update stock in products and variant tables (decrement sales, increment returns)
     setAllProducts(prev =>
       prev.map(p => {
-        const cartItemsForProduct = cart.filter(ci => ci.id === p.id);
+        const cartItemsForProduct = cart.filter(ci =>
+          ci.id === p.id ||
+          ci.barcode === p.barcode ||
+          ci.masterBarcode === p.barcode ||
+          (p.variants && p.variants.some(v => v.sku === ci.barcode))
+        );
         if (cartItemsForProduct.length > 0) {
           let totalStockDelta = 0;
           let updatedVariants = p.variants ? [...p.variants] : [];
@@ -1084,9 +1123,11 @@ export const POSProvider = ({ children }) => {
             const delta = ci.isReturn ? ci.qty : -ci.qty;
             totalStockDelta += delta;
 
-            if (ci.variantDetails && updatedVariants.length > 0) {
+            if (updatedVariants.length > 0) {
               updatedVariants = updatedVariants.map(v =>
-                v.sku === ci.barcode ? { ...v, stock: Math.max(0, parseFloat((v.stock + delta).toFixed(4))) } : v
+                (v.sku === ci.barcode || (ci.variantDetails && v.size === ci.variantDetails.size))
+                  ? { ...v, stock: Math.max(0, parseFloat((v.stock + delta).toFixed(4))) }
+                  : v
               );
             }
           });

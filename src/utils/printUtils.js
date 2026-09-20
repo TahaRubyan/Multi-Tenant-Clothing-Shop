@@ -127,8 +127,58 @@ export function autoDetectPrinters(printers = []) {
   return { detectedReceipt, detectedLabel };
 }
 
+function fallbackIframePrint(htmlContent, shouldTriggerPrint = true) {
+  const existingFrame = document.getElementById('pos-clean-print-frame');
+  if (existingFrame) {
+    try {
+      existingFrame.remove();
+    } catch (_) {}
+  }
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'pos-clean-print-frame';
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0px';
+  iframe.style.height = '0px';
+  iframe.style.border = 'none';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  iframe.style.zIndex = '-9999';
+
+  document.body.appendChild(iframe);
+
+  try {
+    const frameDoc = iframe.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(htmlContent);
+    frameDoc.close();
+
+    if (shouldTriggerPrint) {
+      // Allow CSS rendering before initiating print
+      setTimeout(() => {
+        try {
+          if (iframe.contentWindow && typeof iframe.contentWindow.print === 'function') {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          } else if (typeof window.print === 'function') {
+            window.print();
+          }
+        } catch (err) {
+          console.warn('Iframe print warning, falling back to window.print:', err);
+          if (typeof window.print === 'function') window.print();
+        }
+      }, 250);
+    }
+  } catch (err) {
+    console.error('Print initialization error:', err);
+    if (shouldTriggerPrint && typeof window.print === 'function') window.print();
+  }
+}
+
 /**
- * Executes printing through direct Electron hardware print or isolated invisible iframe.
+ * Executes printing through direct Electron hardware print, Vite hardware bridge, or isolated invisible iframe.
  */
 function executePrint(htmlContent, options = {}) {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -162,51 +212,43 @@ function executePrint(htmlContent, options = {}) {
     }
   }
 
-  // 2. Clean Isolated iframe print (for browser, dev server & test environments)
-  const existingFrame = document.getElementById('pos-clean-print-frame');
-  if (existingFrame) {
-    try {
-      existingFrame.remove();
-    } catch (_) {}
-  }
+  const isHttpEnv = typeof window !== 'undefined' &&
+    window.location &&
+    window.location.protocol &&
+    window.location.protocol.startsWith('http') &&
+    !(typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.VITEST));
 
-  const iframe = document.createElement('iframe');
-  iframe.id = 'pos-clean-print-frame';
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0px';
-  iframe.style.height = '0px';
-  iframe.style.border = 'none';
-  iframe.style.opacity = '0';
-  iframe.style.pointerEvents = 'none';
-  iframe.style.zIndex = '-9999';
+  const isLabelJob = options?.type === 'label' || Boolean(options?.zpl || options?.epl);
 
-  document.body.appendChild(iframe);
+  // In HTTP browser environment, label printing is handled by Vite hardware bridge with zero popups
+  const shouldTriggerBrowserPrint = !(isHttpEnv && isLabelJob);
 
-  try {
-    const frameDoc = iframe.contentWindow.document;
-    frameDoc.open();
-    frameDoc.write(htmlContent);
-    frameDoc.close();
+  // Render isolated frame (guarantees DOM presence, unit tests, and layout)
+  fallbackIframePrint(htmlContent, shouldTriggerBrowserPrint);
 
-    // Allow CSS rendering before initiating print
-    setTimeout(() => {
-      try {
-        if (iframe.contentWindow && typeof iframe.contentWindow.print === 'function') {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        } else if (typeof window.print === 'function') {
-          window.print();
-        }
-      } catch (err) {
-        console.warn('Iframe print warning, falling back to window.print:', err);
-        if (typeof window.print === 'function') window.print();
-      }
-    }, 250);
-  } catch (err) {
-    console.error('Print initialization error:', err);
-    if (typeof window.print === 'function') window.print();
+  // 2. Hardware Bridge via Vite Dev Server API (for Browser / Chrome)
+  if (isHttpEnv && isLabelJob && typeof fetch === 'function') {
+    fetch('/api/print-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        html: htmlContent,
+        zpl: options.zpl,
+        epl: options.epl,
+        deviceName: options.deviceName,
+        type: options.type || 'label',
+        silent: options.silent !== false,
+        pageSize: options.pageSize,
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log('[Hardware Print Bridge] Direct label print job sent:', data);
+      })
+      .catch(err => {
+        console.warn('Hardware print bridge fetch error, triggering browser fallback:', err);
+        fallbackIframePrint(htmlContent, true);
+      });
   }
 }
 
@@ -479,6 +521,9 @@ export function generateZplLabel(product, shopSettings = {}, count = 1) {
   const printQty = Math.max(1, parseInt(count, 10) || 1);
 
   return `^XA
+^MTD
+~SD25
+^PR2
 ^PW384
 ^LL240
 ^LH0,0
@@ -488,7 +533,7 @@ export function generateZplLabel(product, shopSettings = {}, count = 1) {
 ^FO42,80^BY2,2,42^BCN,42,N,N,N^FD${itemCode}^FS
 ^FO10,130^FB364,1,0,C^A0N,20,20^FD${itemCode}^FS
 ^FO10,154^GB364,2,2^FS
-^FO10,162^FB364,1,0,C^A0N,28,28^FDRs. ${price}^FS
+^FO10,162^FB364,1,0,C^A0N,26,26^FDPRICE: Rs. ${price}^FS
 ^PQ${printQty}
 ^XZ`;
 }
