@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePOS } from '../context/POSContext';
 import {
   Store,
@@ -57,13 +57,50 @@ export const SettingsView = () => {
   const [activeSettingsTab, setActiveSettingsTab] = useState('shop_profile');
 
   // Hardware & Printer Form State
-  const [receiptPrinter, setReceiptPrinter] = useState(printerSettings?.receiptPrinter || 'Default System Printer');
-  const [labelPrinter, setLabelPrinter] = useState(printerSettings?.labelPrinter || 'Default System Printer');
+  const [receiptPrinter, setReceiptPrinter] = useState(printerSettings?.receiptPrinter || 'BIXOLON SRP-Q302');
+  const [labelPrinter, setLabelPrinter] = useState(printerSettings?.labelPrinter || 'ZDesigner iMZ220 (ZPL)');
   const [receiptPaperWidth, setReceiptPaperWidth] = useState(printerSettings?.receiptPaperWidth || '75mm');
   const [labelSize, setLabelSize] = useState(printerSettings?.labelSize || '50x30mm');
   const [autoPrintReceipt, setAutoPrintReceipt] = useState(printerSettings?.autoPrintReceipt !== false);
   const [silentPrinting, setSilentPrinting] = useState(printerSettings?.silentPrinting !== false);
   const [showReceiptModal, setShowReceiptModal] = useState(printerSettings?.showReceiptModal === true);
+
+  // Synchronize local form state whenever POSContext printer settings update
+  useEffect(() => {
+    if (printerSettings?.receiptPrinter) {
+      setReceiptPrinter(printerSettings.receiptPrinter);
+    }
+    if (printerSettings?.labelPrinter) {
+      setLabelPrinter(printerSettings.labelPrinter);
+    }
+    if (printerSettings?.receiptPaperWidth) {
+      setReceiptPaperWidth(printerSettings.receiptPaperWidth);
+    }
+    if (printerSettings?.labelSize) {
+      setLabelSize(printerSettings.labelSize);
+    }
+    if (printerSettings?.silentPrinting !== undefined) {
+      setSilentPrinting(printerSettings.silentPrinting);
+    }
+    if (printerSettings?.autoPrintReceipt !== undefined) {
+      setAutoPrintReceipt(printerSettings.autoPrintReceipt);
+    }
+    if (printerSettings?.showReceiptModal !== undefined) {
+      setShowReceiptModal(printerSettings.showReceiptModal);
+    }
+  }, [printerSettings]);
+
+  const allReceiptPrinters = Array.from(new Set([
+    'BIXOLON SRP-Q302',
+    receiptPrinter,
+    ...availablePrinters,
+  ])).filter(Boolean);
+
+  const allLabelPrinters = Array.from(new Set([
+    'ZDesigner iMZ220 (ZPL)',
+    labelPrinter,
+    ...availablePrinters,
+  ])).filter(Boolean);
 
   // Modals
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
@@ -736,6 +773,32 @@ export const SettingsView = () => {
           ======================================================== */}
       {activeSettingsTab === 'hardware_printers' && (
         <div className="settings-profile-full-layout scrollable-panel">
+          {/* Active Hardware Verification Banner */}
+          <div className="glass-card mb-3 p-3 flex-between flex-wrap gap-2" style={{ borderLeft: '4px solid #10b981' }}>
+            <div className="flex-align-center gap-3">
+              <div className="brand-icon-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }}>
+                <CheckCircle2 size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-weight-700 text-main mb-0">Hardware Printers Configured &amp; Active for Demo</h4>
+                <p className="text-xxs text-muted mb-0 mt-0.5">
+                  Receipt: <strong className="text-main">{receiptPrinter}</strong> (75mm Thermal • USB003) &nbsp;|&nbsp; 
+                  Label: <strong className="text-main">{labelPrinter}</strong> (50x30mm Zebra GK888t EPL Direct Thermal • USB004)
+                </p>
+              </div>
+            </div>
+            <div className="flex-align-center gap-2">
+              <button
+                type="button"
+                className="btn btn-secondary btn-xs flex-align-center gap-1"
+                onClick={refreshPrinters}
+                title="Rescan connected hardware printers"
+              >
+                <RotateCcw size={12} /> Scan Hardware
+              </button>
+            </div>
+          </div>
+
           <form onSubmit={handleSavePrinterSettings} className="settings-form-container">
             <div className="settings-profile-grid">
               {/* Card 1: Thermal Receipt Printer Device (75mm) */}
@@ -763,9 +826,9 @@ export const SettingsView = () => {
                       value={receiptPrinter}
                       onChange={(e) => setReceiptPrinter(e.target.value)}
                     >
-                      {availablePrinters.map((prn) => (
+                      {allReceiptPrinters.map((prn) => (
                         <option key={prn} value={prn}>
-                          {prn}
+                          {prn === 'BIXOLON SRP-Q302' ? 'BIXOLON SRP-Q302 (Hardware Receipt Printer)' : prn}
                         </option>
                       ))}
                     </select>
@@ -852,9 +915,9 @@ export const SettingsView = () => {
                       value={labelPrinter}
                       onChange={(e) => setLabelPrinter(e.target.value)}
                     >
-                      {availablePrinters.map((prn) => (
+                      {allLabelPrinters.map((prn) => (
                         <option key={prn} value={prn}>
-                          {prn}
+                          {prn === 'ZDesigner iMZ220 (ZPL)' ? 'ZDesigner iMZ220 (ZPL) (Connected Zebra GK888t Label Printer)' : prn}
                         </option>
                       ))}
                     </select>

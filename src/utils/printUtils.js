@@ -226,7 +226,10 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
     }
   } catch (_) {}
 
-  const deviceName = options?.deviceName || shopSettings?.receiptPrinter || savedPrinterSettings?.receiptPrinter;
+  const rawDevice = options?.deviceName || shopSettings?.receiptPrinter || savedPrinterSettings?.receiptPrinter;
+  const deviceName = (!rawDevice || rawDevice.includes('Default') || rawDevice.includes('XP-80C'))
+    ? 'BIXOLON SRP-Q302'
+    : rawDevice;
   const silent = options?.silent !== undefined
     ? options.silent
     : (shopSettings?.silentPrinting !== undefined ? shopSettings.silentPrinting : (savedPrinterSettings?.silentPrinting !== false));
@@ -568,7 +571,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     }
   } catch (_) {}
 
-  const deviceName = options?.deviceName || shopSettings?.labelPrinter || savedPrinterSettings?.labelPrinter;
+  const rawDevice = options?.deviceName || shopSettings?.labelPrinter || savedPrinterSettings?.labelPrinter;
+  const deviceName = (!rawDevice || rawDevice.includes('Default') || rawDevice.includes('XP-365B'))
+    ? 'ZDesigner iMZ220 (ZPL)'
+    : rawDevice;
   const silent = options?.silent !== undefined
     ? options.silent
     : (shopSettings?.silentPrinting !== undefined ? shopSettings.silentPrinting : (savedPrinterSettings?.silentPrinting !== false));

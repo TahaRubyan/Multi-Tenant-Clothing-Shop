@@ -762,8 +762,8 @@ export const INITIAL_PROMOTIONAL_DISCOUNTS = [
 ];
 
 export const INITIAL_PRINTER_SETTINGS = {
-  receiptPrinter: 'Default Receipt Printer (XP-80C)',
-  labelPrinter: 'Default Label Printer (XP-365B)',
+  receiptPrinter: 'BIXOLON SRP-Q302',
+  labelPrinter: 'ZDesigner iMZ220 (ZPL)',
   receiptPaperWidth: '75mm',
   labelSize: '50x30mm',
   autoPrintReceipt: true,
@@ -780,8 +780,8 @@ export const INITIAL_SHOP_SETTINGS = {
   taxNumber: 'NTN-8492048-2',
   discountPin: '1234',
   receiptFooterNote: 'Thank you for shopping at NOVA MEN AND WOMEN. Exchanges accepted within 14 days with original receipt.',
-  receiptPrinter: 'Default Receipt Printer (XP-80C)',
-  labelPrinter: 'Default Label Printer (XP-365B)',
+  receiptPrinter: 'BIXOLON SRP-Q302',
+  labelPrinter: 'ZDesigner iMZ220 (ZPL)',
   receiptPaperWidth: '75mm',
   labelSize: '50x30mm',
   autoPrintReceipt: true,

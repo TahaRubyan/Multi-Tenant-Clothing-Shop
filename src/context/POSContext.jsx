@@ -86,7 +86,17 @@ export const POSProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
 
   // Shop Settings
-  const [shopSettings, setShopSettings] = useState(() => getStoredOrDefault('pos_shopSettings', INITIAL_SHOP_SETTINGS));
+  const [shopSettings, setShopSettings] = useState(() => {
+    const saved = getStoredOrDefault('pos_shopSettings', INITIAL_SHOP_SETTINGS);
+    const rec = saved?.receiptPrinter;
+    const lbl = saved?.labelPrinter;
+    return {
+      ...INITIAL_SHOP_SETTINGS,
+      ...saved,
+      receiptPrinter: (!rec || rec.includes('Default') || rec.includes('XP-80C')) ? 'BIXOLON SRP-Q302' : rec,
+      labelPrinter: (!lbl || lbl.includes('Default') || lbl.includes('XP-365B')) ? 'ZDesigner iMZ220 (ZPL)' : lbl,
+    };
+  });
 
   // Product Templates & Custom Attribute Sets
   const [productTemplates, setProductTemplates] = useState(() =>
@@ -100,17 +110,22 @@ export const POSProvider = ({ children }) => {
   const [showDaySettlementModal, setShowDaySettlementModal] = useState(false);
 
   // Printer & POS Hardware Configuration
-  const [printerSettings, setPrinterSettings] = useState(() =>
-    getStoredOrDefault('pos_printer_settings', INITIAL_PRINTER_SETTINGS)
-  );
+  const [printerSettings, setPrinterSettings] = useState(() => {
+    const saved = getStoredOrDefault('pos_printer_settings', INITIAL_PRINTER_SETTINGS);
+    const rec = saved?.receiptPrinter;
+    const lbl = saved?.labelPrinter;
+    return {
+      ...INITIAL_PRINTER_SETTINGS,
+      ...saved,
+      receiptPrinter: (!rec || rec.includes('Default') || rec.includes('XP-80C')) ? 'BIXOLON SRP-Q302' : rec,
+      labelPrinter: (!lbl || lbl.includes('Default') || lbl.includes('XP-365B')) ? 'ZDesigner iMZ220 (ZPL)' : lbl,
+    };
+  });
 
   const [availablePrinters, setAvailablePrinters] = useState([
+    'BIXOLON SRP-Q302',
+    'ZDesigner iMZ220 (ZPL)',
     'Default System Printer',
-    'Xprinter XP-80C (75mm/80mm Thermal Receipt)',
-    'POS-80 Series Thermal Printer',
-    'Epson TM-T20 Thermal Receipt',
-    'Xprinter XP-365B (Barcode Label Printer)',
-    'Gprinter GP-1324D (Thermal Sticker Printer)',
     'Microsoft Print to PDF',
   ]);
 
@@ -266,25 +281,28 @@ export const POSProvider = ({ children }) => {
         const sysPrinters = await window.electronAPI.getPrinters();
         if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
           const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
-          setAvailablePrinters(['Default System Printer', ...new Set(names)]);
+          setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
 
           const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
-          if (detectedReceipt || detectedLabel) {
-            setPrinterSettings(prev => ({
-              ...prev,
-              receiptPrinter: detectedReceipt || prev.receiptPrinter,
-              labelPrinter: detectedLabel || prev.labelPrinter,
-              silentPrinting: true,
-            }));
-            setShopSettings(prev => ({
-              ...prev,
-              receiptPrinter: detectedReceipt || prev.receiptPrinter,
-              labelPrinter: detectedLabel || prev.labelPrinter,
-              silentPrinting: true,
-            }));
-          }
+          const bixolonMatch = names.find(n => /bixolon|srp/i.test(n));
+          const zebraMatch = names.find(n => /zdesigner|imz|zpl|zebra|gk888/i.test(n));
+          const targetReceipt = bixolonMatch || detectedReceipt || 'BIXOLON SRP-Q302';
+          const targetLabel = zebraMatch || detectedLabel || 'ZDesigner iMZ220 (ZPL)';
 
-          showToast(`Printers Connected: Receipt (${detectedReceipt || 'Auto'}), Label (${detectedLabel || 'Auto'})`, 'success');
+          setPrinterSettings(prev => ({
+            ...prev,
+            receiptPrinter: targetReceipt,
+            labelPrinter: targetLabel,
+            silentPrinting: true,
+          }));
+          setShopSettings(prev => ({
+            ...prev,
+            receiptPrinter: targetReceipt,
+            labelPrinter: targetLabel,
+            silentPrinting: true,
+          }));
+
+          showToast(`Printers Connected: Receipt (${targetReceipt}), Label (${targetLabel})`, 'success');
           return;
         }
       } catch (err) {
@@ -299,30 +317,27 @@ export const POSProvider = ({ children }) => {
       window.electronAPI.getPrinters().then(sysPrinters => {
         if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
           const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
-          setAvailablePrinters(['Default System Printer', ...new Set(names)]);
+          setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
 
           const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
-          setPrinterSettings(prev => {
-            const updated = { ...prev, silentPrinting: true };
-            if (detectedReceipt && (!prev.receiptPrinter || prev.receiptPrinter.includes('Default') || !names.includes(prev.receiptPrinter))) {
-              updated.receiptPrinter = detectedReceipt;
-            }
-            if (detectedLabel && (!prev.labelPrinter || prev.labelPrinter.includes('Default') || !names.includes(prev.labelPrinter))) {
-              updated.labelPrinter = detectedLabel;
-            }
-            return updated;
-          });
+          const bixolonMatch = names.find(n => /bixolon|srp/i.test(n));
+          const zebraMatch = names.find(n => /zdesigner|imz|zpl|zebra|gk888/i.test(n));
+          const targetReceipt = bixolonMatch || detectedReceipt || 'BIXOLON SRP-Q302';
+          const targetLabel = zebraMatch || detectedLabel || 'ZDesigner iMZ220 (ZPL)';
 
-          setShopSettings(prev => {
-            const updated = { ...prev, silentPrinting: true };
-            if (detectedReceipt && (!prev.receiptPrinter || prev.receiptPrinter.includes('Default') || !names.includes(prev.receiptPrinter))) {
-              updated.receiptPrinter = detectedReceipt;
-            }
-            if (detectedLabel && (!prev.labelPrinter || prev.labelPrinter.includes('Default') || !names.includes(prev.labelPrinter))) {
-              updated.labelPrinter = detectedLabel;
-            }
-            return updated;
-          });
+          setPrinterSettings(prev => ({
+            ...prev,
+            receiptPrinter: targetReceipt,
+            labelPrinter: targetLabel,
+            silentPrinting: true,
+          }));
+
+          setShopSettings(prev => ({
+            ...prev,
+            receiptPrinter: targetReceipt,
+            labelPrinter: targetLabel,
+            silentPrinting: true,
+          }));
         }
       }).catch(() => {});
     }
