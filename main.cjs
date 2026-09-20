@@ -7,12 +7,12 @@ const os = require('os');
 
 let mainWindow;
 
-// Helper: Send raw ZPL text directly to Zebra printer via Windows spooler
-function rawPrintZpl(printerName, zplContent) {
+// Helper: Send raw printer command text directly via Windows spooler
+function rawPrint(printerName, content, docName = 'Barcode Label') {
   return new Promise((resolve) => {
     try {
-      const tempFile = path.join(os.tmpdir(), `zpl_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
-      fs.writeFileSync(tempFile, zplContent, 'utf8');
+      const tempFile = path.join(os.tmpdir(), `raw_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+      fs.writeFileSync(tempFile, content, 'utf8');
 
       const psScript = `
 Add-Type -TypeDefinition @"
@@ -44,7 +44,7 @@ public class RawPrinter {
         IntPtr hPrinter = IntPtr.Zero;
         DOCINFOA di = new DOCINFOA();
         bool bSuccess = false;
-        di.pDocName = "ZPL Barcode Label";
+        di.pDocName = "${docName}";
         di.pDataType = "RAW";
         if (OpenPrinter(szPrinterName, out hPrinter, IntPtr.Zero)) {
             if (StartDocPrinter(hPrinter, 1, di)) {
@@ -72,17 +72,36 @@ Write-Output "SUCCESS:$res"
       execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript], (err, stdout) => {
         try { fs.unlinkSync(tempFile); } catch (_) {}
         if (err) {
-          console.warn('Raw ZPL print error:', err);
+          console.warn('Raw print error:', err);
           return resolve({ success: false, error: err.message });
         }
         const ok = stdout && stdout.includes('SUCCESS:True');
         resolve({ success: ok });
       });
     } catch (e) {
-      console.warn('Raw ZPL exception:', e);
+      console.warn('Raw print exception:', e);
       resolve({ success: false, error: e.message });
     }
   });
+}
+
+// Keep rawPrintZpl alias for backward compatibility
+const rawPrintZpl = rawPrint;
+
+let cachedIsEpl = null;
+function detectEplHardware(deviceName) {
+  if (deviceName && /epl|gk888|gc420|2844|2824/i.test(deviceName)) {
+    return true;
+  }
+  if (cachedIsEpl !== null) return cachedIsEpl;
+  try {
+    const { execSync } = require('child_process');
+    const out = execSync('powershell -NoProfile -Command "(Get-ItemProperty -Path \'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\USBPRINT\\*\\*\' -ErrorAction SilentlyContinue).FriendlyName"', { encoding: 'utf8', timeout: 2000 });
+    cachedIsEpl = /gk888|epl|2844|gc420/i.test(out);
+  } catch (_) {
+    cachedIsEpl = false;
+  }
+  return cachedIsEpl;
 }
 
 // Helper: Auto-detect and resolve Windows physical printer name
@@ -171,19 +190,23 @@ ipcMain.handle('get-printers', async () => {
   }
 });
 
-ipcMain.handle('print-direct', async (event, { html, zpl, deviceName, type = 'any', silent = true, pageSize }) => {
+ipcMain.handle('print-direct', async (event, { html, zpl, epl, deviceName, type = 'any', silent = true, pageSize }) => {
   try {
     const resolvedDevice = await resolvePrinterName(deviceName, type);
-    const isZebraZpl = resolvedDevice && /zdesigner|zpl|zebra|imz/i.test(resolvedDevice);
+    const isZebra = resolvedDevice && /zdesigner|zpl|zebra|imz|gk888|epl|gc420|2844|2824/i.test(resolvedDevice);
 
-    // If target is a Zebra ZPL printer and ZPL code is supplied, print raw ZPL directly
-    if (isZebraZpl && zpl) {
-      console.log(`Routing raw ZPL print job directly to Zebra hardware: ${resolvedDevice}`);
-      const rawRes = await rawPrintZpl(resolvedDevice, zpl);
+    // If target is a Zebra / EPL printer and EPL or ZPL code is supplied, route raw commands directly to hardware spooler
+    if (isZebra && (epl || zpl)) {
+      const isEpl = Boolean(epl && detectEplHardware(resolvedDevice));
+      const rawPayload = isEpl ? epl : (zpl || epl);
+      const docName = isEpl ? 'EPL Barcode Label' : 'ZPL Barcode Label';
+      console.log(`Routing raw ${isEpl ? 'EPL' : 'ZPL'} print job directly to hardware: ${resolvedDevice}`);
+
+      const rawRes = await rawPrint(resolvedDevice, rawPayload, docName);
       if (rawRes.success) {
-        return { success: true, method: 'zpl-raw', deviceName: resolvedDevice };
+        return { success: true, method: isEpl ? 'epl-raw' : 'zpl-raw', deviceName: resolvedDevice };
       }
-      console.warn('Raw ZPL print returned false, falling back to GDI raster window...');
+      console.warn(`Raw ${isEpl ? 'EPL' : 'ZPL'} print returned false, falling back to GDI raster window...`);
     }
 
     const printWindow = new BrowserWindow({

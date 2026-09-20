@@ -142,10 +142,12 @@ function executePrint(htmlContent, options = {}) {
     const pageSize = options?.pageSize;
     const type = options?.type || 'any';
     const zpl = options?.zpl;
+    const epl = options?.epl;
 
     window.electronAPI.printDirect({
       html: htmlContent,
       zpl,
+      epl,
       deviceName: deviceName && deviceName !== 'Default System Printer' ? deviceName : undefined,
       type,
       silent,
@@ -489,6 +491,62 @@ export function generateZplLabel(product, shopSettings = {}, count = 1) {
 }
 
 /**
+ * Generates authentic EPL2 (Eltron Programming Language 2) string for direct thermal label printers.
+ * Specially formatted for desktop printers such as Zebra GK888t (EPL), GC420t, 2844, 2824.
+ * Strict 6-line layout on standard 48mm/50mm (384 dots @ 203 DPI) x 30mm (240 dots) thermal sticker rolls:
+ * Line 1: shop name
+ * Line 2: item name with color
+ * Line 3: cloth type
+ * Line 4: barcode (Code 128)
+ * Line 5: item code
+ * Line 6: price
+ */
+export function generateEplLabel(product, shopSettings = {}, count = 1) {
+  if (!product) return '';
+  const shopName = (shopSettings?.shopName || 'NOVA MEN AND WOMEN').toUpperCase().slice(0, 30);
+  const baseItemName = product?.fabricMaterial || product?.name || 'Garment Item';
+  const color = product?.fabricColor || product?.color || '';
+  const itemNameWithColor = (color ? `${baseItemName} - ${color}` : baseItemName).slice(0, 32);
+  const clothType = (product?.fabricType || product?.apparelCategory || product?.category || 'Cotton Fabric').toUpperCase().slice(0, 24);
+  const itemCode = String(product?.barcode || product?.sku || '000000000000').trim().slice(0, 20);
+  const price = (product?.retailPrice || 0).toLocaleString();
+  const printQty = Math.max(1, parseInt(count, 10) || 1);
+
+  // EPL2 Character Width Calculations for 384-dot (48mm / 50mm) label
+  const xShop = Math.max(10, Math.floor((384 - (shopName.length * 12)) / 2));
+  const xName = Math.max(10, Math.floor((384 - (itemNameWithColor.length * 10)) / 2));
+  const xType = Math.max(10, Math.floor((384 - (clothType.length * 10)) / 2));
+  const xCode = Math.max(10, Math.floor((384 - (itemCode.length * 12)) / 2));
+  const priceStr = `PRICE: Rs. ${price}`;
+  const xPrice = Math.max(10, Math.floor((384 - (priceStr.length * 14)) / 2));
+
+  // Center Code 128 barcode dynamically
+  const narrowBar = itemCode.length > 12 ? 1 : 2;
+  const charWidth = narrowBar === 1 ? 11 : 22;
+  const barcodeApproxWidth = (itemCode.length + 3) * charWidth + 20;
+  const xBarcode = Math.max(10, Math.floor((384 - barcodeApproxWidth) / 2));
+
+  return [
+    'N',
+    'OD',
+    'D13',
+    'S2',
+    'q384',
+    'Q240,24',
+    'ZT',
+    `A${xShop},10,0,3,1,1,N,"${shopName.replace(/"/g, "'")}"`,
+    `A${xName},36,0,2,1,1,N,"${itemNameWithColor.replace(/"/g, "'")}"`,
+    `A${xType},60,0,2,1,1,N,"${clothType.replace(/"/g, "'")}"`,
+    `B${xBarcode},84,0,1,${narrowBar},${narrowBar * 2},42,N,"${itemCode.replace(/"/g, '')}"`,
+    `A${xCode},132,0,3,1,1,N,"${itemCode.replace(/"/g, "'")}"`,
+    'LO15,158,354,2',
+    `A${xPrice},168,0,4,1,1,N,"${priceStr.replace(/"/g, "'")}"`,
+    `P${printQty}`,
+    ''
+  ].join('\n');
+}
+
+/**
  * Print Barcode Sticker Labels for Label Printers.
  * Layout:
  * 1. shop name
@@ -672,12 +730,14 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
 </html>`;
 
   const zpl = generateZplLabel(product, shopSettings, count);
+  const epl = generateEplLabel(product, shopSettings, count);
 
   executePrint(html, {
     deviceName,
     silent,
     type: 'label',
     zpl,
+    epl,
     pageSize: { width: 50000, height: 30000 },
   });
 }

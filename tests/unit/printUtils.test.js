@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { generateBarcodeSvg, printThermalReceipt, printBarcodeLabels } from '../../src/utils/printUtils';
+import { generateBarcodeSvg, printThermalReceipt, printBarcodeLabels, generateEplLabel, generateZplLabel } from '../../src/utils/printUtils';
 
 describe('Print Utilities Unit Tests', () => {
   beforeEach(() => {
@@ -141,6 +141,51 @@ describe('Print Utilities Unit Tests', () => {
         expect(s.innerHTML).toContain('890123456789');
         expect(s.innerHTML).toContain('PRICE: Rs. 8,500');
       });
+    });
+  });
+
+  describe('generateEplLabel (EPL2 Hardware Protocol)', () => {
+    it('gracefully handles null or undefined product without error', () => {
+      expect(generateEplLabel(null)).toBe('');
+      expect(generateEplLabel(undefined)).toBe('');
+    });
+
+    it('generates authentic EPL2 commands with all 6 required lines', () => {
+      const mockProduct = {
+        fabricMaterial: 'Executive Blazer',
+        apparelCategory: 'Gents Wear',
+        fabricColor: 'Black',
+        barcode: '890123456789',
+        retailPrice: 8500,
+      };
+
+      const epl = generateEplLabel(mockProduct, { shopName: 'NOVA LUXURY' }, 2);
+
+      // Verify core EPL2 printer controls
+      expect(epl).toContain('N\n'); // Clear buffer
+      expect(epl).toContain('OD\n'); // Direct thermal mode
+      expect(epl).toContain('D13\n'); // Darkness density 13
+      expect(epl).toContain('S2\n'); // Print speed 2 ips
+      expect(epl).toContain('q384\n'); // Width 384 dots (48mm)
+      expect(epl).toContain('Q240,24\n'); // Height 240 dots (30mm)
+      expect(epl).toContain('ZT\n'); // Top orientation
+
+      // 1. Shop name
+      expect(epl).toContain('"NOVA LUXURY"');
+      // 2. Item name with color
+      expect(epl).toContain('"Executive Blazer - Black"');
+      // 3. Cloth type
+      expect(epl).toContain('"GENTS WEAR"');
+      // 4. Barcode (Code 128)
+      expect(epl).toMatch(/B\d+,\d+,0,1,\d+,\d+,\d+,N,"890123456789"/);
+      // 5. Item code
+      expect(epl).toContain('"890123456789"');
+      // Divider
+      expect(epl).toContain('LO15,158,354,2');
+      // 6. Price
+      expect(epl).toContain('"PRICE: Rs. 8,500"');
+      // Label print count
+      expect(epl).toContain('P2\n');
     });
   });
 
