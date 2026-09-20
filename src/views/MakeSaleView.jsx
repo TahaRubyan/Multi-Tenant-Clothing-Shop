@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePOS } from '../context/POSContext';
 import confetti from 'canvas-confetti';
+import { printThermalReceipt } from '../utils/printUtils';
 import {
   Search,
   Barcode,
@@ -43,30 +44,31 @@ export const MakeSaleView = () => {
     completeSale,
     getActiveStorewideDiscount,
     shopSettings,
+    printerSettings,
     showToast,
     salesLogs,
     addReturnItemToCart,
   } = usePOS();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeDeptFilter, setActiveDeptFilter] = useState('All');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [amountReceived, setAmountReceived] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // 'Cash' | 'Card' | 'Mobile Banking'
   const [completedSaleData, setCompletedSaleData] = useState(null);
 
-  // Wholesale Discount PIN Protection State
+  // Stealth PIN Protection State for Both Item & Whole Bill Discounts
   const [isDiscountPinUnlocked, setIsDiscountPinUnlocked] = useState(false);
   const [showPinPromptModal, setShowPinPromptModal] = useState(false);
   const [enteredPin, setEnteredPin] = useState('');
-  const [pendingDiscountValue, setPendingDiscountValue] = useState('');
+  const [pendingDiscountAction, setPendingDiscountAction] = useState(null); // { type: 'bill', val } or { type: 'item', cartItemId, val, isReturn }
   const [pinError, setPinError] = useState('');
 
-  // Invoice Return / Exchange Lookup Modal State
-  const [showReturnModal, setShowReturnModal] = useState(false);
-  const [returnSearchQuery, setReturnSearchQuery] = useState('');
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  // Invoice Return / Exchange Search State
+  const [isReturnBarOpen, setIsReturnBarOpen] = useState(false);
+  const [returnInvoiceQuery, setReturnInvoiceQuery] = useState('');
+  const [showReturnItemsModal, setShowReturnItemsModal] = useState(false);
+  const [selectedReturnInvoice, setSelectedReturnInvoice] = useState(null);
 
   const selectedRowRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -116,12 +118,7 @@ export const MakeSaleView = () => {
     }
   });
 
-  // Filter by active department chip
-  const itemsInSelectedDept = activeDeptFilter === 'All'
-    ? flattenedSearchItems
-    : flattenedSearchItems.filter((item) => item.department === activeDeptFilter);
-
-  // Filter by search query (barcode, SKU, product name, color)
+  // Filter by search query (barcode, SKU, product name, color, department)
   const searchResults = isSearchFocused
     ? searchQuery.trim()
       ? flattenedSearchItems.filter((item) => {
@@ -132,11 +129,10 @@ export const MakeSaleView = () => {
             item.fabricMaterial.toLowerCase().includes(q) ||
             item.fabricType.toLowerCase().includes(q) ||
             item.fabricColor.toLowerCase().includes(q) ||
-            item.department.toLowerCase().includes(q) ||
-            (item.unitType && item.unitType.toLowerCase().includes(q))
+            item.department.toLowerCase().includes(q)
           );
         })
-      : itemsInSelectedDept
+      : flattenedSearchItems
     : [];
 
   // Scroll active item into view within search dropdown
@@ -149,14 +145,26 @@ export const MakeSaleView = () => {
     }
   }, [selectedIndex]);
 
-  const handleDiscountChangeAttempt = (val) => {
+  // Stealth PIN: Request PIN for item discount or bill discount if not unlocked
+  const handleItemDiscountChange = (cartItemId, val, isReturn = false) => {
+    if (isDiscountPinUnlocked) {
+      setItemDiscountPercent(cartItemId, val, isReturn);
+    } else {
+      setPendingDiscountAction({ type: 'item', cartItemId, val, isReturn });
+      setEnteredPin('');
+      setPinError('');
+      setShowPinPromptModal(true);
+    }
+  };
+
+  const handleBillDiscountChange = (val) => {
     if (isDiscountPinUnlocked) {
       setWholeSaleDiscountPercent(val);
     } else {
-      setPendingDiscountValue(val);
-      setShowPinPromptModal(true);
-      setPinError('');
+      setPendingDiscountAction({ type: 'bill', val });
       setEnteredPin('');
+      setPinError('');
+      setShowPinPromptModal(true);
     }
   };
 
@@ -165,13 +173,51 @@ export const MakeSaleView = () => {
     const correctPin = shopSettings?.discountPin || '1234';
     if (enteredPin === correctPin) {
       setIsDiscountPinUnlocked(true);
-      setWholeSaleDiscountPercent(pendingDiscountValue || '10');
+      if (pendingDiscountAction?.type === 'bill') {
+        setWholeSaleDiscountPercent(pendingDiscountAction.val || '10');
+      } else if (pendingDiscountAction?.type === 'item') {
+        setItemDiscountPercent(
+          pendingDiscountAction.cartItemId,
+          pendingDiscountAction.val || '10',
+          pendingDiscountAction.isReturn
+        );
+      }
       setShowPinPromptModal(false);
+      setEnteredPin('');
       setPinError('');
-      showToast('Manager PIN verified! Wholesale discount unlocked.', 'success');
+      showToast('Manager authorization verified.', 'success');
     } else {
       setPinError('Incorrect Manager PIN. Authorization denied.');
-      setWholeSaleDiscountPercent(0);
+    }
+  };
+
+  // Direct Invoice Lookup for Return / Exchange
+  const handleReturnInvoiceSearch = (e) => {
+    if (e) e.preventDefault();
+    const q = returnInvoiceQuery.trim().toLowerCase();
+    if (!q) {
+      showToast('Please enter an invoice number (e.g. INV-2026-9101)', 'warning');
+      return;
+    }
+    const matched = (salesLogs || []).find((inv) =>
+      inv.receiptNumber?.toLowerCase() === q ||
+      inv.receiptNumber?.toLowerCase().includes(q)
+    );
+    if (!matched) {
+      showToast(`No invoice found matching "${returnInvoiceQuery}"`, 'danger');
+      return;
+    }
+    if (!matched.items || matched.items.length === 0) {
+      showToast(`Invoice ${matched.receiptNumber} has no items.`, 'warning');
+      return;
+    }
+    if (matched.items.length === 1) {
+      addReturnItemToCart(matched.items[0], matched.receiptNumber);
+      showToast(`Added returned item from ${matched.receiptNumber} for exchange credit`, 'success');
+      setReturnInvoiceQuery('');
+    } else {
+      setSelectedReturnInvoice(matched);
+      setShowReturnItemsModal(true);
     }
   };
 
@@ -190,6 +236,58 @@ export const MakeSaleView = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Universal Hardware Barcode Gun Listener (Scans instantly from anywhere on screen)
+  useEffect(() => {
+    let scanBuffer = '';
+    let lastKeyTime = 0;
+
+    const handleGlobalKeyDown = (e) => {
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      const isInputActive = activeTag === 'input' || activeTag === 'textarea';
+      const isModalOpen = showPinPromptModal || showReturnItemsModal;
+      if (isModalOpen) return;
+
+      const currentTime = Date.now();
+      const timeDiff = currentTime - lastKeyTime;
+      lastKeyTime = currentTime;
+
+      // Printable single characters
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Barcode guns type characters with < 60ms between keys
+        if (timeDiff < 60 || scanBuffer.length === 0) {
+          scanBuffer += e.key;
+        } else {
+          scanBuffer = e.key;
+        }
+      } else if (e.key === 'Enter') {
+        const potentialBarcode = scanBuffer.trim();
+        if (potentialBarcode.length >= 4 && timeDiff < 120) {
+          const queryLower = potentialBarcode.toLowerCase();
+          const matchedItem = (flattenedSearchItems || []).find(
+            (it) =>
+              it.barcode?.toLowerCase() === queryLower ||
+              it.masterBarcode?.toLowerCase() === queryLower ||
+              it.fabricMaterial?.toLowerCase() === queryLower
+          );
+
+          if (matchedItem) {
+            e.preventDefault();
+            addToCart(matchedItem.product, 1, matchedItem.variant);
+            showToast(`Scanned: ${matchedItem.product.fabricMaterial} (${matchedItem.variant ? matchedItem.variant.size : 'Standard'}) added to cart!`, 'success');
+            setSearchQuery('');
+            setIsSearchFocused(false);
+            scanBuffer = '';
+            return;
+          }
+        }
+        scanBuffer = '';
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [flattenedSearchItems, showPinPromptModal, showReturnItemsModal]);
 
   const handleKeyDown = (e) => {
     if (!isSearchFocused || searchResults.length === 0) return;
@@ -252,7 +350,7 @@ export const MakeSaleView = () => {
     else cartSubtotal += lineVal;
   });
 
-  const activeStorewidePromo = getActiveStorewideDiscount();
+  const activeStorewidePromo = getActiveStorewideDiscount(cartSubtotal);
   const storewideDiscountAmt = (activeStorewidePromo && cartSubtotal > 0)
     ? Math.round(cartSubtotal * (activeStorewidePromo.discountPercent / 100))
     : 0;
@@ -279,57 +377,32 @@ export const MakeSaleView = () => {
 
     const saleResult = completeSale(paymentMethod, amountRecNum);
     if (saleResult) {
-      setCompletedSaleData(saleResult);
+      // Direct thermal print to auto-detected receipt printer
+      printThermalReceipt(saleResult, shopSettings);
+
       confetti({
         particleCount: 90,
         spread: 75,
         origin: { y: 0.6 },
       });
-      showToast('Sale completed successfully!', 'success');
+
+      const receiptDevName = shopSettings?.receiptPrinter || printerSettings?.receiptPrinter || 'Receipt Printer';
+      showToast(`Sale #${saleResult.receiptNumber} completed! Receipt printed silently to ${receiptDevName}.`, 'success');
       setAmountReceived('');
+      setIsDiscountPinUnlocked(false); // Automatically re-arms stealth PIN protection for next sale
+
+      if (printerSettings?.showReceiptModal !== false) {
+        setCompletedSaleData(saleResult);
+      } else {
+        clearCart();
+      }
     }
   };
 
-  // Filtered Invoices for Return Lookup
-  const filteredInvoices = (salesLogs || []).filter((inv) => {
-    if (!returnSearchQuery.trim()) return true;
-    const q = returnSearchQuery.toLowerCase();
-    return (
-      inv.receiptNumber?.toLowerCase().includes(q) ||
-      inv.dateTime?.toLowerCase().includes(q) ||
-      inv.salesman?.toLowerCase().includes(q) ||
-      inv.paymentMethod?.toLowerCase().includes(q) ||
-      inv.items?.some((it) => it.fabric?.toLowerCase().includes(q))
-    );
-  });
-
   return (
     <div className="view-container make-sale-full-view">
-      {/* TOP: Universal Barcode Search & Clean 4-Department Filter Bar */}
+      {/* TOP: Universal Barcode Gun & Catalog Search */}
       <div className="pos-search-header-card glass-card">
-        {/* Department Quick-Filter Chips */}
-        <div className="pos-dept-filter-bar mb-2 flex-align-center gap-2 flex-wrap">
-          {[
-            { id: 'All', label: '🛍️ All Store Catalog' },
-            { id: 'Ladies Pret', label: '👗 Ladies Pret' },
-            { id: 'Gents Wear', label: '👔 Gents Wear' },
-            { id: 'Packaged Gift Boxes', label: '🎁 Gift Boxes' },
-            { id: 'Accessories', label: '👜 Accessories' },
-          ].map((dept) => (
-            <button
-              key={dept.id}
-              type="button"
-              className={`btn-dept-chip ${activeDeptFilter === dept.id ? 'active' : ''}`}
-              onClick={() => {
-                setActiveDeptFilter(dept.id);
-                setIsSearchFocused(true);
-              }}
-            >
-              {dept.label}
-            </button>
-          ))}
-        </div>
-
         {/* Universal Search / Barcode Gun Form */}
         <form onSubmit={handleBarcodeSubmit} className="search-barcode-form">
           <div className="search-barcode-input-group">
@@ -373,9 +446,7 @@ export const MakeSaleView = () => {
               <span>
                 {searchQuery
                   ? `Matching Articles (${searchResults.length})`
-                  : activeDeptFilter === 'All'
-                  ? `All Inventory Catalog (${searchResults.length} articles)`
-                  : `${activeDeptFilter} Catalog (${searchResults.length} articles)`}
+                  : `All Inventory Catalog (${searchResults.length} articles)`}
               </span>
               <small className="text-muted">Use ↑ ↓ arrows &amp; Enter to select</small>
             </div>
@@ -447,19 +518,65 @@ export const MakeSaleView = () => {
                 </span>
               )}
             </div>
-            <div className="flex-align-center gap-2">
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm flex-align-center gap-1"
-                onClick={() => {
-                  setSelectedInvoice(null);
-                  setShowReturnModal(true);
-                }}
-              >
-                <RotateCcw size={13} className="text-amber" /> Return / Exchange
-              </button>
+            <div className="flex-align-center gap-2 flex-wrap">
+              {!isReturnBarOpen ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm flex-align-center gap-1"
+                  onClick={() => setIsReturnBarOpen(true)}
+                  title="Lookup past invoice for return or exchange"
+                >
+                  <RotateCcw size={13} className="text-amber" /> Return / Exchange
+                </button>
+              ) : (
+                <div className="pos-return-expand-container flex-align-center gap-1">
+                  <form onSubmit={handleReturnInvoiceSearch} className="flex-align-center gap-1">
+                    <div className="search-barcode-input-group" style={{ padding: '3px 10px', height: '32px', minWidth: '210px' }}>
+                      <RotateCcw size={13} className="text-amber" />
+                      <input
+                        type="text"
+                        placeholder="Enter Invoice #..."
+                        value={returnInvoiceQuery}
+                        onChange={(e) => setReturnInvoiceQuery(e.target.value)}
+                        className="font-mono text-xs"
+                        style={{ border: 'none', background: 'transparent', outline: 'none', width: '130px', color: 'inherit' }}
+                        autoFocus
+                      />
+                      {returnInvoiceQuery && (
+                        <button
+                          type="button"
+                          className="btn-text-icon"
+                          onClick={() => setReturnInvoiceQuery('')}
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <button type="submit" className="btn btn-primary btn-sm flex-align-center gap-1">
+                      Load Items
+                    </button>
+                  </form>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm btn-icon"
+                    onClick={() => {
+                      setIsReturnBarOpen(false);
+                      setReturnInvoiceQuery('');
+                    }}
+                    title="Close return lookup"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
               {cart.length > 0 && (
-                <button className="btn btn-danger btn-sm" onClick={clearCart}>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => {
+                    clearCart();
+                    setIsDiscountPinUnlocked(false);
+                  }}
+                >
                   <Trash2 size={13} /> Clear Cart
                 </button>
               )}
@@ -554,7 +671,7 @@ export const MakeSaleView = () => {
                               min="0"
                               max="100"
                               value={item.itemDiscountPercent || ''}
-                              onChange={(e) => setItemDiscountPercent(item.cartItemId, e.target.value, item.isReturn)}
+                              onChange={(e) => handleItemDiscountChange(item.cartItemId, e.target.value, item.isReturn)}
                               placeholder="0"
                               disabled={item.isReturn}
                               className="disc-input-compact font-mono"
@@ -612,37 +729,24 @@ export const MakeSaleView = () => {
               </div>
             )}
 
-            {/* PIN-PROTECTED WHOLESALE / MANAGER DISCOUNT */}
+            {/* WHOLESALE / BILL DISCOUNT - STEALTH PIN PROTECTED */}
             <div className="t-row whole-discount-box">
               <div className="flex-column">
-                <div className="flex-align-center gap-1">
-                  <span className="font-weight-600">Wholesale Discount (%)</span>
-                  {isDiscountPinUnlocked ? (
-                    <span className="badge badge-success badge-compact text-xxs">PIN Verified</span>
-                  ) : (
-                    <span className="badge badge-danger badge-compact text-xxs flex-align-center gap-0.5">
-                      <Lock size={9} /> PIN Protected
-                    </span>
-                  )}
-                </div>
+                <span className="font-weight-600">Wholesale Discount (%)</span>
                 {wholeSaleDiscountAmt > 0 && (
                   <span className="text-xs font-mono text-amber">-Rs. {wholeSaleDiscountAmt.toLocaleString()}</span>
                 )}
               </div>
-              <div
-                className={`discount-input-field ${!isDiscountPinUnlocked ? 'locked-field' : ''}`}
-                onClick={() => !isDiscountPinUnlocked && handleDiscountChangeAttempt('10')}
-                title={isDiscountPinUnlocked ? 'Wholesale Discount Unlocked' : 'Click to authorize with Manager PIN (1234)'}
-              >
-                {isDiscountPinUnlocked ? <Tag size={14} className="text-primary" /> : <Lock size={14} className="text-danger" />}
+              <div className="discount-input-field">
+                <Tag size={14} className="text-muted" />
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={wholeSaleDiscountPercent || ''}
-                  onChange={(e) => handleDiscountChangeAttempt(e.target.value)}
+                  onChange={(e) => handleBillDiscountChange(e.target.value)}
                   placeholder="0"
-                  readOnly={!isDiscountPinUnlocked}
+                  className="font-mono font-weight-700"
                 />
                 <span className="font-weight-700 text-subtle">%</span>
               </div>
@@ -714,14 +818,16 @@ export const MakeSaleView = () => {
               </div>
             </div>
           ) : (
-            <div className="digital-settlement-alert glass-card p-3 mb-3">
-              <div className="flex-align-center gap-2">
-                <CheckCircle2 size={18} className="text-success flex-shrink-0" />
-                <div>
-                  <div className="font-weight-700 text-main text-sm">
-                    Amount Rs. {cartNetTotal.toLocaleString()} paid via {paymentMethod}
+            <div className="digital-settlement-alert glass-card">
+              <div className="digital-settlement-inner">
+                <div className="settlement-icon-badge">
+                  <CheckCircle2 size={18} className="text-success" />
+                </div>
+                <div className="settlement-text-block">
+                  <div className="settlement-heading">
+                    Payment Mode: {paymentMethod} (Rs. {cartNetTotal.toLocaleString()})
                   </div>
-                  <p className="text-xs text-muted mb-0">
+                  <p className="settlement-note">
                     Direct terminal transaction. Fixed price digital settlement. No cash change required.
                   </p>
                 </div>
@@ -742,234 +848,205 @@ export const MakeSaleView = () => {
         </div>
       </div>
 
-      {/* 80mm THERMAL RECEIPT MODAL */}
+      {/* 75mm THERMAL RECEIPT SUCCESS MODAL */}
       {completedSaleData && (
-        <div className="modal-overlay">
+        <div className="modal-overlay receipt-modal-overlay">
           <div className="modal-content receipt-modal-card">
             <div className="modal-header">
               <div className="modal-title">
                 <CheckCircle2 size={24} className="text-success" />
-                <h3>Order Saved &amp; Printed • Sale Completed</h3>
+                <h3>Order Saved &amp; Printed • 75mm Thermal Receipt</h3>
               </div>
               <button className="btn-close" onClick={() => setCompletedSaleData(null)}>
                 <X size={18} />
               </button>
             </div>
 
-            <div className="thermal-receipt-preview printable-area">
-              <div className="receipt-header-center">
-                <Scissors size={26} className="text-primary mb-1" />
-                <h2>{shopSettings.shopName || 'NOVA MEN AND WOMEN'}</h2>
-                <p>{shopSettings.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat'}</p>
-                <p>Tel: {shopSettings.shopPhone || '+92 300 1234567'}</p>
-                <div className="receipt-divider">================================</div>
-              </div>
+            <div className="thermal-receipt-modal-scrollable">
+              <div className="thermal-receipt-preview printable-area">
+                <div className="receipt-header-center">
+                  <Scissors size={26} className="text-primary mb-1" />
+                  <h2>{shopSettings.shopName || 'NOVA MEN AND WOMEN'}</h2>
+                  <p>{shopSettings.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat'}</p>
+                  <p>Tel: {shopSettings.shopPhone || '+92 300 1234567'}</p>
+                  <div className="receipt-divider">================================</div>
+                </div>
 
-              <div className="receipt-meta-grid">
-                <div>Invoice #: <strong>{completedSaleData.receiptNumber}</strong></div>
-                <div>Date: {completedSaleData.dateTime}</div>
-                <div>Cashier: {completedSaleData.salesman}</div>
-                <div>Payment: {completedSaleData.paymentMethod}</div>
-              </div>
+                <div className="receipt-meta-grid">
+                  <div>Cashier: <strong>{completedSaleData.salesman || 'Cashier'}</strong></div>
+                  <div>Payment: <strong>{completedSaleData.paymentMethod}</strong></div>
+                  <div>Date: {completedSaleData.dateTime}</div>
+                  <div>Invoice: <strong>{completedSaleData.receiptNumber}</strong></div>
+                </div>
 
-              <div className="receipt-divider">--------------------------------</div>
+                <div className="receipt-divider">--------------------------------</div>
 
-              <table className="receipt-table">
-                <thead>
-                  <tr>
-                    <th>Article / Variant</th>
-                    <th className="text-center">Qty</th>
-                    <th className="text-right">Price</th>
-                    <th className="text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {completedSaleData.items.map((it, i) => (
-                    <tr key={i}>
-                      <td>
-                        [{it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece'}] {it.fabric}
-                        {it.isReturn && <span className="ret-tag"> (RETURN)</span>}
-                      </td>
-                      <td className="text-center">{it.qty}</td>
-                      <td className="text-right">Rs. {it.unitPrice.toLocaleString()}</td>
-                      <td className="text-right">Rs. {it.total.toLocaleString()}</td>
+                <table className="receipt-table">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Article</th>
+                      <th className="text-center">Qty</th>
+                      <th className="text-right">Price</th>
+                      <th className="text-right">Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {completedSaleData.items.map((it, i) => (
+                      <tr key={i}>
+                        <td>
+                          [{it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece'}] {it.fabric}
+                          {it.isReturn && <span className="ret-tag"> (RETURN)</span>}
+                        </td>
+                        <td className="text-center">{it.qty}</td>
+                        <td className="text-right">Rs. {it.unitPrice.toLocaleString()}</td>
+                        <td className="text-right">Rs. {it.total.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
 
-              <div className="receipt-divider">--------------------------------</div>
+                <div className="receipt-divider">--------------------------------</div>
 
-              <div className="receipt-totals-section">
-                <div className="r-row"><span>Subtotal:</span> <span>Rs. {completedSaleData.subtotal.toLocaleString()}</span></div>
-                {completedSaleData.storewideDiscount > 0 && (
-                  <div className="r-row"><span>Storewide Promo:</span> <span>-Rs. {completedSaleData.storewideDiscount.toLocaleString()}</span></div>
-                )}
-                {completedSaleData.wholeSaleDiscount > 0 && (
-                  <div className="r-row"><span>Wholesale Discount ({completedSaleData.wholeSaleDiscountPercent || 0}%):</span> <span>-Rs. {completedSaleData.wholeSaleDiscount.toLocaleString()}</span></div>
-                )}
-                <div className="r-row r-bold"><span>NET TOTAL:</span> <span>Rs. {completedSaleData.netTotal.toLocaleString()}</span></div>
-                <div className="r-row"><span>Amount Tendered:</span> <span>Rs. {completedSaleData.amountReceived.toLocaleString()}</span></div>
-                {completedSaleData.paymentMethod === 'Cash' && (
-                  <div className="r-row"><span>Change Returned:</span> <span>Rs. {completedSaleData.changeReturned.toLocaleString()}</span></div>
-                )}
-              </div>
+                <div className="receipt-totals-section">
+                  <div className="r-row"><span>Subtotal:</span> <span>Rs. {completedSaleData.subtotal.toLocaleString()}</span></div>
+                  {completedSaleData.storewideDiscount > 0 && (
+                    <div className="r-row"><span>Storewide Promo:</span> <span>-Rs. {completedSaleData.storewideDiscount.toLocaleString()}</span></div>
+                  )}
+                  {completedSaleData.wholeSaleDiscount > 0 && (
+                    <div className="r-row"><span>Wholesale Discount ({completedSaleData.wholeSaleDiscountPercent || 0}%):</span> <span>-Rs. {completedSaleData.wholeSaleDiscount.toLocaleString()}</span></div>
+                  )}
+                  <div className="r-row r-bold"><span>NET TOTAL:</span> <span>Rs. {completedSaleData.netTotal.toLocaleString()}</span></div>
+                  <div className="r-row"><span>Amount Received:</span> <span>Rs. {completedSaleData.amountReceived.toLocaleString()}</span></div>
+                  {(completedSaleData.paymentMethod === 'Cash' || parseFloat(completedSaleData.changeReturned) > 0) && (
+                    <div className="r-row"><span>Change Returned:</span> <span>Rs. {completedSaleData.changeReturned.toLocaleString()}</span></div>
+                  )}
+                </div>
 
-              <div className="receipt-divider">================================</div>
-              <div className="receipt-footer-center">
-                <p>{shopSettings.receiptFooterNote || 'Thank you for shopping at NOVA MEN AND WOMEN.'}</p>
-                <p className="barcode-font">* {completedSaleData.receiptNumber} *</p>
-                <small className="text-xs text-muted">Scan barcode above for rapid returns</small>
+                <div className="receipt-divider">================================</div>
+                <div className="receipt-footer-center">
+                  <p>{shopSettings.receiptFooterNote || 'Thank you for shopping with us! Please visit again.'}</p>
+                  <p className="barcode-font">* {completedSaleData.receiptNumber} *</p>
+                  <small className="text-xs text-muted">Scan barcode above for rapid returns &amp; exchanges</small>
+                </div>
               </div>
             </div>
 
-            <div className="modal-actions flex-between">
-              <button className="btn btn-secondary" onClick={() => window.print()} aria-label="Trigger Print Receipt">
-                <Printer size={16} /> Trigger Print Receipt
-              </button>
+            <div className="modal-actions receipt-modal-actions flex-between gap-2">
               <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setCompletedSaleData(null);
-                  clearCart();
-                }}
-                aria-label="Done & Next Customer"
+                type="button"
+                className="btn btn-secondary flex-align-center gap-1"
+                onClick={() => setCompletedSaleData(null)}
+                aria-label="Cancel or Close Receipt"
               >
-                Done &amp; Next Customer
+                <X size={15} /> Cancel / Close
               </button>
+
+              <div className="flex-align-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-secondary flex-align-center gap-1"
+                  onClick={() => printThermalReceipt(completedSaleData, shopSettings)}
+                  aria-label="Trigger Print Receipt"
+                >
+                  <Printer size={15} /> Print Receipt (75mm)
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary flex-align-center gap-1"
+                  onClick={() => {
+                    setCompletedSaleData(null);
+                    clearCart();
+                  }}
+                  aria-label="Done & Next Customer"
+                >
+                  Done &amp; Next Customer
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* INVOICE RETURN & EXCHANGE LOOKUP MODAL */}
-      {showReturnModal && (
+      {/* INVOICE RETURN & EXCHANGE SELECTOR MODAL */}
+      {showReturnItemsModal && selectedReturnInvoice && (
         <div className="modal-overlay">
-          <div className="modal-content return-lookup-modal glass-card">
+          <div className="modal-content return-lookup-modal glass-card" style={{ maxWidth: '680px' }}>
             <div className="modal-header flex-between">
               <div className="flex-align-center gap-2">
-                <RotateCcw size={22} className="text-amber" />
+                <RotateCcw size={20} className="text-amber" />
                 <div>
-                  <h3 className="mb-0">Invoice Return &amp; Exchange Lookup</h3>
-                  <small className="text-muted">Search customer invoice number to select items for exchange or refund credit.</small>
+                  <h3 className="mb-0">Invoice {selectedReturnInvoice.receiptNumber}</h3>
+                  <small className="text-muted">Select items to return for exchange credit or cash refund</small>
                 </div>
               </div>
-              <button className="btn-close" onClick={() => setShowReturnModal(false)}>
+              <button className="btn-close" onClick={() => setShowReturnItemsModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
             <div className="modal-body p-3">
-              {/* Search Bar */}
-              <div className="search-barcode-input-group mb-3">
-                <Search size={18} className="search-icon-accent" />
-                <input
-                  type="text"
-                  placeholder="Search by Invoice # (e.g. INV-2026-9101), Date, or Article Name..."
-                  value={returnSearchQuery}
-                  onChange={(e) => setReturnSearchQuery(e.target.value)}
-                  autoFocus
-                />
-                {returnSearchQuery && (
-                  <button
-                    type="button"
-                    className="btn-text-icon"
-                    onClick={() => setReturnSearchQuery('')}
-                  >
-                    <X size={16} />
-                  </button>
-                )}
+              <div className="flex-between mb-2">
+                <span className="text-xs text-muted font-mono">{selectedReturnInvoice.dateTime} • {selectedReturnInvoice.paymentMethod}</span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={() => {
+                    selectedReturnInvoice.items?.forEach((it) => {
+                      addReturnItemToCart(it, selectedReturnInvoice.receiptNumber);
+                    });
+                    showToast(`Added all items from ${selectedReturnInvoice.receiptNumber} as exchange return`, 'success');
+                    setShowReturnItemsModal(false);
+                    setReturnInvoiceQuery('');
+                  }}
+                >
+                  Return All Items
+                </button>
               </div>
 
-              {/* Invoices List / Selected Invoice Items Grid */}
-              <div className="return-modal-workspace">
-                <div className="return-invoices-col">
-                  <div className="text-xs font-weight-700 text-subtle text-uppercase mb-2">
-                    Found Invoices ({filteredInvoices.length})
-                  </div>
-                  <div className="return-invoices-list">
-                    {filteredInvoices.length === 0 ? (
-                      <div className="text-center py-4 text-muted text-xs">No matching invoices found.</div>
-                    ) : (
-                      filteredInvoices.map((inv) => (
-                        <div
-                          key={inv.receiptNumber}
-                          className={`return-invoice-card ${selectedInvoice?.receiptNumber === inv.receiptNumber ? 'active' : ''}`}
-                          onClick={() => setSelectedInvoice(inv)}
+              <div className="return-items-list">
+                {selectedReturnInvoice.items?.map((it, idx) => (
+                  <div key={`${it.barcode}-${idx}`} className="return-item-row-card glass-card p-2 mb-2">
+                    <div className="flex-between">
+                      <div>
+                        <div className="flex-align-center gap-2">
+                          <span className="badge badge-sage badge-compact">
+                            {it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece'}
+                          </span>
+                          <strong className="text-main text-sm">{it.fabric}</strong>
+                        </div>
+                        <div className="text-xs text-muted font-mono mt-1">
+                          {it.barcode} • Purchased Qty: {it.qty} @ Rs. {it.unitPrice.toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="font-mono font-weight-700 text-sm mb-1 text-danger">
+                          -Rs. {it.total.toLocaleString()}
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-warning btn-sm flex-align-center gap-1"
+                          onClick={() => {
+                            addReturnItemToCart(it, selectedReturnInvoice.receiptNumber);
+                            showToast(`Returned "${it.fabric}" added for exchange`, 'success');
+                            setShowReturnItemsModal(false);
+                            setReturnInvoiceQuery('');
+                          }}
                         >
-                          <div className="flex-between">
-                            <strong className="font-mono text-highlight text-sm">{inv.receiptNumber}</strong>
-                            <span className="badge badge-sage badge-compact font-mono">Rs. {inv.netTotal.toLocaleString()}</span>
-                          </div>
-                          <div className="flex-between text-xs text-muted mt-1 font-mono">
-                            <span>{inv.dateTime}</span>
-                            <span>{inv.paymentMethod}</span>
-                          </div>
-                          <div className="text-xs text-muted mt-1 truncate-cell">
-                            {inv.items?.map((it) => it.fabric).join(', ')}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="return-items-col">
-                  <div className="text-xs font-weight-700 text-subtle text-uppercase mb-2">
-                    {selectedInvoice ? `Purchased Items in Invoice ${selectedInvoice.receiptNumber}` : 'Select an invoice to view line items'}
-                  </div>
-
-                  {!selectedInvoice ? (
-                    <div className="empty-selection-box text-center py-8 text-muted text-xs">
-                      Click any invoice on the left to inspect items and log returns.
+                          <RotateCcw size={12} /> Add to Cart (Return)
+                        </button>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="return-items-list">
-                      {selectedInvoice.items?.map((it, idx) => (
-                        <div key={`${it.barcode}-${idx}`} className="return-item-row-card glass-card p-3 mb-2">
-                          <div className="flex-between">
-                            <div>
-                              <div className="flex-align-center gap-2">
-                                <span className="badge badge-sage badge-compact">
-                                  {it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece'}
-                                </span>
-                                <strong className="text-main">{it.fabric}</strong>
-                              </div>
-                              <div className="text-xs text-muted font-mono mt-1">
-                                {it.barcode} • Purchased Qty: {it.qty} @ Rs. {it.unitPrice.toLocaleString()}
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              <div className="font-mono font-weight-700 text-sm mb-1">
-                                Rs. {it.total.toLocaleString()}
-                              </div>
-                              <button
-                                type="button"
-                                className="btn btn-warning btn-sm flex-align-center gap-1"
-                                onClick={() => {
-                                  addReturnItemToCart(it, selectedInvoice.receiptNumber);
-                                  showToast(`Returned "${it.fabric}" added with -Rs. ${it.total.toLocaleString()} for exchange`, 'success');
-                                  setShowReturnModal(false);
-                                }}
-                              >
-                                <RotateCcw size={12} /> Return for Exchange
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="modal-actions flex-between p-3">
               <span className="text-xs text-muted font-weight-600">
-                Returned items will be added with negative credit (-Rs. X,XXX) for instant exchange or cash refund.
+                Items are added with negative credit (-Rs. X,XXX) into your cart.
               </span>
-              <button className="btn btn-secondary" onClick={() => setShowReturnModal(false)}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowReturnItemsModal(false)}>
                 Close
               </button>
             </div>
@@ -979,22 +1056,25 @@ export const MakeSaleView = () => {
 
       {/* WHOLESALE DISCOUNT PIN AUTHORIZATION MODAL */}
       {showPinPromptModal && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-sm glass-card p-4 text-center">
-            <div className="brand-icon-badge mx-auto mb-2">
+        <div className="pos-pin-modal-overlay">
+          <div className="pos-pin-security-card glass-card">
+            <div className="security-icon-circle mx-auto">
               <ShieldCheck size={28} className="text-primary" />
             </div>
-            <h3 className="text-md font-weight-700 mb-1">Manager Authorization Required</h3>
-            <p className="text-xs text-muted mb-3">
-              Enter the 4-digit Manager PIN (<strong>1234</strong>) to unlock wholesale &amp; custom discounts.
-            </p>
 
-            <form onSubmit={handleVerifyPinSubmit}>
-              <div className="form-group mb-3">
+            <div className="security-card-header text-center">
+              <h3 className="security-card-title">Manager PIN Authorization</h3>
+              <p className="security-card-subtitle">
+                Enter the 4-digit Manager PIN (<strong>1234</strong>) to unlock custom &amp; wholesale bill discounts.
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifyPinSubmit} className="security-card-form">
+              <div className="security-pin-input-wrap">
                 <input
                   type="password"
                   maxLength="6"
-                  className="form-input text-center font-mono font-weight-800 text-lg tracking-wider"
+                  className="security-pin-input"
                   value={enteredPin}
                   onChange={(e) => setEnteredPin(e.target.value)}
                   placeholder="••••"
@@ -1004,15 +1084,15 @@ export const MakeSaleView = () => {
               </div>
 
               {pinError && (
-                <div className="text-danger text-xs mb-3 font-weight-600">
+                <div className="security-error-alert text-danger text-xs text-center font-weight-600">
                   {pinError}
                 </div>
               )}
 
-              <div className="modal-actions flex-between">
+              <div className="security-actions-row flex-between gap-3">
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-secondary flex-1"
                   onClick={() => {
                     setShowPinPromptModal(false);
                     setEnteredPin('');
@@ -1022,7 +1102,7 @@ export const MakeSaleView = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary btn-sm">
+                <button type="submit" className="btn btn-primary flex-1">
                   Authorize Discount
                 </button>
               </div>

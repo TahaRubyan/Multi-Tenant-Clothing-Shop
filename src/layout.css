@@ -308,13 +308,11 @@
   color: var(--brand-primary);
   border-color: var(--border-default);
   border-left: 3px solid var(--brand-primary);
-  transform: translateX(2px);
-  box-shadow: var(--shadow-sm);
 }
 
 .sidebar-container.collapsed .sidebar-item:hover {
-  transform: scale(1.05);
   border-left-color: var(--brand-primary);
+  background: var(--bg-subtle);
 }
 
 .sidebar-item:hover .nav-icon {
@@ -464,20 +462,21 @@
    VIEW TRANSITION ANIMATION & NAVBAR DAY SETTLEMENT
    ======================================================= */
 .view-transition-container {
-  animation: viewFadeSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: viewFadeSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   height: 100%;
   display: flex;
   flex-direction: column;
+  will-change: opacity, transform;
 }
 
 @keyframes viewFadeSlideIn {
   0% {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(8px) scale(0.995);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 

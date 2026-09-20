@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { usePOS } from '../context/POSContext';
+import { printThermalReceipt } from '../utils/printUtils';
 import {
   TrendingUp,
   DollarSign,
-  ShoppingBag,
   Award,
   Calendar,
   FileText,
@@ -11,23 +11,29 @@ import {
   X,
   Printer,
   Filter,
-  Percent,
   CreditCard,
-  Smartphone,
   Banknote,
-  PieChart,
 } from 'lucide-react';
 
 export const AnalyticsView = () => {
   const { salesLogs, shopSettings } = usePOS();
   
-  const [activeAnalyticsSection, setActiveAnalyticsSection] = useState('articles'); // 'articles' | 'daily' | 'payments' | 'invoices'
+  const [activeAnalyticsSection, setActiveAnalyticsSection] = useState('articles'); // 'articles' | 'daily' | 'invoices'
   
   const [dateFilterMode, setDateFilterMode] = useState('all'); // 'today' | '7days' | '30days' | 'custom' | 'all'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [isClosingInvoice, setIsClosingInvoice] = useState(false);
+
+  const handleCloseInvoiceModal = () => {
+    setIsClosingInvoice(true);
+    setTimeout(() => {
+      setSelectedInvoice(null);
+      setIsClosingInvoice(false);
+    }, 180);
+  };
 
   // Filter Sales Logs by Date Range
   const filteredSalesLogs = salesLogs.filter((sale) => {
@@ -63,7 +69,16 @@ export const AnalyticsView = () => {
   const totalOrders = filteredSalesLogs.length;
   const grossProfitMargin = totalRevenue > 0 ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1) : '0';
 
-  // 1. Top Selling Articles & Categories
+  // Cash vs Card / Digital Receipts Breakdown
+  const cashReceived = filteredSalesLogs
+    .filter((s) => (s.paymentMethod || 'Cash').toLowerCase() === 'cash')
+    .reduce((sum, s) => sum + s.netTotal, 0);
+
+  const cardAndDigitalReceived = filteredSalesLogs
+    .filter((s) => (s.paymentMethod || 'Cash').toLowerCase() !== 'cash')
+    .reduce((sum, s) => sum + s.netTotal, 0);
+
+  // 1. Top Selling Articles & Categories - Capped at Top 5
   const fabricSalesMap = {};
   filteredSalesLogs.forEach((sale) => {
     sale.items.forEach((item) => {
@@ -88,6 +103,7 @@ export const AnalyticsView = () => {
     });
   });
   const bestSellingFabrics = Object.values(fabricSalesMap).sort((a, b) => b.qty - a.qty);
+  const top5SellingFabrics = bestSellingFabrics.slice(0, 5);
 
   // 2. Daily Financial Summary Table Data
   const dailySummaryMap = {};
@@ -111,34 +127,6 @@ export const AnalyticsView = () => {
   });
   const dailySummaryList = Object.values(dailySummaryMap);
 
-  // 3. Payment Method Breakdown (Cash vs Card vs Mobile Banking)
-  const paymentMethodsMap = {
-    Cash: { name: 'Cash', count: 0, total: 0, icon: Banknote, color: 'text-success' },
-    Card: { name: 'Debit / Credit Card', count: 0, total: 0, icon: CreditCard, color: 'text-primary' },
-    'Mobile Banking': { name: 'Mobile Banking (JazzCash / EasyPaisa / Raast)', count: 0, total: 0, icon: Smartphone, color: 'text-amber' },
-    'Bank Transfer': { name: 'Bank Transfer (IBFT)', count: 0, total: 0, icon: DollarSign, color: 'text-info' },
-  };
-
-  filteredSalesLogs.forEach((sale) => {
-    const method = sale.paymentMethod || 'Cash';
-    if (paymentMethodsMap[method]) {
-      paymentMethodsMap[method].count += 1;
-      paymentMethodsMap[method].total += sale.netTotal;
-    } else {
-      if (method.toLowerCase().includes('card')) {
-        paymentMethodsMap.Card.count += 1;
-        paymentMethodsMap.Card.total += sale.netTotal;
-      } else if (method.toLowerCase().includes('mobile') || method.toLowerCase().includes('jazz') || method.toLowerCase().includes('easy')) {
-        paymentMethodsMap['Mobile Banking'].count += 1;
-        paymentMethodsMap['Mobile Banking'].total += sale.netTotal;
-      } else {
-        paymentMethodsMap.Cash.count += 1;
-        paymentMethodsMap.Cash.total += sale.netTotal;
-      }
-    }
-  });
-  const paymentBreakdownList = Object.values(paymentMethodsMap);
-
   return (
     <div className="view-container analytics-view custom-scrollbar-both" style={{ overflowY: 'auto' }}>
       {/* Header & Sub-Navbar */}
@@ -157,19 +145,13 @@ export const AnalyticsView = () => {
               className={`stock-subnav-item ${activeAnalyticsSection === 'articles' ? 'active' : ''}`}
               onClick={() => setActiveAnalyticsSection('articles')}
             >
-              <Award size={15} /> Top Articles
+              <Award size={15} /> Top 5 Articles
             </button>
             <button
               className={`stock-subnav-item ${activeAnalyticsSection === 'daily' ? 'active' : ''}`}
               onClick={() => setActiveAnalyticsSection('daily')}
             >
               <Calendar size={15} /> Daily Summary
-            </button>
-            <button
-              className={`stock-subnav-item ${activeAnalyticsSection === 'payments' ? 'active' : ''}`}
-              onClick={() => setActiveAnalyticsSection('payments')}
-            >
-              <PieChart size={15} /> Payment Breakdown
             </button>
             <button
               className={`stock-subnav-item ${activeAnalyticsSection === 'invoices' ? 'active' : ''}`}
@@ -244,10 +226,30 @@ export const AnalyticsView = () => {
           )}
         </div>
 
-        {/* KPI Overview Pills */}
-        <div className="stock-summary-pills-bar">
-          <div className="summary-pill glass-card hover-lift">
-            <DollarSign size={20} className="text-primary" />
+        {/* KPI Overview Pills: Cash, Digital, Net Revenue, Gross Profit */}
+        <div className="stock-summary-pills-bar analytics-kpi-bar">
+          <div className="summary-pill glass-card">
+            <Banknote size={18} className="text-success" />
+            <div className="pill-info">
+              <span className="pill-label">Cash Received</span>
+              <span className="pill-value font-mono text-success font-weight-800">
+                Rs. {cashReceived.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="summary-pill glass-card">
+            <CreditCard size={18} className="text-info" />
+            <div className="pill-info">
+              <span className="pill-label">Card / Digital Receipts</span>
+              <span className="pill-value font-mono text-info font-weight-800">
+                Rs. {cardAndDigitalReceived.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="summary-pill glass-card">
+            <DollarSign size={18} className="text-primary" />
             <div className="pill-info">
               <span className="pill-label">Total Net Revenue</span>
               <span className="pill-value font-mono text-primary font-weight-800">
@@ -256,37 +258,29 @@ export const AnalyticsView = () => {
             </div>
           </div>
 
-          <div className="summary-pill glass-card hover-lift">
-            <TrendingUp size={20} className="text-success" />
+          <div className="summary-pill glass-card">
+            <TrendingUp size={18} className="text-amber" />
             <div className="pill-info">
-              <span className="pill-label">Gross Profit</span>
-              <span className="pill-value font-mono text-success font-weight-800">
+              <span className="pill-label">Gross Profit Margin</span>
+              <span className="pill-value font-mono text-amber font-weight-800">
                 Rs. {totalGrossProfit.toLocaleString()} ({grossProfitMargin}%)
               </span>
-            </div>
-          </div>
-
-          <div className="summary-pill glass-card hover-lift">
-            <ShoppingBag size={20} className="text-amber" />
-            <div className="pill-info">
-              <span className="pill-label">Orders Settled</span>
-              <span className="pill-value font-mono font-weight-700">{totalOrders} Invoices</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* ========================================================
-          TAB 1: TOP SELLING ARTICLES & CATEGORIES
+          TAB 1: TOP 5 SELLING ARTICLES & CATEGORIES (CAPPED AT #5)
           ======================================================== */}
       {activeAnalyticsSection === 'articles' && (
         <div className="glass-card p-4 screen-only-view custom-scrollbar-both" style={{ maxHeight: 'calc(100vh - 270px)', overflowY: 'auto' }}>
           <div className="card-header-styled flex-between mb-3">
             <div className="flex-align-center gap-2">
               <Award size={18} className="text-amber" />
-              <h3 className="mb-0">Top Selling Garment Articles & Collections</h3>
+              <h3 className="mb-0">Top 5 Best-Selling Garment Articles</h3>
             </div>
-            <span className="badge badge-sage">{bestSellingFabrics.length} Unique Articles</span>
+            <span className="badge badge-sage">Top 5 Leaderboard</span>
           </div>
 
           <table className="data-table analytics-data-table" style={{ width: '100%', minWidth: '760px' }}>
@@ -301,12 +295,12 @@ export const AnalyticsView = () => {
               </tr>
             </thead>
             <tbody>
-              {bestSellingFabrics.length === 0 ? (
+              {top5SellingFabrics.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="text-center text-muted py-6">No sales logged for this date range.</td>
                 </tr>
               ) : (
-                bestSellingFabrics.map((item, idx) => (
+                top5SellingFabrics.map((item, idx) => (
                   <tr key={item.fabric}>
                     <td className="font-mono font-weight-700 text-highlight">
                       {idx === 0 ? (
@@ -385,65 +379,7 @@ export const AnalyticsView = () => {
       )}
 
       {/* ========================================================
-          TAB 3: PAYMENT METHOD BREAKDOWN (CASH VS CARD VS MOBILE)
-          ======================================================== */}
-      {activeAnalyticsSection === 'payments' && (
-        <div className="screen-only-view">
-          <div className="grid-2col gap-3 mb-3">
-            {paymentBreakdownList.map((p) => {
-              const IconComp = p.icon;
-              const pct = totalRevenue > 0 ? ((p.total / totalRevenue) * 100).toFixed(1) : 0;
-              return (
-                <div key={p.name} className="glass-card p-4 hover-lift">
-                  <div className="flex-between mb-2">
-                    <div className="flex-align-center gap-2">
-                      <IconComp size={22} className={p.color} />
-                      <strong className="text-main">{p.name}</strong>
-                    </div>
-                    <span className="badge badge-sage font-mono font-weight-700">{pct}% Share</span>
-                  </div>
-
-                  <div className="font-mono text-2xl font-weight-800 text-main mb-2">
-                    Rs. {p.total.toLocaleString()}
-                  </div>
-
-                  <div className="flex-between text-xs text-muted font-mono border-top pt-2">
-                    <span>Transactions Settled:</span>
-                    <strong>{p.count} Invoices</strong>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="glass-card p-4">
-            <div className="card-header-styled flex-between mb-3">
-              <h4 className="mb-0 font-weight-700">Payment Breakdown Distribution Summary</h4>
-              <span className="badge badge-primary font-mono font-weight-700">Total: Rs. {totalRevenue.toLocaleString()}</span>
-            </div>
-
-            <div className="p-3 bg-secondary rounded border">
-              <div className="flex-between text-xs font-weight-600 mb-1">
-                <span>Payment Channel Distribution</span>
-                <span>100% Accounted</span>
-              </div>
-              <div className="progress-bar-stack" style={{ display: 'flex', height: '14px', borderRadius: '8px', overflow: 'hidden' }}>
-                <div style={{ width: `${totalRevenue > 0 ? (paymentMethodsMap.Cash.total / totalRevenue) * 100 : 50}%`, background: '#10b981' }} title="Cash" />
-                <div style={{ width: `${totalRevenue > 0 ? (paymentMethodsMap.Card.total / totalRevenue) * 100 : 25}%`, background: '#3b82f6' }} title="Card" />
-                <div style={{ width: `${totalRevenue > 0 ? (paymentMethodsMap['Mobile Banking'].total / totalRevenue) * 100 : 25}%`, background: '#f59e0b' }} title="Mobile Banking" />
-              </div>
-              <div className="flex-align-center justify-between text-xs text-muted mt-2">
-                <span className="flex-align-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 99, background: '#10b981' }} /> Cash</span>
-                <span className="flex-align-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 99, background: '#3b82f6' }} /> Card</span>
-                <span className="flex-align-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 99, background: '#f59e0b' }} /> Mobile Banking</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================
-          TAB 4: DETAILED SALES & INVOICE LOG
+          TAB 3: DETAILED SALES & INVOICE LOG
           ======================================================== */}
       {activeAnalyticsSection === 'invoices' && (
         <div className="glass-card p-4 screen-only-view custom-scrollbar-both" style={{ maxHeight: 'calc(100vh - 270px)', overflowY: 'auto' }}>
@@ -503,30 +439,25 @@ export const AnalyticsView = () => {
 
       {/* Item Details Drawer Modal & Printable Receipt View */}
       {selectedInvoice && (
-        <div className="modal-overlay">
-          <div className="modal-content invoice-drawer-modal glass-card p-4">
-            <div className="modal-header no-print-col flex-between mb-3">
+        <div className={`modal-overlay ${isClosingInvoice ? 'modal-closing-overlay' : ''}`}>
+          <div className={`modal-content invoice-drawer-modal glass-card p-4 ${isClosingInvoice ? 'modal-closing-content' : ''}`}>
+            <div className="modal-header no-print-col flex-between mb-3 pb-2 border-bottom">
               <div className="modal-title flex-align-center gap-2">
                 <FileText size={22} className="text-primary" />
-                <h3 className="mb-0">Invoice Details: {selectedInvoice.receiptNumber}</h3>
+                <div>
+                  <h3 className="mb-0">Invoice Receipt: {selectedInvoice.receiptNumber}</h3>
+                  <span className="text-xs text-muted font-mono">{selectedInvoice.dateTime} • {selectedInvoice.salesman} • {selectedInvoice.paymentMethod}</span>
+                </div>
               </div>
-              <button className="btn-close" onClick={() => setSelectedInvoice(null)}>
+              <button className="btn-close" onClick={handleCloseInvoiceModal}>
                 <X size={18} />
               </button>
             </div>
 
-            {/* Printable Thermal Receipt Card Format */}
-            <div className="modal-body scrollable-modal-body printable-receipt-card custom-scrollbar-both" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-              <div className="receipt-header-print text-center mb-3">
-                <h3 className="font-weight-800">{shopSettings?.shopName || 'NOVA MEN & WOMEN FASHION'}</h3>
-                <p className="text-xs text-muted">{shopSettings?.shopLocation || 'Jalal Pur Jattan'}</p>
-                <p className="text-xs text-muted">Tel: {shopSettings?.shopPhone || '0300-1234567'}</p>
-                <div className="receipt-divider my-2"></div>
-                <h4 className="font-mono">OFFICIAL RECEIPT: {selectedInvoice.receiptNumber}</h4>
-              </div>
-
+            {/* Clean Modal Body without awkward blank white box */}
+            <div className="modal-body scrollable-modal-body custom-scrollbar-both" style={{ maxHeight: '440px', overflowY: 'auto' }}>
               <div className="invoice-meta-banner font-mono text-xs mb-3 flex-between p-2 bg-secondary rounded border">
-                <div>Date & Time: <strong>{selectedInvoice.dateTime}</strong></div>
+                <div>Date &amp; Time: <strong>{selectedInvoice.dateTime}</strong></div>
                 <div>Salesman: <strong>{selectedInvoice.salesman}</strong></div>
                 <div>Payment Mode: <strong>{selectedInvoice.paymentMethod}</strong></div>
               </div>
@@ -605,10 +536,10 @@ export const AnalyticsView = () => {
             </div>
 
             <div className="modal-actions no-print-col flex-between mt-3">
-              <button className="btn btn-secondary" onClick={() => setSelectedInvoice(null)}>
+              <button className="btn btn-secondary" onClick={handleCloseInvoiceModal}>
                 Close Details
               </button>
-              <button className="btn btn-primary flex-align-center gap-1" onClick={() => window.print()}>
+              <button className="btn btn-primary flex-align-center gap-1" onClick={() => printThermalReceipt(selectedInvoice, shopSettings)}>
                 <Printer size={15} /> Print Receipt
               </button>
             </div>
@@ -618,4 +549,3 @@ export const AnalyticsView = () => {
     </div>
   );
 };
-

@@ -761,6 +761,17 @@ export const INITIAL_PROMOTIONAL_DISCOUNTS = [
   },
 ];
 
+export const INITIAL_PRINTER_SETTINGS = {
+  receiptPrinter: 'Default Receipt Printer (XP-80C)',
+  labelPrinter: 'Default Label Printer (XP-365B)',
+  receiptPaperWidth: '75mm',
+  labelSize: '50x30mm',
+  autoPrintReceipt: true,
+  autoPrintLabel: false,
+  silentPrinting: true,
+  showReceiptModal: true,
+};
+
 export const INITIAL_SHOP_SETTINGS = {
   shopName: 'NOVA MEN AND WOMEN',
   shopPhone: '+92 300 1234567',
@@ -769,6 +780,12 @@ export const INITIAL_SHOP_SETTINGS = {
   taxNumber: 'NTN-8492048-2',
   discountPin: '1234',
   receiptFooterNote: 'Thank you for shopping at NOVA MEN AND WOMEN. Exchanges accepted within 14 days with original receipt.',
+  receiptPrinter: 'Default Receipt Printer (XP-80C)',
+  labelPrinter: 'Default Label Printer (XP-365B)',
+  receiptPaperWidth: '75mm',
+  labelSize: '50x30mm',
+  autoPrintReceipt: true,
+  silentPrinting: true,
 };
 
 export const INITIAL_PRODUCT_TEMPLATES = [

@@ -89,11 +89,6 @@ export const LoginView = () => {
             <button type="submit" className="btn btn-primary btn-block btn-lg">
               Sign In to Account <ArrowRight size={17} />
             </button>
-
-            <div className="flex-align-center justify-center gap-1 mt-4 text-xs text-muted">
-              <ShieldCheck size={14} className="text-primary" />
-              <span>Multi-Tenant Enterprise POS • Offline SQLite &amp; Cloud Mesh Active</span>
-            </div>
           </form>
         </div>
       </div>

@@ -14,6 +14,8 @@ import {
   RotateCcw,
   CheckCircle2,
   Key,
+  Eye,
+  EyeOff,
   X,
   UserCheck,
   Shield,
@@ -26,6 +28,7 @@ import {
   Boxes,
   Tag,
 } from 'lucide-react';
+import { testPrintThermalReceipt, testPrintBarcodeLabel } from '../utils/printUtils';
 
 export const SettingsView = () => {
   const {
@@ -44,10 +47,23 @@ export const SettingsView = () => {
     deleteProductTemplate,
     currentUser,
     showToast,
+    printerSettings,
+    updatePrinterSettings,
+    availablePrinters = [],
+    refreshPrinters,
   } = usePOS();
 
-  // 4 Sub-Tabs: 'shop_profile' | 'staff_accounts' | 'roles_permissions' | 'product_templates'
+  // Sub-Tabs: 'shop_profile' | 'product_templates' | 'staff_security' | 'hardware_printers'
   const [activeSettingsTab, setActiveSettingsTab] = useState('shop_profile');
+
+  // Hardware & Printer Form State
+  const [receiptPrinter, setReceiptPrinter] = useState(printerSettings?.receiptPrinter || 'Default System Printer');
+  const [labelPrinter, setLabelPrinter] = useState(printerSettings?.labelPrinter || 'Default System Printer');
+  const [receiptPaperWidth, setReceiptPaperWidth] = useState(printerSettings?.receiptPaperWidth || '75mm');
+  const [labelSize, setLabelSize] = useState(printerSettings?.labelSize || '50x30mm');
+  const [autoPrintReceipt, setAutoPrintReceipt] = useState(printerSettings?.autoPrintReceipt !== false);
+  const [silentPrinting, setSilentPrinting] = useState(printerSettings?.silentPrinting !== false);
+  const [showReceiptModal, setShowReceiptModal] = useState(printerSettings?.showReceiptModal === true);
 
   // Modals
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
@@ -55,6 +71,7 @@ export const SettingsView = () => {
   const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
   const [resetPasswordUser, setResetPasswordUser] = useState(null);
   const [renewPasswordInput, setRenewPasswordInput] = useState('');
+  const [showDiscountPin, setShowDiscountPin] = useState(false);
 
   // Shop Profile Form State
   const [shopName, setShopName] = useState(shopSettings.shopName || '');
@@ -108,6 +125,19 @@ export const SettingsView = () => {
       receiptFooterNote,
     });
     showToast('Shop profile and Manager PIN updated successfully', 'success');
+  };
+
+  const handleSavePrinterSettings = (e) => {
+    if (e) e.preventDefault();
+    updatePrinterSettings({
+      receiptPrinter,
+      labelPrinter,
+      receiptPaperWidth,
+      labelSize,
+      autoPrintReceipt,
+      silentPrinting,
+      showReceiptModal,
+    });
   };
 
   const handleCreateUser = (e) => {
@@ -240,17 +270,17 @@ export const SettingsView = () => {
           </button>
           <button
             type="button"
-            className={`stock-subnav-item ${activeSettingsTab === 'staff_accounts' ? 'active' : ''}`}
-            onClick={() => setActiveSettingsTab('staff_accounts')}
+            className={`stock-subnav-item ${activeSettingsTab === 'staff_security' || activeSettingsTab === 'staff_accounts' || activeSettingsTab === 'roles_permissions' ? 'active' : ''}`}
+            onClick={() => setActiveSettingsTab('staff_security')}
           >
-            <Users size={16} /> Staff Accounts ({users.length})
+            <Users size={16} /> Staff Accounts & Roles & Authorities ({users.length})
           </button>
           <button
             type="button"
-            className={`stock-subnav-item ${activeSettingsTab === 'roles_permissions' ? 'active' : ''}`}
-            onClick={() => setActiveSettingsTab('roles_permissions')}
+            className={`stock-subnav-item ${activeSettingsTab === 'hardware_printers' ? 'active' : ''}`}
+            onClick={() => setActiveSettingsTab('hardware_printers')}
           >
-            <ShieldCheck size={16} /> Roles & Authorities ({roles.length})
+            <Printer size={16} /> Printers &amp; POS Hardware
           </button>
         </div>
       </div>
@@ -284,7 +314,11 @@ export const SettingsView = () => {
                       type="text"
                       className="form-input font-weight-700"
                       value={shopName}
-                      onChange={(e) => setShopName(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setShopName(val);
+                        updateShopSettings({ shopName: val });
+                      }}
                       placeholder="e.g. NOVA MEN & WOMEN FASHION"
                       required
                     />
@@ -311,18 +345,40 @@ export const SettingsView = () => {
                       <label htmlFor="shop-pin-input" className="form-label text-xs font-weight-700">
                         Manager Wholesale Discount PIN *
                       </label>
-                      <div className="input-with-icon">
+                      <div className="input-with-icon" style={{ position: 'relative' }}>
                         <Key size={14} className="input-icon text-primary" />
                         <input
                           id="shop-pin-input"
-                          type="password"
+                          type={showDiscountPin ? 'text' : 'password'}
                           maxLength="6"
                           className="form-input font-mono text-xs font-weight-800 tracking-wider"
                           value={discountPin}
                           onChange={(e) => setDiscountPin(e.target.value)}
                           placeholder="1234"
+                          style={{ paddingRight: '36px' }}
                           required
                         />
+                        <button
+                          type="button"
+                          className="pin-eye-toggle-btn"
+                          onClick={() => setShowDiscountPin(!showDiscountPin)}
+                          title={showDiscountPin ? 'Hide PIN' : 'Reveal PIN'}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '4px',
+                          }}
+                        >
+                          {showDiscountPin ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -501,8 +557,12 @@ export const SettingsView = () => {
       {/* ========================================================
           TAB 3: STAFF ACCOUNTS & CASHIER LOGINS
           ======================================================== */}
-      {activeSettingsTab === 'staff_accounts' && (
-        <div className="settings-single-card-layout scrollable-panel">
+      {/* ========================================================
+          TAB 3: UNIFIED STAFF ACCOUNTS & ROLES & AUTHORITIES
+          ======================================================== */}
+      {(activeSettingsTab === 'staff_security' || activeSettingsTab === 'staff_accounts' || activeSettingsTab === 'roles_permissions') && (
+        <div className="settings-single-card-layout scrollable-panel custom-scrollbar-both" style={{ maxHeight: 'calc(100vh - 210px)', overflowY: 'auto' }}>
+          {/* SECTION 1: STAFF & CASHIER DIRECTORY */}
           <div className="glass-card table-panel-full mb-4">
             <div className="card-header-styled flex-between mb-3">
               <div className="flex-align-center gap-2">
@@ -538,7 +598,9 @@ export const SettingsView = () => {
                     <tr key={u.id}>
                       <td>
                         <div className="flex-align-center gap-2">
-                          <img src={u.avatar} alt="" className="user-avatar-sm" />
+                          <div className="user-avatar-icon-badge">
+                            <UserCheck size={14} className="text-primary" />
+                          </div>
                           <div>
                             <strong className="text-main font-weight-600">{u.fullName}</strong>
                             {u.isSuperAdmin && (
@@ -596,14 +658,8 @@ export const SettingsView = () => {
               </table>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ========================================================
-          TAB 4: ROLES & GRANULAR PERMISSION AUTHORITIES
-          ======================================================== */}
-      {activeSettingsTab === 'roles_permissions' && (
-        <div className="settings-single-card-layout scrollable-panel">
+          {/* SECTION 2: ROLES & GRANULAR PERMISSION AUTHORITIES */}
           <div className="glass-card table-panel-full mb-4">
             <div className="card-header-styled flex-between mb-3">
               <div className="flex-align-center gap-2">
@@ -672,6 +728,237 @@ export const SettingsView = () => {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          TAB 4: PRINTERS & POS HARDWARE CONFIGURATION
+          ======================================================== */}
+      {activeSettingsTab === 'hardware_printers' && (
+        <div className="settings-profile-full-layout scrollable-panel">
+          <form onSubmit={handleSavePrinterSettings} className="settings-form-container">
+            <div className="settings-profile-grid">
+              {/* Card 1: Thermal Receipt Printer Device (75mm) */}
+              <div className="settings-section-card glass-card">
+                <div className="settings-card-header">
+                  <div className="brand-icon-badge">
+                    <Printer size={18} className="text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="settings-card-title">Thermal Receipt Printer (75mm)</h3>
+                    <p className="settings-card-desc">
+                      Select target hardware device for sales receipts, continuous roll paper size, and checkout auto-print.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="settings-card-body">
+                  <div className="form-group mb-3">
+                    <label htmlFor="receipt-printer-select" className="form-label text-xs font-weight-700">
+                      Assigned Receipt Printer Device *
+                    </label>
+                    <select
+                      id="receipt-printer-select"
+                      className="form-select font-weight-600 text-xs"
+                      value={receiptPrinter}
+                      onChange={(e) => setReceiptPrinter(e.target.value)}
+                    >
+                      {availablePrinters.map((prn) => (
+                        <option key={prn} value={prn}>
+                          {prn}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="text-muted text-xxs mt-1 block">
+                      Receipts will print automatically to this device without repeatedly displaying the OS print dialog.
+                    </small>
+                  </div>
+
+                  <div className="form-grid-2col mb-3">
+                    <div className="form-group mb-0">
+                      <label htmlFor="receipt-paper-width-select" className="form-label text-xs font-weight-700">
+                        Roll Paper Width *
+                      </label>
+                      <select
+                        id="receipt-paper-width-select"
+                        className="form-select font-weight-600 text-xs font-mono"
+                        value={receiptPaperWidth}
+                        onChange={(e) => setReceiptPaperWidth(e.target.value)}
+                      >
+                        <option value="75mm">75mm (Standard POS Thermal Roll)</option>
+                        <option value="80mm">80mm (Wide Thermal Roll)</option>
+                        <option value="58mm">58mm (Compact Portable Roll)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group mb-0 flex flex-col justify-end">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm flex-align-center justify-center gap-1 width-full"
+                        style={{ height: '36px' }}
+                        onClick={() =>
+                          testPrintThermalReceipt(
+                            { ...shopSettings, receiptPrinter, receiptPaperWidth },
+                            { deviceName: receiptPrinter, silent: silentPrinting }
+                          )
+                        }
+                        title="Dispatch a clean 75mm test receipt to the selected printer"
+                      >
+                        <Printer size={13} className="text-primary" /> Test Print 75mm Receipt
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-group mb-0">
+                    <label className="checkbox-container text-xs cursor-pointer flex-align-center gap-2 p-2 glass-card-subtle rounded">
+                      <input
+                        type="checkbox"
+                        checked={autoPrintReceipt}
+                        onChange={(e) => setAutoPrintReceipt(e.target.checked)}
+                      />
+                      <div>
+                        <strong className="text-main block">Auto-Print Receipt on Sale Completion</strong>
+                        <span className="text-muted text-xxs">
+                          Immediately dispatch receipt job to the thermal printer when checkout finishes.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Barcode & Sticker Label Printer (50x30mm) */}
+              <div className="settings-section-card glass-card">
+                <div className="settings-card-header">
+                  <div className="brand-icon-badge">
+                    <Tag size={18} className="text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="settings-card-title">Barcode &amp; Sticker Label Printer</h3>
+                    <p className="settings-card-desc">
+                      Select target hardware device for barcode stickers, label roll dimensions, and direct dispatch.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="settings-card-body">
+                  <div className="form-group mb-3">
+                    <label htmlFor="label-printer-select" className="form-label text-xs font-weight-700">
+                      Assigned Label Printer Device *
+                    </label>
+                    <select
+                      id="label-printer-select"
+                      className="form-select font-weight-600 text-xs"
+                      value={labelPrinter}
+                      onChange={(e) => setLabelPrinter(e.target.value)}
+                    >
+                      {availablePrinters.map((prn) => (
+                        <option key={prn} value={prn}>
+                          {prn}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="text-muted text-xxs mt-1 block">
+                      Barcode stickers generated in Product Setup and Stock Updation will dispatch directly to this device.
+                    </small>
+                  </div>
+
+                  <div className="form-grid-2col mb-3">
+                    <div className="form-group mb-0">
+                      <label htmlFor="label-size-select" className="form-label text-xs font-weight-700">
+                        Label Sticker Dimensions *
+                      </label>
+                      <select
+                        id="label-size-select"
+                        className="form-select font-weight-600 text-xs font-mono"
+                        value={labelSize}
+                        onChange={(e) => setLabelSize(e.target.value)}
+                      >
+                        <option value="50x30mm">50mm x 30mm (2" x 1.2" Universal Garment Tag)</option>
+                        <option value="40x25mm">40mm x 25mm (Small Tag)</option>
+                        <option value="60x40mm">60mm x 40mm (Large Box Tag)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group mb-0 flex flex-col justify-end">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm flex-align-center justify-center gap-1 width-full"
+                        style={{ height: '36px' }}
+                        onClick={() =>
+                          testPrintBarcodeLabel(
+                            { ...shopSettings, labelPrinter, labelSize },
+                            { deviceName: labelPrinter, silent: silentPrinting }
+                          )
+                        }
+                        title="Dispatch a clean 50x30mm barcode sticker label to the selected printer"
+                      >
+                        <Tag size={13} className="text-primary" /> Test Print Barcode Tag
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-group mb-3">
+                    <label className="checkbox-container text-xs cursor-pointer flex-align-center gap-2 p-2 glass-card-subtle rounded">
+                      <input
+                        type="checkbox"
+                        checked={silentPrinting}
+                        onChange={(e) => setSilentPrinting(e.target.checked)}
+                      />
+                      <div>
+                        <strong className="text-main block">Silent Hardware Direct Dispatch</strong>
+                        <span className="text-muted text-xxs">
+                          Bypasses operating system print pop-ups and sends raw print jobs directly to driver.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="form-group mb-3">
+                    <label className="checkbox-container text-xs cursor-pointer flex-align-center gap-2 p-2 glass-card-subtle rounded">
+                      <input
+                        type="checkbox"
+                        checked={showReceiptModal}
+                        onChange={(e) => setShowReceiptModal(e.target.checked)}
+                      />
+                      <div>
+                        <strong className="text-main block">Show On-Screen Receipt Preview Modal</strong>
+                        <span className="text-muted text-xxs">
+                          Leave unchecked for rapid checkout with zero on-screen popups (receipt prints silently to attached printer).
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="demo-reset-box glass-card p-3 flex-between">
+                    <div>
+                      <strong className="text-xs text-main block">Electron Hardware Mesh Bridge</strong>
+                      <small className="text-muted text-xxs">
+                        {availablePrinters.length} connected or system print spoolers identified.
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs flex-align-center gap-1"
+                      onClick={refreshPrinters}
+                    >
+                      <RotateCcw size={12} /> Scan Hardware
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Form Actions Footer */}
+            <div className="settings-actions-footer flex-between mt-3">
+              <span className="text-xs text-muted font-weight-600">
+                Receipts print to <strong>{receiptPrinter}</strong> ({receiptPaperWidth}) • Barcodes print to <strong>{labelPrinter}</strong> ({labelSize})
+              </span>
+              <button type="submit" className="btn btn-primary flex-align-center gap-1">
+                <Save size={16} /> Save Hardware Configuration
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

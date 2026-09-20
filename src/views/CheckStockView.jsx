@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { usePOS } from '../context/POSContext';
+import { printBarcodeLabels } from '../utils/printUtils';
+import BarcodeLabelPreview from '../components/BarcodeLabelPreview';
 import {
   Search,
   Edit2,
@@ -28,7 +30,6 @@ export const CheckStockView = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState('All');
-  const [unitTypeFilter, setUnitTypeFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
 
   // Price Edit & PIN Modal State
@@ -51,23 +52,27 @@ export const CheckStockView = () => {
   const fabricTypes = ['All', ...new Set(products.map((p) => p.fabricType || p.apparelCategory || 'General'))];
 
   const totalSKUs = products.length;
-  const lowStockCount = products.filter((p) => p.stock <= p.reorderLimit).length;
+  const lowStockCount = products.filter((p) => (p.stock || 0) <= (p.reorderLimit || 0)).length;
   const healthyStockCount = totalSKUs - lowStockCount;
 
   const filteredProducts = products.filter((p) => {
+    const matStr = (p.fabricMaterial || p.itemName || '').toLowerCase();
+    const colorStr = (p.fabricColor || '').toLowerCase();
+    const barcodeStr = (p.barcode || '').toLowerCase();
+    const q = searchQuery.toLowerCase();
+
     const matchesQuery =
-      p.fabricMaterial.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.fabricColor && p.fabricColor.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      p.barcode.toLowerCase().includes(searchQuery.toLowerCase());
+      matStr.includes(q) ||
+      colorStr.includes(q) ||
+      barcodeStr.includes(q);
 
     const matchesType = selectedTypeFilter === 'All' || p.fabricType === selectedTypeFilter || p.apparelCategory === selectedTypeFilter;
-    const matchesUnit = unitTypeFilter === 'All' || (p.unitType || 'Suit') === unitTypeFilter;
 
     let matchesStatus = true;
-    if (statusFilter === 'LowStock') matchesStatus = p.stock <= p.reorderLimit;
-    if (statusFilter === 'InStock') matchesStatus = p.stock > p.reorderLimit;
+    if (statusFilter === 'LowStock') matchesStatus = (p.stock || 0) <= (p.reorderLimit || 0);
+    if (statusFilter === 'InStock') matchesStatus = (p.stock || 0) > (p.reorderLimit || 0);
 
-    return matchesQuery && matchesType && matchesUnit && matchesStatus;
+    return matchesQuery && matchesType && matchesStatus;
   });
 
   const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin' || currentUser?.isSuperAdmin;
@@ -145,29 +150,29 @@ export const CheckStockView = () => {
         </div>
       </div>
 
-      {/* KPI Summary Header Pills */}
-      <div className="stock-summary-pills-bar mb-3">
-        <div className="summary-pill glass-card hover-lift">
-          <Layers size={20} className="text-primary" />
+      {/* Compact KPI Summary Header Bar */}
+      <div className="stock-summary-pills-bar compact-summary-bar mb-3 flex-align-center gap-2">
+        <div className="summary-pill glass-card p-2 flex-align-center gap-2 flex-1">
+          <Layers size={18} className="text-primary" />
           <div className="pill-info">
-            <span className="pill-label">Total SKUs</span>
-            <span className="pill-value font-mono">{totalSKUs} Items</span>
+            <span className="pill-label text-xxs text-muted font-weight-600">Total SKUs</span>
+            <span className="pill-value font-mono font-weight-700 text-sm">{totalSKUs} Items</span>
           </div>
         </div>
 
-        <div className="summary-pill glass-card hover-lift">
-          <PackageCheck size={20} className="text-success" />
+        <div className="summary-pill glass-card p-2 flex-align-center gap-2 flex-1">
+          <PackageCheck size={18} className="text-success" />
           <div className="pill-info">
-            <span className="pill-label">Healthy Stock</span>
-            <span className="pill-value font-mono text-success">{healthyStockCount} Items</span>
+            <span className="pill-label text-xxs text-muted font-weight-600">Healthy Stock</span>
+            <span className="pill-value font-mono font-weight-700 text-sm text-success">{healthyStockCount} Items</span>
           </div>
         </div>
 
-        <div className={`summary-pill glass-card hover-lift ${lowStockCount > 0 ? 'warning-pill' : ''}`}>
-          <PackageX size={20} className={lowStockCount > 0 ? 'text-danger' : 'text-subtle'} />
+        <div className={`summary-pill glass-card p-2 flex-align-center gap-2 flex-1 ${lowStockCount > 0 ? 'warning-pill' : ''}`}>
+          <PackageX size={18} className={lowStockCount > 0 ? 'text-danger' : 'text-subtle'} />
           <div className="pill-info">
-            <span className="pill-label">Low Stock Alerts</span>
-            <span className={`pill-value font-mono ${lowStockCount > 0 ? 'text-danger' : ''}`}>
+            <span className="pill-label text-xxs text-muted font-weight-600">Low Stock Alerts</span>
+            <span className={`pill-value font-mono font-weight-700 text-sm ${lowStockCount > 0 ? 'text-danger' : ''}`}>
               {lowStockCount} Items
             </span>
           </div>
@@ -187,21 +192,6 @@ export const CheckStockView = () => {
         </div>
 
         <div className="filter-controls-right">
-          <div className="select-pill-group">
-            <span className="filter-label">Unit:</span>
-            <select
-              className="form-select form-select-sm"
-              value={unitTypeFilter}
-              onChange={(e) => setUnitTypeFilter(e.target.value)}
-            >
-              <option value="All">All Units</option>
-              <option value="Piece">Apparel (Pcs)</option>
-              <option value="Suit">Suits</option>
-              <option value="Box">Boxes</option>
-              <option value="Meter">Meters</option>
-            </select>
-          </div>
-
           <div className="select-pill-group">
             <span className="filter-label">Type:</span>
             <select
@@ -233,13 +223,12 @@ export const CheckStockView = () => {
       </div>
 
       {/* Clean Structured Table with Horizontal & Vertical Scrollbars */}
-      <div className="glass-card stock-table-container custom-scrollbar-both" style={{ maxHeight: 'calc(100vh - 250px)', overflowX: 'auto', overflowY: 'auto' }}>
-        <table className="data-table stock-preview-table" style={{ width: '100%', minWidth: '1020px' }}>
+      <div className="glass-card stock-table-container custom-scrollbar-both" style={{ maxHeight: 'calc(100vh - 220px)', overflowX: 'auto', overflowY: 'auto' }}>
+        <table className="data-table stock-preview-table" style={{ width: '100%', minWidth: '960px' }}>
           <thead>
             <tr>
               <th style={{ minWidth: '140px' }}>Barcode</th>
               <th style={{ minWidth: '220px' }}>Item Description</th>
-              <th style={{ minWidth: '80px' }}>Unit</th>
               <th style={{ minWidth: '130px' }}>Category / Type</th>
               <th style={{ minWidth: '160px' }}>Variants / Specs</th>
               <th style={{ minWidth: '110px' }}>Wholesale</th>
@@ -253,14 +242,13 @@ export const CheckStockView = () => {
           <tbody>
             {filteredProducts.length === 0 ? (
               <tr>
-                <td colSpan="11" className="text-center py-6 text-muted">
+                <td colSpan="10" className="text-center py-6 text-muted">
                   No stock items match your search criteria.
                 </td>
               </tr>
             ) : (
               filteredProducts.map((p) => {
                 const isLow = p.stock <= p.reorderLimit;
-                const unit = p.unitType || 'Piece';
                 const hasVars = Boolean(p.hasVariants && p.variants?.length);
                 const hasStock = p.stock > 0;
 
@@ -269,13 +257,6 @@ export const CheckStockView = () => {
                     <td className="font-mono text-highlight font-weight-600">{p.barcode}</td>
                     <td className="font-weight-600 truncate-material" title={p.fabricMaterial}>
                       {p.fabricMaterial}
-                    </td>
-                    <td>
-                      <span className={`badge ${
-                        unit === 'Piece' ? 'badge-amber' : unit === 'Meter' ? 'badge-warning' : unit === 'Box' ? 'badge-info' : 'badge-sage'
-                      } badge-compact`}>
-                        {unit}
-                      </span>
                     </td>
                     <td>{p.apparelCategory || p.fabricType || 'Garment'}</td>
                     <td>
@@ -292,18 +273,18 @@ export const CheckStockView = () => {
                       )}
                     </td>
                     <td className="font-mono text-muted">
-                      Rs. {p.wholesalePrice.toLocaleString()}
+                      Rs. {(p.wholesalePrice || 0).toLocaleString()}
                     </td>
                     <td className="font-mono text-main font-weight-700">
-                      Rs. {p.retailPrice.toLocaleString()}
+                      Rs. {(p.retailPrice || 0).toLocaleString()}
                     </td>
                     <td className="text-center font-mono font-weight-800">
                       <span className={isLow ? 'text-danger' : 'text-success'}>
-                        {unit === 'Meter' ? `${p.stock} m` : p.stock}
+                        {p.stock || 0}
                       </span>
                     </td>
                     <td className="text-center font-mono text-subtle font-weight-600">
-                      {unit === 'Meter' ? `${p.reorderLimit} m` : p.reorderLimit}
+                      {p.reorderLimit || 0}
                     </td>
                     <td>
                       {isLow ? (
@@ -499,61 +480,16 @@ export const CheckStockView = () => {
                 Print fresh thermal stickers to relabel items on rack.
               </p>
 
-              {/* 1.8" x 0.9" Thermal Barcode Sticker Preview */}
-              <div className="thermal-barcode-label-18x09 printable-sticker my-3 mx-auto">
-                <div className="tbl-header-brand">
-                  <span>{shopSettings?.shopName || 'NOVA MEN & WOMEN FASHION'}</span>
-                </div>
-
-                <div className="tbl-item-title truncate-cell">
-                  {stickerModalProduct.fabricMaterial}
-                </div>
-
-                <div className="tbl-spec-row">
-                  <span className="tbl-category-tag">{stickerModalProduct.apparelCategory || stickerModalProduct.fabricType || 'Garment'}</span>
-                  <span className="tbl-color-size truncate-cell">
-                    {stickerModalProduct.fabricColor || 'Standard'}
-                  </span>
-                </div>
-
-                <div className="tbl-barcode-svg-wrapper">
-                  <svg viewBox="0 0 220 38" className="tbl-barcode-svg">
-                    <rect x="0" y="0" width="220" height="38" fill="#ffffff" />
-                    <rect x="6" y="0" width="4" height="38" fill="#000000" />
-                    <rect x="14" y="0" width="2" height="38" fill="#000000" />
-                    <rect x="20" y="0" width="6" height="38" fill="#000000" />
-                    <rect x="30" y="0" width="3" height="38" fill="#000000" />
-                    <rect x="36" y="0" width="5" height="38" fill="#000000" />
-                    <rect x="45" y="0" width="2" height="38" fill="#000000" />
-                    <rect x="50" y="0" width="4" height="38" fill="#000000" />
-                    <rect x="57" y="0" width="7" height="38" fill="#000000" />
-                    <rect x="68" y="0" width="3" height="38" fill="#000000" />
-                    <rect x="74" y="0" width="5" height="38" fill="#000000" />
-                    <rect x="83" y="0" width="2" height="38" fill="#000000" />
-                    <rect x="88" y="0" width="6" height="38" fill="#000000" />
-                    <rect x="97" y="0" width="4" height="38" fill="#000000" />
-                    <rect x="105" y="0" width="2" height="38" fill="#000000" />
-                    <rect x="110" y="0" width="5" height="38" fill="#000000" />
-                    <rect x="118" y="0" width="3" height="38" fill="#000000" />
-                    <rect x="124" y="0" width="6" height="38" fill="#000000" />
-                    <rect x="134" y="0" width="2" height="38" fill="#000000" />
-                    <rect x="139" y="0" width="5" height="38" fill="#000000" />
-                    <rect x="147" y="0" width="3" height="38" fill="#000000" />
-                    <rect x="153" y="0" width="7" height="38" fill="#000000" />
-                    <rect x="163" y="0" width="2" height="38" fill="#000000" />
-                    <rect x="168" y="0" width="4" height="38" fill="#000000" />
-                    <rect x="175" y="0" width="6" height="38" fill="#000000" />
-                    <rect x="185" y="0" width="3" height="38" fill="#000000" />
-                    <rect x="191" y="0" width="5" height="38" fill="#000000" />
-                    <rect x="200" y="0" width="4" height="38" fill="#000000" />
-                    <rect x="208" y="0" width="3" height="38" fill="#000000" />
-                  </svg>
-                </div>
-
-                <div className="tbl-sku-code font-mono">{stickerModalProduct.barcode}</div>
-                <div className="tbl-footer-price font-mono">
-                  PRICE: Rs. {stickerModalProduct.retailPrice.toLocaleString()}
-                </div>
+              {/* 1.8" x 0.9" Thermal Barcode Sticker Preview - Exact 6 Lines */}
+              <div className="my-3 mx-auto" style={{ maxWidth: '270px' }}>
+                <BarcodeLabelPreview
+                  shopName={shopSettings?.shopName}
+                  itemName={stickerModalProduct.fabricMaterial}
+                  color={stickerModalProduct.fabricColor}
+                  clothType={stickerModalProduct.apparelCategory || stickerModalProduct.fabricType}
+                  barcode={stickerModalProduct.barcode}
+                  price={stickerModalProduct.retailPrice}
+                />
               </div>
 
               <div className="form-group my-3" style={{ maxWidth: '240px', margin: '0 auto' }}>
@@ -581,7 +517,7 @@ export const CheckStockView = () => {
                 type="button"
                 className="btn btn-primary flex-align-center gap-2"
                 onClick={() => {
-                  window.print();
+                  printBarcodeLabels(stickerModalProduct, stickerPrintCount, shopSettings);
                   showToast(`Printed ${stickerPrintCount} price stickers!`, 'success');
                   setStickerModalProduct(null);
                 }}

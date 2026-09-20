@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { usePOS } from '../context/POSContext';
 import confetti from 'canvas-confetti';
+import { printBarcodeLabels } from '../utils/printUtils';
+import BarcodeLabelPreview from '../components/BarcodeLabelPreview';
 import {
   Barcode,
   Printer,
@@ -21,6 +23,7 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
+  Check,
   Sparkles,
   Watch,
   Smile,
@@ -44,9 +47,10 @@ export const ProductSetupView = () => {
 
   // STEP 1: Sourcing & Category
   const [selectedVendorId, setSelectedVendorId] = useState(vendors[0]?.id || '');
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [isVendorDropdownOpen, setIsVendorDropdownOpen] = useState(false);
   const [category, setCategory] = useState(apparelCategories[0] || 'Formal Shirt');
   const [department, setDepartment] = useState('Gents'); // 'Gents' | 'Ladies' | 'Accessories' | 'Unisex'
-  const [unitType, setUnitType] = useState('Piece'); // 'Piece' | 'Suit' | 'Box' | 'Set'
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
@@ -101,18 +105,6 @@ export const ProductSetupView = () => {
     setShowAddCategoryModal(false);
   };
 
-  const handleApplyTemplate = (tmplId) => {
-    const tmpl = productTemplates.find((t) => t.id === tmplId);
-    if (!tmpl) return;
-    setCategory(tmpl.name);
-    setDepartment(tmpl.department || 'Gents');
-    setUnitType(tmpl.unitType || 'Piece');
-    if (tmpl.availableSizes?.length) setSize(tmpl.availableSizes[0]);
-    if (tmpl.availableFabrics?.length) setFabricMaterial(tmpl.availableFabrics[0]);
-    if (tmpl.fits?.length) setItemType(tmpl.fits[0]);
-    showToast(`Loaded "${tmpl.name}" attribute template!`, 'info');
-  };
-
   const handleStep1Next = (e) => {
     e.preventDefault();
     if (!category) {
@@ -147,13 +139,22 @@ export const ProductSetupView = () => {
       return;
     }
 
+    // Enforce Retail Price > Wholesale Price
+    if (wholesaleNum > 0 && retailNum <= wholesaleNum) {
+      showToast(
+        `Retail Price (Rs. ${retailNum.toLocaleString()}) must be greater than Wholesale Cost Price (Rs. ${wholesaleNum.toLocaleString()})`,
+        'danger'
+      );
+      return;
+    }
+
     const activeBarcode = barcode.trim() || generateNewBarcode();
     const effectiveType = itemType === 'Custom' ? (customItemType || 'Special') : itemType;
 
     const newProd = addProduct({
       productType: 'apparel',
       department,
-      unitType,
+      unitType: 'Piece',
       barcode: activeBarcode,
       apparelCategory: category,
       fabricType: effectiveType,
@@ -195,12 +196,6 @@ export const ProductSetupView = () => {
 
   const selectedVendor = vendors.find((v) => v.id === selectedVendorId);
 
-  // Profit margin calculation
-  const wPrice = parseFloat(wholesalePrice) || 0;
-  const rPrice = parseFloat(retailPrice) || 0;
-  const unitProfit = Math.max(0, rPrice - wPrice);
-  const profitMarginPct = rPrice > 0 ? ((unitProfit / rPrice) * 100).toFixed(1) : '0';
-
   return (
     <div className="view-container product-setup-view no-scroll-view">
       {/* View Header with Stepper Progress */}
@@ -212,26 +207,60 @@ export const ProductSetupView = () => {
           </p>
         </div>
 
-        {/* 4-Step Visual Progress Bar */}
-        <div className="wizard-steps-indicator flex-align-center gap-2 glass-card p-2">
-          <div className={`step-dot-pill ${currentStep >= 1 ? 'active' : ''}`}>
-            <span className="dot-num">1</span>
-            <span>Category & Vendor</span>
+        {/* 4-Step Visual Progress Stepper with Emerald Green Completion */}
+        <div className="wizard-steps-indicator glass-card p-2">
+          <div
+            className={`step-item ${currentStep === 1 ? 'active' : ''} ${currentStep > 1 ? 'completed' : ''}`}
+            onClick={() => { if (currentStep > 1) setCurrentStep(1); }}
+            style={{ cursor: currentStep > 1 ? 'pointer' : 'default' }}
+            title={currentStep > 1 ? 'Return to Step 1: Category & Vendor' : 'Step 1: Category & Vendor'}
+          >
+            <div className="step-circle">{currentStep > 1 ? <CheckCircle2 size={16} /> : '1'}</div>
+            <div className="step-text">
+              <span className="step-num">Step 1</span>
+              <strong className="step-title">Category &amp; Vendor</strong>
+            </div>
           </div>
-          <ArrowRight size={13} className="text-muted" />
-          <div className={`step-dot-pill ${currentStep >= 2 ? 'active' : ''}`}>
-            <span className="dot-num">2</span>
-            <span>Item Type & Stock</span>
+
+          <div className={`step-divider-line ${currentStep > 1 ? 'completed-line' : ''}`} />
+
+          <div
+            className={`step-item ${currentStep === 2 ? 'active' : ''} ${currentStep > 2 ? 'completed' : ''}`}
+            onClick={() => { if (currentStep > 2) setCurrentStep(2); }}
+            style={{ cursor: currentStep > 2 ? 'pointer' : 'default' }}
+            title={currentStep > 2 ? 'Return to Step 2: Item Type & Stock' : 'Step 2: Item Type & Stock'}
+          >
+            <div className="step-circle">{currentStep > 2 ? <CheckCircle2 size={16} /> : '2'}</div>
+            <div className="step-text">
+              <span className="step-num">Step 2</span>
+              <strong className="step-title">Item Type &amp; Stock</strong>
+            </div>
           </div>
-          <ArrowRight size={13} className="text-muted" />
-          <div className={`step-dot-pill ${currentStep >= 3 ? 'active' : ''}`}>
-            <span className="dot-num">3</span>
-            <span>Pricing & Barcode</span>
+
+          <div className={`step-divider-line ${currentStep > 2 ? 'completed-line' : ''}`} />
+
+          <div
+            className={`step-item ${currentStep === 3 ? 'active' : ''} ${currentStep > 3 ? 'completed' : ''}`}
+            onClick={() => { if (currentStep > 3) setCurrentStep(3); }}
+            style={{ cursor: currentStep > 3 ? 'pointer' : 'default' }}
+            title={currentStep > 3 ? 'Return to Step 3: Pricing & Barcode' : 'Step 3: Pricing & Barcode'}
+          >
+            <div className="step-circle">{currentStep > 3 ? <CheckCircle2 size={16} /> : '3'}</div>
+            <div className="step-text">
+              <span className="step-num">Step 3</span>
+              <strong className="step-title">Pricing &amp; Barcode</strong>
+            </div>
           </div>
-          <ArrowRight size={13} className="text-muted" />
-          <div className={`step-dot-pill ${currentStep === 4 ? 'active' : ''}`}>
-            <span className="dot-num">4</span>
-            <span>Sticker Print & Save</span>
+
+          <div className={`step-divider-line ${currentStep >= 4 ? 'completed-line' : ''}`} />
+
+          {/* STEP 4: GREEN VIEW AS COMPLETED */}
+          <div className={`step-item ${currentStep === 4 ? 'completed active-completed' : ''}`}>
+            <div className="step-circle">{currentStep === 4 ? <CheckCircle2 size={16} /> : '4'}</div>
+            <div className="step-text">
+              <span className="step-num">Step 4</span>
+              <strong className="step-title">Sticker &amp; Save</strong>
+            </div>
           </div>
         </div>
       </div>
@@ -250,45 +279,108 @@ export const ProductSetupView = () => {
                 <span>Phase 1: Sourcing Supplier & Garment Category</span>
               </div>
 
-              {/* Template Quick Loader (Optional) */}
-              {productTemplates.length > 0 && (
-                <div className="template-quick-loader glass-card p-2 mb-3">
-                  <span className="text-xs text-muted font-weight-600 block mb-1">
-                    Quick-Load Category Template (Optional):
-                  </span>
-                  <div className="flex-align-center gap-1 flex-wrap">
-                    {productTemplates.map((t) => (
+              {/* Searchable Supplier Picker with Escape Key and Concise Badge */}
+              <div className="form-group mb-3 relative">
+                <div className="flex-between mb-1">
+                  <label className="form-label mb-0">1. Supplier / Mill Partner (Optional)</label>
+                  {selectedVendor && (
+                    <span className="concise-vendor-pill flex-align-center gap-1">
+                      <Truck size={12} className="text-primary" />
+                      <strong className="text-main text-xs">{selectedVendor.vendorName}</strong>
+                      <span className="text-muted text-xxs">({selectedVendor.city || 'Direct'})</span>
                       <button
-                        key={t.id}
                         type="button"
-                        className="btn btn-secondary btn-xs hover-lift font-weight-600"
-                        onClick={() => handleApplyTemplate(t.id)}
+                        className="btn-clear-vendor"
+                        onClick={() => {
+                          setSelectedVendorId('');
+                          setVendorSearch('');
+                          setIsVendorDropdownOpen(false);
+                        }}
+                        title="Cancel / Clear vendor (Escape)"
                       >
-                        <Tag size={11} className="text-primary" /> {t.name}
+                        <X size={12} />
                       </button>
-                    ))}
-                  </div>
+                    </span>
+                  )}
                 </div>
-              )}
 
-              {/* Supplier Selection */}
-              <div className="form-group mb-3">
-                <label className="form-label">1. Supplier / Mill Partner (Optional)</label>
                 <div className="input-with-icon">
                   <Truck size={16} className="input-icon" />
-                  <select
-                    className="form-select font-weight-600"
-                    value={selectedVendorId}
-                    onChange={(e) => setSelectedVendorId(e.target.value)}
-                  >
-                    <option value="">-- Direct Wholesale / Cash Purchase (No Ledger) --</option>
-                    {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.vendorName} ({v.city}) • Outstanding: Rs. {Math.max(0, v.totalInvoiced - v.totalPaid).toLocaleString()}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    className="form-input font-weight-600"
+                    placeholder="Search supplier by name or city... (Press Esc to cancel)"
+                    value={vendorSearch || (selectedVendor ? `${selectedVendor.vendorName} (${selectedVendor.city || 'Direct'})` : '')}
+                    onChange={(e) => {
+                      setVendorSearch(e.target.value);
+                      setIsVendorDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsVendorDropdownOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsVendorDropdownOpen(false);
+                        setSelectedVendorId('');
+                        setVendorSearch('');
+                      }
+                    }}
+                  />
+                  {(selectedVendorId || vendorSearch) && (
+                    <button
+                      type="button"
+                      className="btn-text-icon"
+                      onClick={() => {
+                        setSelectedVendorId('');
+                        setVendorSearch('');
+                        setIsVendorDropdownOpen(false);
+                      }}
+                      title="Cancel vendor selection (Esc)"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
+
+                {isVendorDropdownOpen && (
+                  <div
+                    className="vendor-picker-dropdown glass-card shadow-lg p-1 mt-1"
+                    style={{ position: 'absolute', zIndex: 40, width: '100%', maxHeight: '200px', overflowY: 'auto' }}
+                  >
+                    <div
+                      className={`dropdown-row p-2 cursor-pointer rounded ${!selectedVendorId ? 'bg-subtle font-weight-700' : ''}`}
+                      onClick={() => {
+                        setSelectedVendorId('');
+                        setVendorSearch('');
+                        setIsVendorDropdownOpen(false);
+                      }}
+                    >
+                      <span className="text-xs text-muted">-- Direct Wholesale / Cash Purchase (No Ledger) --</span>
+                    </div>
+                    {vendors
+                      .filter((v) =>
+                        !vendorSearch ||
+                        v.vendorName.toLowerCase().includes(vendorSearch.toLowerCase()) ||
+                        v.city?.toLowerCase().includes(vendorSearch.toLowerCase())
+                      )
+                      .map((v) => (
+                        <div
+                          key={v.id}
+                          className={`dropdown-row supplier-dropdown-row p-2 cursor-pointer rounded flex-align-center gap-2 ${selectedVendorId === v.id ? 'bg-primary-subtle font-weight-700' : ''}`}
+                          onClick={() => {
+                            setSelectedVendorId(v.id);
+                            setVendorSearch(`${v.vendorName} (${v.city || 'Direct'})`);
+                            setIsVendorDropdownOpen(false);
+                          }}
+                        >
+                          <Truck size={14} className="text-primary flex-shrink-0" />
+                          <div className="flex-1">
+                            <strong className="text-xs text-main d-block">{v.vendorName}</strong>
+                            <span className="text-xxs text-muted">{v.city || 'Direct Supplier'}</span>
+                          </div>
+                          {selectedVendorId === v.id && <Check size={14} className="text-primary flex-shrink-0" />}
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
 
               {/* Category Selection with Inline Creator */}
@@ -317,35 +409,19 @@ export const ProductSetupView = () => {
                 </select>
               </div>
 
-              {/* Department & Unit Type */}
-              <div className="form-grid-2col mb-4">
-                <div className="form-group mb-0">
-                  <label className="form-label">Department / Section *</label>
-                  <select
-                    className="form-select font-weight-600"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                  >
-                    <option value="Gents">👔 Gents Department</option>
-                    <option value="Ladies">👗 Ladies Department</option>
-                    <option value="Accessories">🎁 Accessories & Perfumes</option>
-                    <option value="Unisex">✨ Unisex / General</option>
-                  </select>
-                </div>
-
-                <div className="form-group mb-0">
-                  <label className="form-label">Unit Type *</label>
-                  <select
-                    className="form-select font-weight-600"
-                    value={unitType}
-                    onChange={(e) => setUnitType(e.target.value)}
-                  >
-                    <option value="Piece">Piece (Single Stitched Item)</option>
-                    <option value="Suit">Suit (2-Pc / 3-Pc Complete)</option>
-                    <option value="Box">Box (Packaged Gift Set)</option>
-                    <option value="Set">Set (Multi-Item Bundle)</option>
-                  </select>
-                </div>
+              {/* Department */}
+              <div className="form-group mb-4">
+                <label className="form-label">Department / Section *</label>
+                <select
+                  className="form-select font-weight-600"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                >
+                  <option value="Gents">👔 Gents Department</option>
+                  <option value="Ladies">👗 Ladies Department</option>
+                  <option value="Accessories">🎁 Accessories &amp; Perfumes</option>
+                  <option value="Unisex">✨ Unisex / General</option>
+                </select>
               </div>
 
               <div className="modal-actions flex-between pt-2">
@@ -469,7 +545,7 @@ export const ProductSetupView = () => {
 
               <div className="form-grid-2col mb-4">
                 <div className="form-group mb-0">
-                  <label className="form-label">Initial Stock Count ({unitType}) *</label>
+                  <label className="form-label">Initial Stock Count (Qty) *</label>
                   <input
                     type="number"
                     min="0"
@@ -546,19 +622,6 @@ export const ProductSetupView = () => {
                 </div>
               </div>
 
-              {/* Profit Margin Indicator */}
-              <div className="live-simulation-banner glass-card p-3 mb-3 flex-between">
-                <div className="flex-align-center gap-2">
-                  <Sparkles size={18} className="text-primary" />
-                  <span className="text-xs text-muted">Estimated Margin per Item:</span>
-                </div>
-                <div className="font-mono">
-                  <span className="text-success font-weight-800 text-sm">
-                    +Rs. {unitProfit.toLocaleString()} ({profitMarginPct}% Gross Margin)
-                  </span>
-                </div>
-              </div>
-
               <div className="form-group mb-3">
                 <div className="flex-between mb-1">
                   <label className="form-label mb-0">Product Barcode (Auto-Generated / Scannable) *</label>
@@ -622,11 +685,22 @@ export const ProductSetupView = () => {
                 <strong>{createdProductResult.fabricMaterial}</strong> ({createdProductResult.barcode}) is ready for sales counter.
               </p>
 
+              <div className="my-3 mx-auto" style={{ maxWidth: '280px' }}>
+                <BarcodeLabelPreview
+                  shopName={shopSettings.shopName}
+                  itemName={createdProductResult.product.fabricMaterial}
+                  color={createdProductResult.product.fabricColor}
+                  clothType={createdProductResult.product.fabricType || createdProductResult.product.category}
+                  barcode={createdProductResult.product.barcode}
+                  price={createdProductResult.product.retailPrice}
+                />
+              </div>
+
               <div className="flex-align-center justify-center gap-3 mt-4">
                 <button
                   type="button"
                   className="btn btn-primary flex-align-center gap-2"
-                  onClick={() => window.print()}
+                  onClick={() => printBarcodeLabels(createdProductResult.product, createdProductResult.printCount, shopSettings)}
                 >
                   <Printer size={16} /> Print {createdProductResult.printCount} Barcode Stickers (1.8" × 0.9")
                 </button>
@@ -659,65 +733,20 @@ export const ProductSetupView = () => {
             <span className="badge badge-sage">1.8" × 0.9"</span>
           </div>
 
-          {/* Standard 1.8" x 0.9" Thermal Barcode Sticker */}
-          <div className="thermal-barcode-label-18x09 printable-sticker my-3 mx-auto">
-            <div className="tbl-header-brand">
-              <span>{shopSettings.shopName || 'NOVA MEN & WOMEN FASHION'}</span>
-            </div>
-
-            <div className="tbl-item-title truncate-cell">
-              {productName || 'Garment Item'}
-            </div>
-
-            <div className="tbl-spec-row">
-              <span className="tbl-category-tag">{category}</span>
-              <span className="tbl-color-size truncate-cell">
-                {size} • {color || 'Standard'}
-              </span>
-            </div>
-
-            <div className="tbl-barcode-svg-wrapper">
-              <svg viewBox="0 0 220 38" className="tbl-barcode-svg">
-                <rect x="0" y="0" width="220" height="38" fill="#ffffff" />
-                <rect x="6" y="0" width="4" height="38" fill="#000000" />
-                <rect x="14" y="0" width="2" height="38" fill="#000000" />
-                <rect x="20" y="0" width="6" height="38" fill="#000000" />
-                <rect x="30" y="0" width="3" height="38" fill="#000000" />
-                <rect x="36" y="0" width="5" height="38" fill="#000000" />
-                <rect x="45" y="0" width="2" height="38" fill="#000000" />
-                <rect x="50" y="0" width="4" height="38" fill="#000000" />
-                <rect x="57" y="0" width="7" height="38" fill="#000000" />
-                <rect x="68" y="0" width="3" height="38" fill="#000000" />
-                <rect x="74" y="0" width="5" height="38" fill="#000000" />
-                <rect x="83" y="0" width="2" height="38" fill="#000000" />
-                <rect x="88" y="0" width="6" height="38" fill="#000000" />
-                <rect x="97" y="0" width="4" height="38" fill="#000000" />
-                <rect x="105" y="0" width="2" height="38" fill="#000000" />
-                <rect x="110" y="0" width="5" height="38" fill="#000000" />
-                <rect x="118" y="0" width="3" height="38" fill="#000000" />
-                <rect x="124" y="0" width="6" height="38" fill="#000000" />
-                <rect x="134" y="0" width="2" height="38" fill="#000000" />
-                <rect x="139" y="0" width="5" height="38" fill="#000000" />
-                <rect x="147" y="0" width="3" height="38" fill="#000000" />
-                <rect x="153" y="0" width="7" height="38" fill="#000000" />
-                <rect x="163" y="0" width="2" height="38" fill="#000000" />
-                <rect x="168" y="0" width="4" height="38" fill="#000000" />
-                <rect x="175" y="0" width="6" height="38" fill="#000000" />
-                <rect x="185" y="0" width="3" height="38" fill="#000000" />
-                <rect x="191" y="0" width="5" height="38" fill="#000000" />
-                <rect x="200" y="0" width="4" height="38" fill="#000000" />
-                <rect x="208" y="0" width="3" height="38" fill="#000000" />
-              </svg>
-            </div>
-
-            <div className="tbl-sku-code font-mono">{barcode || 'PAK-SHT-882049'}</div>
-            <div className="tbl-footer-price font-mono">
-              PRICE: Rs. {(parseFloat(retailPrice) || 0).toLocaleString()}
-            </div>
+          {/* Standard 1.8" x 0.9" Thermal Barcode Sticker - Exact 6 Lines */}
+          <div className="my-3 mx-auto" style={{ maxWidth: '270px' }}>
+            <BarcodeLabelPreview
+              shopName={shopSettings.shopName}
+              itemName={productName || 'Garment Item'}
+              color={color || 'Standard'}
+              clothType={category || fabricMaterial || 'Cotton Fabric'}
+              barcode={barcode || 'PAK-SHT-882049'}
+              price={retailPrice || 0}
+            />
           </div>
 
-          <div className="p-2 text-xs text-muted text-center font-mono">
-            Directly compatible with Xprinter, TSC & standard 1.8" × 0.9" label rolls.
+          <div className="p-2 text-xs text-muted text-center font-mono font-weight-600">
+            Standard 1.8" × 0.9" (48mm × 30mm) Thermal Roll Sticker
           </div>
         </div>
       </div>

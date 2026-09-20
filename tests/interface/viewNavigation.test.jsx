@@ -6,6 +6,9 @@ import { MakeSaleView } from '../../src/views/MakeSaleView';
 import { SettingsView } from '../../src/views/SettingsView';
 import { VendorLedgerView } from '../../src/views/VendorLedgerView';
 import { DiscountsView } from '../../src/views/DiscountsView';
+import { CheckStockView } from '../../src/views/CheckStockView';
+import { DashboardView } from '../../src/views/DashboardView';
+import { ProductSetupView } from '../../src/views/ProductSetupView';
 
 describe('Interface & Component View Tests', () => {
   it('MakeSaleView renders POS checkout workspace with search bar and payment methods', () => {
@@ -37,7 +40,46 @@ describe('Interface & Component View Tests', () => {
     expect(screen.getByText(/All Inventory Catalog/i)).toBeInTheDocument();
   });
 
-  it('SettingsView renders 3 distinct subtabs and switches between them', () => {
+  it('CheckStockView renders catalog inventory matrix and low stock alerts safely', () => {
+    render(
+      <POSProvider>
+        <CheckStockView />
+      </POSProvider>
+    );
+
+    expect(screen.getByText(/Check Stock Inventory/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search by barcode/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Healthy Stock/i).length).toBeGreaterThan(0);
+  });
+
+  it('DashboardView renders 3 main KPI cards and 7-day sales curve with chips', () => {
+    render(
+      <POSProvider>
+        <DashboardView />
+      </POSProvider>
+    );
+
+    expect(screen.getByText(/Today's Revenue/i)).toBeInTheDocument();
+    expect(screen.getByText(/Total Invoices/i)).toBeInTheDocument();
+    expect(screen.getByText(/Low Stock Alerts/i)).toBeInTheDocument();
+    expect(screen.getByText(/7-Day Sales & Turnover Trajectory/i)).toBeInTheDocument();
+    expect(screen.getByText(/7-Day Turnover:/i)).toBeInTheDocument();
+  });
+
+  it('ProductSetupView renders 4-step intake stepper and concise vendor picker', () => {
+    render(
+      <POSProvider>
+        <ProductSetupView />
+      </POSProvider>
+    );
+
+    expect(screen.getByText(/Product Setup & Inventory Intake Wizard/i)).toBeInTheDocument();
+    expect(screen.getByText(/Category & Vendor/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sticker & Save/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search supplier by name or city/i)).toBeInTheDocument();
+  });
+
+  it('SettingsView renders 4 distinct subtabs and switches between them', () => {
     render(
       <POSProvider>
         <SettingsView />
@@ -47,7 +89,7 @@ describe('Interface & Component View Tests', () => {
     expect(screen.getAllByText(/Shop Profile/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Product Templates/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Staff Accounts/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Roles & Authorities/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Printers & POS Hardware/i).length).toBeGreaterThan(0);
 
     // Switch to Product Templates
     fireEvent.click(screen.getByRole('button', { name: /Product Templates/i }));
@@ -57,9 +99,10 @@ describe('Interface & Component View Tests', () => {
     fireEvent.click(screen.getByRole('button', { name: /Staff Accounts/i }));
     expect(screen.getByText(/Staff & Cashier Directory/i)).toBeInTheDocument();
 
-    // Switch to Roles & Authorities
-    fireEvent.click(screen.getByRole('button', { name: /Roles & Authorities/i }));
-    expect(screen.getByText(/Role & Access Control Authorities/i)).toBeInTheDocument();
+    // Switch to Printers & POS Hardware
+    fireEvent.click(screen.getByRole('button', { name: /Printers & POS Hardware/i }));
+    expect(screen.getByText(/Thermal Receipt Printer \(75mm\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Barcode & Sticker Label Printer/i)).toBeInTheDocument();
   });
 
   it('VendorLedgerView renders Pakistani textile vendor directory', () => {

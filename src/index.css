@@ -214,15 +214,146 @@ h3, h4, h5, h6 {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
-  padding: 16px 20px;
+  padding: 14px 18px;
   box-shadow: var(--shadow-card);
-  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
 }
 
-.glass-card:hover, .card:hover, .kpi-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+/* Cursor and Interactive Shapes */
+button,
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="button"],
+.btn,
+.stock-subnav-item,
+.date-pill,
+.kpi-interactive-card,
+.search-result-row,
+.scope-select-card,
+.step-dot-pill,
+.chart-bar-col,
+.action-btn-pill,
+.btn-icon,
+.cursor-pointer,
+.table-row-selectable {
+  cursor: pointer;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="date"],
+textarea {
+  cursor: text;
+}
+
+button:disabled,
+.btn:disabled,
+input:disabled,
+.cursor-not-allowed {
+  cursor: not-allowed;
+}
+
+/* Page & Pop-up Transitions */
+@keyframes pageFadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.view-container {
+  animation: pageFadeSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@keyframes modalOverlayFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes modalContentZoomIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-overlay,
+.pos-pin-modal-overlay {
+  animation: modalOverlayFadeIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity;
+}
+
+.modal-content,
+.modal-dialog,
+.pos-pin-security-card,
+.pos-pin-modal-content,
+.receipt-modal-card,
+.return-lookup-modal,
+.day-settlement-modal,
+.shop-switcher-card {
+  animation: modalContentZoomIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: center center;
+  will-change: opacity, transform;
+}
+
+@keyframes modalOverlayFadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes modalContentZoomOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+}
+
+.modal-closing-overlay {
+  animation: modalOverlayFadeOut 0.18s ease forwards !important;
+}
+
+.modal-closing-content {
+  animation: modalContentZoomOut 0.18s ease forwards !important;
+}
+
+@keyframes dropdownSlideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.search-results-dropdown,
+.pos-search-dropdown,
+.dropdown-menu,
+.supplier-dropdown-menu {
+  animation: dropdownSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top center;
+  will-change: opacity, transform;
 }
 
 /* Buttons */
@@ -433,8 +564,7 @@ h3, h4, h5, h6 {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;

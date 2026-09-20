@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { autoDetectPrinters } from '../utils/printUtils';
 import {
   INITIAL_TENANTS,
   INITIAL_PRODUCTS,
@@ -7,6 +8,7 @@ import {
   INITIAL_VENDORS,
   INITIAL_PROMOTIONAL_DISCOUNTS,
   INITIAL_SHOP_SETTINGS,
+  INITIAL_PRINTER_SETTINGS,
   INITIAL_PRODUCT_TEMPLATES,
   INITIAL_DAY_SETTLEMENTS,
   MOCK_SALES_LOG,
@@ -29,6 +31,7 @@ try {
         'pos_roles',
         'pos_users',
         'pos_shopSettings',
+        'pos_printer_settings',
         'pos_product_templates',
         'pos_day_settlements',
         'pos_apparel_categories',
@@ -96,6 +99,21 @@ export const POSProvider = ({ children }) => {
   );
   const [showDaySettlementModal, setShowDaySettlementModal] = useState(false);
 
+  // Printer & POS Hardware Configuration
+  const [printerSettings, setPrinterSettings] = useState(() =>
+    getStoredOrDefault('pos_printer_settings', INITIAL_PRINTER_SETTINGS)
+  );
+
+  const [availablePrinters, setAvailablePrinters] = useState([
+    'Default System Printer',
+    'Xprinter XP-80C (75mm/80mm Thermal Receipt)',
+    'POS-80 Series Thermal Printer',
+    'Epson TM-T20 Thermal Receipt',
+    'Xprinter XP-365B (Barcode Label Printer)',
+    'Gprinter GP-1324D (Thermal Sticker Printer)',
+    'Microsoft Print to PDF',
+  ]);
+
   // Dynamic Apparel & Garment Categories List
   const DEFAULT_APPAREL_CATEGORIES = [
     'Stitched 3-Piece Suit',
@@ -134,6 +152,7 @@ export const POSProvider = ({ children }) => {
   useEffect(() => { localStorage.setItem('pos_roles', JSON.stringify(roles)); }, [roles]);
   useEffect(() => { localStorage.setItem('pos_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('pos_shopSettings', JSON.stringify(shopSettings)); }, [shopSettings]);
+  useEffect(() => { localStorage.setItem('pos_printer_settings', JSON.stringify(printerSettings)); }, [printerSettings]);
   useEffect(() => { localStorage.setItem('pos_product_templates', JSON.stringify(productTemplates)); }, [productTemplates]);
   useEffect(() => { localStorage.setItem('pos_day_settlements', JSON.stringify(daySettlements)); }, [daySettlements]);
   useEffect(() => { localStorage.setItem('pos_apparel_categories', JSON.stringify(apparelCategories)); }, [apparelCategories]);
@@ -164,6 +183,7 @@ export const POSProvider = ({ children }) => {
     setRoles(INITIAL_ROLES);
     setUsers(INITIAL_USERS);
     setShopSettings(INITIAL_SHOP_SETTINGS);
+    setPrinterSettings(INITIAL_PRINTER_SETTINGS);
     setProductTemplates(INITIAL_PRODUCT_TEMPLATES);
     setDaySettlements(INITIAL_DAY_SETTLEMENTS);
     setApparelCategories(DEFAULT_APPAREL_CATEGORIES);
@@ -232,6 +252,81 @@ export const POSProvider = ({ children }) => {
     showToast('Day-end cash settlement recorded and register closed for today', 'success');
     return newEntry;
   };
+
+  // Thermal Hardware & Label Printer Management
+  const updatePrinterSettings = (newSettings) => {
+    setPrinterSettings(prev => ({ ...prev, ...newSettings }));
+    setShopSettings(prev => ({ ...prev, ...newSettings }));
+    showToast('Printer hardware configuration updated successfully', 'success');
+  };
+
+  const refreshPrinters = async () => {
+    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
+      try {
+        const sysPrinters = await window.electronAPI.getPrinters();
+        if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
+          const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
+          setAvailablePrinters(['Default System Printer', ...new Set(names)]);
+
+          const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
+          if (detectedReceipt || detectedLabel) {
+            setPrinterSettings(prev => ({
+              ...prev,
+              receiptPrinter: detectedReceipt || prev.receiptPrinter,
+              labelPrinter: detectedLabel || prev.labelPrinter,
+              silentPrinting: true,
+            }));
+            setShopSettings(prev => ({
+              ...prev,
+              receiptPrinter: detectedReceipt || prev.receiptPrinter,
+              labelPrinter: detectedLabel || prev.labelPrinter,
+              silentPrinting: true,
+            }));
+          }
+
+          showToast(`Printers Connected: Receipt (${detectedReceipt || 'Auto'}), Label (${detectedLabel || 'Auto'})`, 'success');
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not fetch hardware printers via Electron API:', err);
+      }
+    }
+    showToast('Hardware printer list refreshed', 'info');
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
+      window.electronAPI.getPrinters().then(sysPrinters => {
+        if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
+          const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
+          setAvailablePrinters(['Default System Printer', ...new Set(names)]);
+
+          const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
+          setPrinterSettings(prev => {
+            const updated = { ...prev, silentPrinting: true };
+            if (detectedReceipt && (!prev.receiptPrinter || prev.receiptPrinter.includes('Default') || !names.includes(prev.receiptPrinter))) {
+              updated.receiptPrinter = detectedReceipt;
+            }
+            if (detectedLabel && (!prev.labelPrinter || prev.labelPrinter.includes('Default') || !names.includes(prev.labelPrinter))) {
+              updated.labelPrinter = detectedLabel;
+            }
+            return updated;
+          });
+
+          setShopSettings(prev => {
+            const updated = { ...prev, silentPrinting: true };
+            if (detectedReceipt && (!prev.receiptPrinter || prev.receiptPrinter.includes('Default') || !names.includes(prev.receiptPrinter))) {
+              updated.receiptPrinter = detectedReceipt;
+            }
+            if (detectedLabel && (!prev.labelPrinter || prev.labelPrinter.includes('Default') || !names.includes(prev.labelPrinter))) {
+              updated.labelPrinter = detectedLabel;
+            }
+            return updated;
+          });
+        }
+      }).catch(() => {});
+    }
+  }, []);
 
   // TENANT-ISOLATED DATA VIEWS (ROW-LEVEL FILTERING)
   const currentTenantId = currentTenant?.id || 'tenant-nova-101';
@@ -499,6 +594,8 @@ export const POSProvider = ({ children }) => {
       discountPercent: parseFloat(ruleData.discountPercent) || 0,
       targetBrand: ruleData.targetBrand || '',
       targetBarcode: ruleData.targetBarcode || '',
+      targetDepartment: ruleData.targetDepartment || '',
+      minSpend: parseFloat(ruleData.minSpend) || 0,
       startDate: ruleData.startDate || getFormattedNow().substring(0, 10),
       endDate: ruleData.endDate || getFormattedNow().substring(0, 10),
       isActive: true,
@@ -529,7 +626,17 @@ export const POSProvider = ({ children }) => {
     );
     if (articlePromo) return articlePromo;
 
-    // 2. Brand level match
+    // 2. Department level match
+    const deptPromo = activeRules.find(r => {
+      if (r.type !== 'department') return false;
+      const target = (r.targetDepartment || '').toLowerCase().trim();
+      if (!target) return false;
+      const prodDept = (product.department || product.category || product.apparelCategory || product.fabricType || '').toLowerCase();
+      return prodDept.includes(target);
+    });
+    if (deptPromo) return deptPromo;
+
+    // 3. Brand level match
     const brandPromo = activeRules.find(r => {
       if (r.type !== 'brand') return false;
       const target = r.targetBrand.toLowerCase();
@@ -544,8 +651,12 @@ export const POSProvider = ({ children }) => {
     return null;
   };
 
-  const getActiveStorewideDiscount = () => {
-    return discountRules.find(r => r.isActive && r.type === 'storewide');
+  const getActiveStorewideDiscount = (cartSubtotal = Infinity) => {
+    return discountRules.find(r => {
+      if (!r.isActive || r.type !== 'storewide') return false;
+      if (r.minSpend && r.minSpend > 0 && cartSubtotal < r.minSpend) return false;
+      return true;
+    });
   };
 
   // Products & Stock State (Unstitched Fabric + Ready-Made Apparel Variants)
@@ -1116,6 +1227,10 @@ export const POSProvider = ({ children }) => {
         recordDaySettlement,
         showDaySettlementModal,
         setShowDaySettlementModal,
+        printerSettings,
+        updatePrinterSettings,
+        availablePrinters,
+        refreshPrinters,
       }}
     >
       {children}

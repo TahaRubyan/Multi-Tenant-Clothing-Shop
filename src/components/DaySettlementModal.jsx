@@ -13,6 +13,7 @@ import {
   Smartphone,
   ArrowRight,
 } from 'lucide-react';
+import { printSettlementReport } from '../utils/printUtils';
 
 export const DaySettlementModal = () => {
   const {
@@ -102,16 +103,16 @@ export const DaySettlementModal = () => {
     <div className="modal-overlay">
       <div className="modal-content modal-lg glass-card day-settlement-modal">
         {/* Header */}
-        <div className="modal-header flex-between">
+        <div className="modal-header flex-between pb-3 border-bottom">
           <div className="flex-align-center gap-2">
-            <div className="brand-icon-badge">
-              <Banknote size={20} className="text-primary" />
+            <div className="brand-icon-badge" style={{ width: '42px', height: '42px' }}>
+              <Banknote size={22} className="text-primary" />
             </div>
             <div>
-              <h3 className="mb-0 text-md font-weight-700">Day-End Cash Settlement & Register Close</h3>
-              <small className="text-muted text-xs">
-                Audit cash register tallies, reconcile drawer discrepancies, and close today's shift.
-              </small>
+              <h3 className="mb-0 text-md font-weight-800">Day-End Cash Settlement &amp; Register Close</h3>
+              <p className="text-muted text-xs mb-0">
+                Audit cash drawer tallies, reconcile discrepancy variances, and close today's shift.
+              </p>
             </div>
           </div>
 
@@ -141,7 +142,7 @@ export const DaySettlementModal = () => {
 
         {/* Modal Body */}
         {activeTab === 'settle' && (
-          <div className="modal-body p-3">
+          <div className="modal-body p-4 scrollable-modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
             {!isAdmin && !isAdminPinAuthorized ? (
               <div className="admin-auth-card p-4 text-center glass-card max-width-md mx-auto my-3">
                 <div className="brand-icon-badge mx-auto mb-3" style={{ width: '48px', height: '48px' }}>
@@ -190,17 +191,17 @@ export const DaySettlementModal = () => {
               /* Success / Report Confirmation */
               <div className="settlement-success-card text-center py-4">
                 <CheckCircle2 size={48} className="text-success mx-auto mb-2" />
-                <h3 className="text-main font-weight-800 mb-1">Shift & Register Closed Successfully</h3>
+                <h3 className="text-main font-weight-800 mb-1">Shift &amp; Register Closed Successfully</h3>
                 <p className="text-muted text-xs mb-3">
                   Day closing report saved for {lastClosedReport.date} at {lastClosedReport.closedAt}.
                 </p>
 
-                <div className="settlement-slip-preview glass-card p-3 mb-3 mx-auto text-left font-mono">
-                  <div className="flex-between border-bottom pb-1 mb-2">
-                    <strong>{shopSettings.shopName}</strong>
-                    <span>{lastClosedReport.closedAt}</span>
+                <div className="settlement-slip-preview glass-card p-4 mb-3 mx-auto text-left font-mono" style={{ maxWidth: '520px', borderRadius: '12px' }}>
+                  <div className="flex-between border-bottom pb-2 mb-3">
+                    <strong className="text-main text-sm">{shopSettings.shopName || 'NOVA MEN & WOMEN'}</strong>
+                    <span className="text-xs text-muted">{lastClosedReport.closedAt}</span>
                   </div>
-                  <div className="grid-2col gap-2 text-xs">
+                  <div className="grid-2col gap-2 text-xs mb-3">
                     <div>Closed By: <strong>{lastClosedReport.closedBy}</strong></div>
                     <div>Orders Settled: <strong>{lastClosedReport.orderCount}</strong></div>
                     <div>Expected Cash: <strong>Rs. {lastClosedReport.expectedCash.toLocaleString()}</strong></div>
@@ -217,14 +218,18 @@ export const DaySettlementModal = () => {
                     </span>
                   </div>
                   {lastClosedReport.reasonNote && (
-                    <div className="text-xs text-muted mt-2 pt-1 border-top">
-                      Note: {lastClosedReport.reasonNote}
+                    <div className="text-xs text-muted mt-2 pt-2 border-top">
+                      <strong>Reconciliation Note:</strong> {lastClosedReport.reasonNote}
                     </div>
                   )}
                 </div>
 
-                <div className="flex-align-center justify-center gap-2">
-                  <button type="button" className="btn btn-secondary" onClick={() => window.print()}>
+                <div className="flex-align-center justify-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    className="btn btn-secondary flex-align-center gap-1"
+                    onClick={() => printSettlementReport(lastClosedReport, shopSettings)}
+                  >
                     <Printer size={16} /> Print Closing Slip
                   </button>
                   <button
@@ -235,110 +240,129 @@ export const DaySettlementModal = () => {
                       setShowDaySettlementModal(false);
                     }}
                   >
-                    Done & Return to Terminal
+                    Done &amp; Return to Terminal
                   </button>
                 </div>
               </div>
             ) : (
               /* Settlement Form */
-              <form onSubmit={handleCloseRegisterSubmit}>
-                {/* Top Summary Inflow Cards */}
-                <div className="grid-3col gap-2 mb-3">
-                  <div className="summary-pill glass-card">
-                    <Banknote size={20} className="text-primary" />
-                    <div className="pill-info">
-                      <span className="pill-label">Cash Sales Today</span>
-                      <strong className="pill-value font-mono text-primary">Rs. {cashSales.toLocaleString()}</strong>
+              <form onSubmit={handleCloseRegisterSubmit} className="settlement-workflow-form">
+                {/* 1. Top Summary Inflow 3-Column KPI Cards */}
+                <div className="settlement-kpi-grid mb-3">
+                  <div className="settlement-kpi-card glass-card">
+                    <div className="settlement-kpi-icon-wrap icon-blue">
+                      <Banknote size={20} />
+                    </div>
+                    <div className="settlement-kpi-info">
+                      <span className="settlement-kpi-label">Expected Cash</span>
+                      <strong className="settlement-kpi-val font-mono text-primary">Rs. {cashSales.toLocaleString()}</strong>
+                      <span className="settlement-kpi-sub font-mono">{activeSales.filter((s) => s.paymentMethod === 'Cash').length} Cash Sales</span>
                     </div>
                   </div>
 
-                  <div className="summary-pill glass-card">
-                    <CreditCard size={20} className="text-amber" />
-                    <div className="pill-info">
-                      <span className="pill-label">Digital (Card / Bank)</span>
-                      <strong className="pill-value font-mono">Rs. {(cardSales + mobileBankSales).toLocaleString()}</strong>
+                  <div className="settlement-kpi-card glass-card">
+                    <div className="settlement-kpi-icon-wrap icon-amber">
+                      <CreditCard size={20} />
+                    </div>
+                    <div className="settlement-kpi-info">
+                      <span className="settlement-kpi-label">Digital Inflow</span>
+                      <strong className="settlement-kpi-val font-mono text-amber">Rs. {(cardSales + mobileBankSales).toLocaleString()}</strong>
+                      <span className="settlement-kpi-sub font-mono">{activeSales.filter((s) => s.paymentMethod !== 'Cash').length} Digital Slips</span>
                     </div>
                   </div>
 
-                  <div className="summary-pill glass-card">
-                    <ShieldCheck size={20} className="text-success" />
-                    <div className="pill-info">
-                      <span className="pill-label">Total Today's Receipts</span>
-                      <strong className="pill-value font-mono text-success">Rs. {totalSalesToday.toLocaleString()}</strong>
+                  <div className="settlement-kpi-card glass-card">
+                    <div className="settlement-kpi-icon-wrap icon-emerald">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div className="settlement-kpi-info">
+                      <span className="settlement-kpi-label">Register Total</span>
+                      <strong className="settlement-kpi-val font-mono text-success">Rs. {totalSalesToday.toLocaleString()}</strong>
+                      <span className="settlement-kpi-sub font-mono">{totalOrdersToday} Invoices Settled</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Cash Drawer Comparison Card */}
-                <div className="glass-card p-3 mb-3">
-                  <div className="form-grid-2col mb-3">
-                    <div className="form-group mb-0">
-                      <label className="form-label text-xs">Today's Sales Date</label>
-                      <input type="text" className="form-input font-mono" value={todayDateStr} disabled />
+                {/* 2. Physical Cash Count & Verification Panel */}
+                <div className="settlement-audit-panel glass-card p-4 mb-3">
+                  <div className="settlement-panel-header flex-between mb-3 pb-2 border-bottom">
+                    <div>
+                      <h4 className="settlement-panel-title mb-0">Physical Drawer Cash Audit</h4>
+                      <small className="text-muted">Count bills physically in drawer and enter exact tallied sum</small>
+                    </div>
+                    <span className="badge badge-sage badge-compact font-mono">
+                      Sales Date: {todayDateStr}
+                    </span>
+                  </div>
+
+                  <div className="cash-input-highlight-box mb-3">
+                    <div className="flex-between mb-2">
+                      <label htmlFor="actual-cash-input" className="form-label font-weight-700 text-sm mb-0">
+                        Physical Cash Counted in Drawer (Rs.) *
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary flex-align-center gap-1"
+                        onClick={() => setActualCashInput(cashSales.toString())}
+                        title="Counted physical cash matches expected drawer cash"
+                      >
+                        <CheckCircle2 size={13} /> Match Expected (Rs. {cashSales.toLocaleString()})
+                      </button>
                     </div>
 
-                    <div className="form-group mb-0">
-                      <div className="flex-between mb-1">
-                        <label className="form-label text-xs font-weight-700 mb-0">Actual Physical Cash in Drawer (Rs.) *</label>
-                        <button
-                          type="button"
-                          className="btn btn-xs btn-outline-primary"
-                          onClick={() => setActualCashInput(cashSales.toString())}
-                          title="Counted physical cash matches expected drawer cash"
-                        >
-                          Match Expected (Rs. {cashSales.toLocaleString()})
-                        </button>
-                      </div>
+                    <div className="input-currency-group">
+                      <span className="input-currency-prefix font-mono">Rs.</span>
                       <input
+                        id="actual-cash-input"
                         type="number"
                         min="0"
-                        className="form-input font-mono font-weight-800 text-lg"
+                        className="form-input font-mono font-weight-800 text-xl cash-tally-input"
                         value={actualCashInput}
                         onChange={(e) => setActualCashInput(e.target.value)}
-                        placeholder="Count physical cash & enter amount..."
+                        placeholder="0"
                         required
                         autoFocus
                       />
                     </div>
                   </div>
 
-                  {/* Discrepancy & Balance Status Notification */}
+                  {/* Real-time Live Variance Status Pill */}
                   {hasEnteredCash && (
-                    <div>
+                    <div className="variance-feedback-wrap mb-2">
                       {isBalanced ? (
-                        <div className="alert-box-balanced p-3 flex-align-center gap-2 mb-2">
-                          <CheckCircle2 size={22} className="text-success flex-shrink-0" />
+                        <div className="alert-box-balanced p-3 flex-align-center gap-2 rounded">
+                          <CheckCircle2 size={24} className="text-success flex-shrink-0" />
                           <div>
-                            <strong className="text-success text-sm block">Cash Register Perfectly Balanced!</strong>
-                            <small className="text-muted text-xs">
-                              Physical cash (Rs. {actualCashNum.toLocaleString()}) matches total recorded cash sales.
-                            </small>
+                            <strong className="text-success text-sm block font-weight-700">
+                              Cash Register Perfectly Balanced! (Variance: Rs. 0)
+                            </strong>
+                            <span className="text-muted text-xs">
+                              Counted physical cash (Rs. {actualCashNum.toLocaleString()}) matches total recorded cash sales exactly.
+                            </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="alert-box-discrepancy p-3 mb-2">
+                        <div className="alert-box-discrepancy p-3 rounded">
                           <div className="flex-align-center gap-2 mb-2">
-                            <AlertTriangle size={22} className="text-danger flex-shrink-0" />
+                            <AlertTriangle size={24} className="text-danger flex-shrink-0" />
                             <div>
-                              <strong className="text-danger text-sm block">
-                                Discrepancy Alert: {discrepancy < 0 ? 'Cash Shortage' : 'Cash Excess'} of Rs.{' '}
-                                {Math.abs(discrepancy).toLocaleString()}
+                              <strong className="text-danger text-sm block font-weight-700">
+                                Discrepancy Alert: {discrepancy < 0 ? 'Cash Shortage' : 'Cash Excess'} of Rs. {Math.abs(discrepancy).toLocaleString()}
                               </strong>
-                              <small className="text-muted text-xs">
-                                Expected Cash: Rs. {cashSales.toLocaleString()} | Actual Counted: Rs.{' '}
-                                {actualCashNum.toLocaleString()}
-                              </small>
+                              <span className="text-muted text-xs">
+                                Expected in Register: Rs. {cashSales.toLocaleString()} • Actual Counted: Rs. {actualCashNum.toLocaleString()}
+                              </span>
                             </div>
                           </div>
 
-                          <div className="form-group mb-0">
+                          <div className="form-group mb-0 mt-2 pt-2 border-top">
                             <label className="form-label text-xs text-danger font-weight-700">
-                              Mandatory Reconciliation Note / Reason *
+                              Mandatory Variance Justification / Reconciliation Note *
                             </label>
                             <input
                               type="text"
-                              className="form-input text-xs"
-                              placeholder="e.g. Petty cash payout for utility expenses, approved variance, change shortage..."
+                              className="form-input text-xs font-weight-600"
+                              placeholder="e.g. Approved petty cash payment for refreshments/courier, change discrepancy..."
                               value={reasonNote}
                               onChange={(e) => setReasonNote(e.target.value)}
                               required
@@ -351,17 +375,21 @@ export const DaySettlementModal = () => {
                 </div>
 
                 {/* Actions Footer */}
-                <div className="modal-actions flex-between pt-1">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowDaySettlementModal(false)}>
+                <div className="modal-actions flex-between pt-2">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowDaySettlementModal(false)}
+                  >
                     Cancel
                   </button>
 
                   <button
                     type="submit"
-                    className="btn btn-primary flex-align-center gap-1"
+                    className="btn btn-primary flex-align-center gap-2"
                     disabled={!hasEnteredCash || (hasDiscrepancy && !reasonNote.trim())}
                   >
-                    <CheckCircle2 size={16} /> Confirm Settlement & Close Day
+                    <CheckCircle2 size={16} /> Confirm Settlement &amp; Close Register
                   </button>
                 </div>
               </form>

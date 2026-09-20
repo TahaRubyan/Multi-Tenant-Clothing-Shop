@@ -69,11 +69,6 @@ export const Navbar = () => {
           <span className="time-divider">•</span>
           <span className="time-mono">{timeStr}</span>
         </div>
-
-        <div className="status-live-pill" title={isMasterAdmin ? 'Master Platform Online' : 'POS Terminal Active'}>
-          <div className="status-dot-pulse"></div>
-          <span>{isMasterAdmin ? 'Platform Live' : 'Terminal Active'}</span>
-        </div>
       </div>
 
       {/* CENTER: Active Context / Shop Title */}

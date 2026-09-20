@@ -18,6 +18,8 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { printBarcodeLabels } from '../utils/printUtils';
+import BarcodeLabelPreview from '../components/BarcodeLabelPreview';
 
 export const StockUpdationView = () => {
   const {
@@ -53,12 +55,18 @@ export const StockUpdationView = () => {
   const filteredProducts = products.filter((p) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
+    const matStr = (p.fabricMaterial || p.itemName || '').toLowerCase();
+    const typeStr = (p.fabricType || '').toLowerCase();
+    const colorStr = (p.fabricColor || '').toLowerCase();
+    const barcodeStr = (p.barcode || '').toLowerCase();
+    const catStr = (p.apparelCategory || '').toLowerCase();
+
     return (
-      p.fabricMaterial.toLowerCase().includes(q) ||
-      (p.fabricType && p.fabricType.toLowerCase().includes(q)) ||
-      (p.fabricColor && p.fabricColor.toLowerCase().includes(q)) ||
-      p.barcode.toLowerCase().includes(q) ||
-      (p.apparelCategory && p.apparelCategory.toLowerCase().includes(q))
+      matStr.includes(q) ||
+      typeStr.includes(q) ||
+      colorStr.includes(q) ||
+      barcodeStr.includes(q) ||
+      catStr.includes(q)
     );
   });
 
@@ -66,10 +74,14 @@ export const StockUpdationView = () => {
   const filteredDamageProducts = products.filter((p) => {
     if (!damageSearchQuery.trim()) return true;
     const q = damageSearchQuery.toLowerCase();
+    const matStr = (p.fabricMaterial || p.itemName || '').toLowerCase();
+    const colorStr = (p.fabricColor || '').toLowerCase();
+    const barcodeStr = (p.barcode || '').toLowerCase();
+
     return (
-      p.fabricMaterial.toLowerCase().includes(q) ||
-      (p.fabricColor && p.fabricColor.toLowerCase().includes(q)) ||
-      p.barcode.toLowerCase().includes(q)
+      matStr.includes(q) ||
+      colorStr.includes(q) ||
+      barcodeStr.includes(q)
     );
   });
 
@@ -208,7 +220,11 @@ export const StockUpdationView = () => {
         <div className="wizard-outer-wrapper mb-4">
           {/* Wizard Step Indicator Bar */}
           <div className="wizard-steps-indicator glass-card mb-3 p-3 flex-between">
-            <div className={`step-item ${wizardStep >= 1 ? 'active' : ''} ${wizardStep > 1 ? 'completed' : ''}`}>
+            <div
+              className={`step-item ${wizardStep === 1 ? 'active' : ''} ${wizardStep > 1 ? 'completed' : ''}`}
+              onClick={() => { if (wizardStep > 1) setWizardStep(1); }}
+              title={wizardStep > 1 ? 'Click to return to Step 1: Vendor / Mill' : 'Step 1: Vendor / Mill'}
+            >
               <div className="step-circle">{wizardStep > 1 ? <CheckCircle2 size={16} /> : '1'}</div>
               <div className="step-text">
                 <span className="step-num">Step 1</span>
@@ -216,9 +232,13 @@ export const StockUpdationView = () => {
               </div>
             </div>
 
-            <div className="step-divider-line" />
+            <div className={`step-divider-line ${wizardStep > 1 ? 'completed-line' : ''}`} />
 
-            <div className={`step-item ${wizardStep >= 2 ? 'active' : ''} ${wizardStep > 2 ? 'completed' : ''}`}>
+            <div
+              className={`step-item ${wizardStep === 2 ? 'active' : ''} ${wizardStep > 2 ? 'completed' : ''}`}
+              onClick={() => { if (wizardStep > 2) setWizardStep(2); }}
+              title={wizardStep > 2 ? 'Click to return to Step 2: Select Article' : 'Step 2: Select Article'}
+            >
               <div className="step-circle">{wizardStep > 2 ? <CheckCircle2 size={16} /> : '2'}</div>
               <div className="step-text">
                 <span className="step-num">Step 2</span>
@@ -226,20 +246,24 @@ export const StockUpdationView = () => {
               </div>
             </div>
 
-            <div className="step-divider-line" />
+            <div className={`step-divider-line ${wizardStep > 2 ? 'completed-line' : ''}`} />
 
-            <div className={`step-item ${wizardStep >= 3 ? 'active' : ''} ${wizardStep > 3 ? 'completed' : ''}`}>
+            <div
+              className={`step-item ${wizardStep === 3 ? 'active' : ''} ${wizardStep > 3 ? 'completed' : ''}`}
+              onClick={() => { if (wizardStep > 3) setWizardStep(3); }}
+              title={wizardStep > 3 ? 'Click to return to Step 3: Quantity & Stickers' : 'Step 3: Quantity & Stickers'}
+            >
               <div className="step-circle">{wizardStep > 3 ? <CheckCircle2 size={16} /> : '3'}</div>
               <div className="step-text">
                 <span className="step-num">Step 3</span>
-                <strong className="step-title">Quantity & Stickers</strong>
+                <strong className="step-title">Quantity &amp; Stickers</strong>
               </div>
             </div>
 
-            <div className="step-divider-line" />
+            <div className={`step-divider-line ${wizardStep > 3 ? 'completed-line' : ''}`} />
 
             <div className={`step-item ${wizardStep === 4 ? 'active completed' : ''}`}>
-              <div className="step-circle">4</div>
+              <div className="step-circle">{wizardStep === 4 && completedRestockResult ? <CheckCircle2 size={16} /> : '4'}</div>
               <div className="step-text">
                 <span className="step-num">Step 4</span>
                 <strong className="step-title">Print Barcode Tag</strong>
@@ -262,34 +286,53 @@ export const StockUpdationView = () => {
                   </p>
                 </div>
 
-                <div className="grid-2col gap-3 mb-4">
-                  <div className="form-group mb-0">
-                    <label className="form-label font-weight-600">Select Supplier / Manufacturer:</label>
+                <div className="form-group mb-4">
+                  <div className="flex-between mb-1">
+                    <label className="form-label font-weight-600 mb-0">Select Supplier / Mill Partner (Optional):</label>
+                    {selectedVendor && (
+                      <span className="concise-vendor-pill flex-align-center gap-1">
+                        <Truck size={12} className="text-primary" />
+                        <strong className="text-main text-xs">{selectedVendor.vendorName}</strong>
+                        <span className="text-muted text-xxs">({selectedVendor.city || 'Direct'})</span>
+                        <button
+                          type="button"
+                          className="btn-clear-vendor"
+                          onClick={() => setSelectedVendorId('')}
+                          title="Cancel / Clear vendor (Escape)"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                  <div className="input-with-icon">
+                    <Truck size={16} className="input-icon" />
                     <select
                       className="form-select font-weight-600"
                       value={selectedVendorId}
                       onChange={(e) => setSelectedVendorId(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setSelectedVendorId('');
+                      }}
                     >
                       <option value="">-- Direct Wholesale Intake (No Specific Vendor) --</option>
                       {vendors.map((v) => (
                         <option key={v.id} value={v.id}>
-                          {v.vendorName} ({v.city || 'Pakistan'}) - Phone: {v.phone || 'N/A'}
+                          {v.vendorName} ({v.city || 'Direct'})
                         </option>
                       ))}
                     </select>
+                    {selectedVendorId && (
+                      <button
+                        type="button"
+                        className="btn-text-icon"
+                        onClick={() => setSelectedVendorId('')}
+                        title="Cancel vendor selection (Esc)"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
-
-                  {selectedVendor && (
-                    <div className="p-3 bg-secondary rounded border flex-column justify-center">
-                      <span className="text-xs text-muted">Vendor Outstanding Balance:</span>
-                      <span className="text-main font-mono font-weight-800 text-lg">
-                        Rs. {(selectedVendor.totalInvoiced - selectedVendor.totalPaid).toLocaleString()}
-                      </span>
-                      <small className="text-muted text-xs">
-                        Contact: {selectedVendor.contactPerson} ({selectedVendor.phone})
-                      </small>
-                    </div>
-                  )}
                 </div>
 
                 <div className="wizard-actions flex-end">
@@ -501,63 +544,16 @@ export const StockUpdationView = () => {
                   <strong>{completedRestockResult.newStock} {completedRestockResult.unitLabel}</strong>.
                 </p>
 
-                {/* 1.8" x 0.9" Thermal Barcode Sticker Preview */}
-                <div className="thermal-barcode-label-18x09 printable-sticker my-3 mx-auto">
-                  <div className="tbl-header-brand">
-                    <span>{shopSettings?.shopName || 'NOVA MEN & WOMEN FASHION'}</span>
-                  </div>
-
-                  <div className="tbl-item-title truncate-cell">
-                    {completedRestockResult.product.fabricMaterial}
-                  </div>
-
-                  <div className="tbl-spec-row">
-                    <span className="tbl-category-tag">
-                      {completedRestockResult.product.apparelCategory || completedRestockResult.product.fabricType || 'Garment'}
-                    </span>
-                    <span className="tbl-color-size truncate-cell">
-                      {completedRestockResult.product.fabricColor || 'Standard'}
-                    </span>
-                  </div>
-
-                  <div className="tbl-barcode-svg-wrapper">
-                    <svg viewBox="0 0 220 38" className="tbl-barcode-svg">
-                      <rect x="0" y="0" width="220" height="38" fill="#ffffff" />
-                      <rect x="6" y="0" width="4" height="38" fill="#000000" />
-                      <rect x="14" y="0" width="2" height="38" fill="#000000" />
-                      <rect x="20" y="0" width="6" height="38" fill="#000000" />
-                      <rect x="30" y="0" width="3" height="38" fill="#000000" />
-                      <rect x="36" y="0" width="5" height="38" fill="#000000" />
-                      <rect x="45" y="0" width="2" height="38" fill="#000000" />
-                      <rect x="50" y="0" width="4" height="38" fill="#000000" />
-                      <rect x="57" y="0" width="7" height="38" fill="#000000" />
-                      <rect x="68" y="0" width="3" height="38" fill="#000000" />
-                      <rect x="74" y="0" width="5" height="38" fill="#000000" />
-                      <rect x="83" y="0" width="2" height="38" fill="#000000" />
-                      <rect x="88" y="0" width="6" height="38" fill="#000000" />
-                      <rect x="97" y="0" width="4" height="38" fill="#000000" />
-                      <rect x="105" y="0" width="2" height="38" fill="#000000" />
-                      <rect x="110" y="0" width="5" height="38" fill="#000000" />
-                      <rect x="118" y="0" width="3" height="38" fill="#000000" />
-                      <rect x="124" y="0" width="6" height="38" fill="#000000" />
-                      <rect x="134" y="0" width="2" height="38" fill="#000000" />
-                      <rect x="139" y="0" width="5" height="38" fill="#000000" />
-                      <rect x="147" y="0" width="3" height="38" fill="#000000" />
-                      <rect x="153" y="0" width="7" height="38" fill="#000000" />
-                      <rect x="163" y="0" width="2" height="38" fill="#000000" />
-                      <rect x="168" y="0" width="4" height="38" fill="#000000" />
-                      <rect x="175" y="0" width="6" height="38" fill="#000000" />
-                      <rect x="185" y="0" width="3" height="38" fill="#000000" />
-                      <rect x="191" y="0" width="5" height="38" fill="#000000" />
-                      <rect x="200" y="0" width="4" height="38" fill="#000000" />
-                      <rect x="208" y="0" width="3" height="38" fill="#000000" />
-                    </svg>
-                  </div>
-
-                  <div className="tbl-sku-code font-mono">{completedRestockResult.product.barcode}</div>
-                  <div className="tbl-footer-price font-mono">
-                    PRICE: Rs. {completedRestockResult.product.retailPrice.toLocaleString()}
-                  </div>
+                {/* 1.8" x 0.9" Thermal Barcode Sticker Preview - Exact 6 Lines */}
+                <div className="my-3 mx-auto" style={{ maxWidth: '280px' }}>
+                  <BarcodeLabelPreview
+                    shopName={shopSettings?.shopName}
+                    itemName={completedRestockResult.product.fabricMaterial}
+                    color={completedRestockResult.product.fabricColor}
+                    clothType={completedRestockResult.product.apparelCategory || completedRestockResult.product.fabricType}
+                    barcode={completedRestockResult.product.barcode}
+                    price={completedRestockResult.product.retailPrice}
+                  />
                 </div>
 
                 <div className="flex-align-center justify-center gap-3 mt-4">
@@ -565,7 +561,7 @@ export const StockUpdationView = () => {
                     type="button"
                     className="btn btn-primary flex-align-center gap-2"
                     onClick={() => {
-                      window.print();
+                      printBarcodeLabels(completedRestockResult.product, completedRestockResult.printCount, shopSettings);
                       showToast(`Printing ${completedRestockResult.printCount} thermal stickers...`, 'success');
                     }}
                   >
@@ -670,69 +666,71 @@ export const StockUpdationView = () => {
       )}
 
       {/* ========================================================
-          MODE 3 / AUDIT HISTORY TABLE WITH HORIZONTAL & VERTICAL SCROLLBARS
+          MODE 3: AUDIT HISTORY TABLE (STRICTLY IN AUDIT LOGS TAB)
           ======================================================== */}
-      <div className="glass-card p-4 custom-scrollbar-both" style={{ maxHeight: '380px', overflowX: 'auto', overflowY: 'auto' }}>
-        <div className="card-header-styled flex-between mb-3">
-          <div className="flex-align-center gap-2">
-            <History size={18} className="text-primary" />
-            <h3 className="mb-0">Recent Restock & Damage Audit Trail</h3>
+      {activeSubTab === 'history' && (
+        <div className="glass-card p-4 custom-scrollbar-both" style={{ maxHeight: 'calc(100vh - 220px)', overflowX: 'auto', overflowY: 'auto' }}>
+          <div className="card-header-styled flex-between mb-3">
+            <div className="flex-align-center gap-2">
+              <History size={18} className="text-primary" />
+              <h3 className="mb-0">Recent Restock & Damage Audit Trail</h3>
+            </div>
+            <span className="badge badge-sage">
+              {stockLog.length} Inward Logs | {damageLog.length} Write-Offs
+            </span>
           </div>
-          <span className="badge badge-sage">
-            {stockLog.length} Inward Logs | {damageLog.length} Write-Offs
-          </span>
-        </div>
 
-        <table className="data-table stock-preview-table" style={{ width: '100%', minWidth: '880px' }}>
-          <thead>
-            <tr>
-              <th style={{ width: '16%' }}>Barcode</th>
-              <th style={{ width: '30%' }}>Item Description</th>
-              <th style={{ width: '12%' }} className="text-center">Qty Delta</th>
-              <th style={{ width: '14%' }}>Logged By</th>
-              <th style={{ width: '14%' }}>Date & Time</th>
-              <th>Reason / Shipment Ref</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stockLog.length === 0 && damageLog.length === 0 ? (
+          <table className="data-table stock-preview-table" style={{ width: '100%', minWidth: '880px' }}>
+            <thead>
               <tr>
-                <td colSpan="6" className="text-center py-4 text-muted">
-                  No stock activity logs recorded yet.
-                </td>
+                <th style={{ width: '16%' }}>Barcode</th>
+                <th style={{ width: '30%' }}>Item Description</th>
+                <th style={{ width: '12%' }} className="text-center">Qty Delta</th>
+                <th style={{ width: '14%' }}>Logged By</th>
+                <th style={{ width: '14%' }}>Date & Time</th>
+                <th>Reason / Shipment Ref</th>
               </tr>
-            ) : (
-              [...stockLog.map((s) => ({ ...s, logType: 'restock' })), ...damageLog.map((d) => ({ ...d, logType: 'damage' }))]
-                .sort((a, b) => (b.id > a.id ? 1 : -1))
-                .slice(0, 25)
-                .map((log) => (
-                  <tr key={log.id}>
-                    <td className="font-mono text-highlight font-weight-600">{log.barcode}</td>
-                    <td>
-                      <strong className="text-main font-weight-600">{log.itemName}</strong>
-                      <div className="text-xs text-muted">{log.type || 'Garments'}</div>
-                    </td>
-                    <td className="text-center font-mono font-weight-800">
-                      {log.logType === 'restock' ? (
-                        <span className="text-success">+{log.qtyAdded} {log.unitType || 'pcs'}</span>
-                      ) : (
-                        <span className="text-danger">-{log.qtyRemoved} {log.unitType || 'pcs'}</span>
-                      )}
-                    </td>
-                    <td className="text-xs">
-                      <div className="flex-align-center gap-1">
-                        <UserCheck size={12} className={log.logType === 'restock' ? 'text-primary' : 'text-danger'} />
-                        {log.loggedBy || 'Admin'}
-                      </div>
-                    </td>
-                    <td className="font-mono text-xs text-subtle">{log.dateLogged}</td>
-                    <td className="text-xs text-muted">{log.reason}</td>
-                  </tr>
-                ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {stockLog.length === 0 && damageLog.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-4 text-muted">
+                    No stock activity logs recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                [...stockLog.map((s) => ({ ...s, logType: 'restock' })), ...damageLog.map((d) => ({ ...d, logType: 'damage' }))]
+                  .sort((a, b) => (b.id > a.id ? 1 : -1))
+                  .slice(0, 25)
+                  .map((log) => (
+                    <tr key={log.id}>
+                      <td className="font-mono text-highlight font-weight-600">{log.barcode}</td>
+                      <td>
+                        <strong className="text-main font-weight-600">{log.itemName}</strong>
+                        <div className="text-xs text-muted">{log.type || 'Garments'}</div>
+                      </td>
+                      <td className="text-center font-mono font-weight-800">
+                        {log.logType === 'restock' ? (
+                          <span className="text-success">+{log.qtyAdded} {log.unitType || 'pcs'}</span>
+                        ) : (
+                          <span className="text-danger">-{log.qtyRemoved} {log.unitType || 'pcs'}</span>
+                        )}
+                      </td>
+                      <td className="text-xs">
+                        <div className="flex-align-center gap-1">
+                          <UserCheck size={12} className={log.logType === 'restock' ? 'text-primary' : 'text-danger'} />
+                          {log.loggedBy || 'Admin'}
+                        </div>
+                      </td>
+                      <td className="font-mono text-xs text-subtle">{log.dateLogged}</td>
+                      <td className="text-xs text-muted">{log.reason}</td>
+                    </tr>
+                  ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
