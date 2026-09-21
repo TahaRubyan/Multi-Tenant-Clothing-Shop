@@ -237,6 +237,18 @@ export const MakeSaleView = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Handle ESC key to dismiss receipt preview modal
+  useEffect(() => {
+    if (!completedSaleData) return;
+    const handleReceiptModalEsc = (e) => {
+      if (e.key === 'Escape') {
+        setCompletedSaleData(null);
+      }
+    };
+    window.addEventListener('keydown', handleReceiptModalEsc);
+    return () => window.removeEventListener('keydown', handleReceiptModalEsc);
+  }, [completedSaleData]);
+
   // Universal Hardware Barcode Gun Listener (Scans instantly from anywhere on screen)
   useEffect(() => {
     let scanBuffer = '';
@@ -850,14 +862,24 @@ export const MakeSaleView = () => {
 
       {/* 75mm THERMAL RECEIPT SUCCESS MODAL */}
       {completedSaleData && (
-        <div className="modal-overlay receipt-modal-overlay">
+        <div
+          className="modal-overlay receipt-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCompletedSaleData(null);
+          }}
+        >
           <div className="modal-content receipt-modal-card">
             <div className="modal-header">
               <div className="modal-title">
-                <CheckCircle2 size={24} className="text-success" />
+                <CheckCircle2 size={22} className="text-success" />
                 <h3>Order Saved &amp; Printed • 75mm Thermal Receipt</h3>
               </div>
-              <button className="btn-close" onClick={() => setCompletedSaleData(null)}>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setCompletedSaleData(null)}
+                aria-label="Close modal"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -959,7 +981,7 @@ export const MakeSaleView = () => {
                   }}
                   aria-label="Done & Next Customer"
                 >
-                  Done &amp; Next Customer
+                  <CheckCircle2 size={15} /> Done &amp; Next Customer
                 </button>
               </div>
             </div>

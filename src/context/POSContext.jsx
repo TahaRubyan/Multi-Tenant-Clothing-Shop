@@ -22,7 +22,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v8.0_nova_single_counter';
+const POS_DATA_VERSION = 'v8.1_demo_readiness_final';
 
 // Clean one-time migration for legacy localStorage cache
 try {
