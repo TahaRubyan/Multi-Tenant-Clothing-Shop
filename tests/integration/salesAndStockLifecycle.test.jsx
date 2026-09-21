@@ -45,16 +45,16 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
 
     expect(inv1).toBeDefined();
     expect(inv1.dateTime).toContain('21-09-2026');
-    expect(inv1.netTotal).toBe(5500);
+    expect(inv1.netTotal).toBe(2400);
 
     expect(inv2).toBeDefined();
-    expect(inv2.netTotal).toBe(5200);
+    expect(inv2.netTotal).toBe(6500);
 
     expect(inv3).toBeDefined();
-    expect(inv3.netTotal).toBe(7300);
+    expect(inv3.netTotal).toBe(4600);
 
     expect(inv4).toBeDefined();
-    expect(inv4.netTotal).toBe(6800);
+    expect(inv4.netTotal).toBe(5500);
   });
 
   it('deducts stock upon completing a sale and synchronizes immediately with Analytics', () => {
@@ -179,13 +179,13 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
     // Action buttons MUST be rendered and visible
     const cancelBtn = screen.getByRole('button', { name: /Cancel or Close Receipt/i });
     const printBtn = screen.getByRole('button', { name: /Trigger Print Receipt/i });
-    const doneBtn = screen.getByRole('button', { name: /Done & Next Customer/i });
+    const doneBtn = screen.getByRole('button', { name: /Done & Next Customer|Save & Move to Next/i });
 
     expect(cancelBtn).toBeInTheDocument();
     expect(printBtn).toBeInTheDocument();
     expect(doneBtn).toBeInTheDocument();
 
-    // Click Done & Next Customer
+    // Click Save & Move to Next
     fireEvent.click(doneBtn);
 
     // Modal should close

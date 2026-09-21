@@ -3747,24 +3747,29 @@
 /* =======================================================
    RECEIPT MODAL OVERLAY & ACCESSIBLE STICKY CONTROLS
    ======================================================= */
+/* =======================================================
+   STREAMLINED 75mm THERMAL RECEIPT DIALOG (ZERO EXCESS VOID)
+   ======================================================= */
+.receipt-dialog-overlay,
 .receipt-modal-overlay {
   position: fixed !important;
   inset: 0 !important;
-  backdrop-filter: blur(4px) !important;
-  -webkit-backdrop-filter: blur(4px) !important;
-  background: rgba(10, 15, 30, 0.75) !important;
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+  background: rgba(15, 23, 42, 0.75) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 1rem !important;
+  padding: 16px !important;
   overflow-y: auto !important;
-  z-index: 1000 !important;
+  z-index: 1050 !important;
 }
 
+.receipt-dialog-card,
 .receipt-modal-card {
   max-width: 440px !important;
   width: 100% !important;
-  max-height: min(90vh, 720px) !important;
+  max-height: min(92vh, 760px) !important;
   height: auto !important;
   display: flex !important;
   flex-direction: column !important;
@@ -3773,12 +3778,14 @@
   overflow: hidden !important;
   border-radius: 14px !important;
   background: var(--bg-surface, #ffffff) !important;
-  border: 1px solid var(--border-default, #e2e8f0) !important;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45) !important;
+  border: 1px solid var(--border-default, #cbd5e1) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4) !important;
+  animation: modalContentZoomIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.receipt-dialog-header,
 .receipt-modal-card .modal-header {
-  padding: 0.8rem 1.25rem !important;
+  padding: 0.75rem 1.15rem !important;
   border-bottom: 1px solid var(--border-default, #e2e8f0) !important;
   background: var(--bg-surface, #ffffff) !important;
   flex-shrink: 0 !important;
@@ -3788,28 +3795,53 @@
   justify-content: space-between !important;
 }
 
+.receipt-dialog-header .modal-title,
+.receipt-modal-card .modal-header .modal-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.receipt-dialog-header h3,
 .receipt-modal-card .modal-header h3 {
-  font-size: 0.95rem !important;
+  font-size: 0.92rem !important;
   font-weight: 700 !important;
   margin: 0 !important;
   color: var(--text-primary, #0f172a) !important;
 }
 
+.receipt-dialog-body,
 .thermal-receipt-modal-scrollable {
-  flex: 0 1 auto !important;
+  flex: 1 1 auto !important;
   min-height: 0 !important;
-  max-height: calc(90vh - 135px) !important;
+  max-height: calc(92vh - 120px) !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  padding: 1rem 0.85rem !important;
+  padding: 0.85rem !important;
   background: #f1f5f9 !important;
   display: flex !important;
   justify-content: center !important;
   align-items: flex-start !important;
 }
 
+.receipt-paper-slip,
+.thermal-receipt-preview {
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  padding: 1rem 1rem !important;
+  border: 1.5px dashed #000000 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+  width: 100% !important;
+  max-width: 380px !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+}
+
+.receipt-dialog-footer,
 .receipt-modal-actions {
-  padding: 0.85rem 1.25rem !important;
+  padding: 0.75rem 1rem !important;
   border-top: 1px solid var(--border-default, #e2e8f0) !important;
   background: var(--bg-surface, #ffffff) !important;
   flex-shrink: 0 !important;
@@ -3820,36 +3852,25 @@
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 0.75rem !important;
+  gap: 0.5rem !important;
 }
 
-/* =======================================================
-   HIGH READABILITY 75mm THERMAL RECEIPT PREVIEW STYLES
-   ======================================================= */
-.thermal-receipt-preview {
-  background: #ffffff !important;
-  color: #000000 !important;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  padding: 1.15rem 1.15rem !important;
-  border: 1.5px dashed #000000 !important;
-  border-radius: 6px !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
-  width: 75mm !important;
-  max-width: 100% !important;
-  margin: 0 auto !important;
-  box-sizing: border-box !important;
+.receipt-dialog-footer-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
 }
 
 .receipt-header-center {
   text-align: center;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.5rem;
 }
 
 .receipt-header-center h2 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: #000000;
-  margin: 0.25rem 0 0.1rem 0;
+  margin: 0.2rem 0 0.1rem 0;
   text-transform: uppercase;
 }
 
@@ -3863,10 +3884,10 @@
 .receipt-meta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.25rem 0.5rem;
+  gap: 0.2rem 0.5rem;
   font-size: 0.72rem;
   color: #000000;
-  margin: 0.5rem 0;
+  margin: 0.4rem 0;
 }
 
 .receipt-divider {
@@ -3875,26 +3896,26 @@
   color: #000000;
   text-align: center;
   letter-spacing: 0.08em;
-  margin: 0.4rem 0;
+  margin: 0.35rem 0;
 }
 
 .receipt-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.74rem;
-  margin: 0.35rem 0;
+  font-size: 0.72rem;
+  margin: 0.3rem 0;
 }
 
 .receipt-table th {
   font-weight: 700;
   text-transform: uppercase;
   border-bottom: 1px dashed #000000;
-  padding: 0.3rem 0.2rem;
+  padding: 0.25rem 0.15rem;
   color: #000000;
 }
 
 .receipt-table td {
-  padding: 0.35rem 0.2rem;
+  padding: 0.3rem 0.15rem;
   border-bottom: 1px dotted #cccccc;
   color: #000000;
 }
@@ -3902,9 +3923,9 @@
 .receipt-totals-section {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.76rem;
-  margin: 0.5rem 0;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  margin: 0.4rem 0;
 }
 
 .r-row {
@@ -3915,25 +3936,32 @@
 
 .r-row.r-bold {
   font-weight: 800;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   border-top: 1px dashed #000000;
   border-bottom: 1px dashed #000000;
-  padding: 0.35rem 0;
-  margin: 0.25rem 0;
+  padding: 0.3rem 0;
+  margin: 0.2rem 0;
 }
 
 .receipt-footer-center {
   text-align: center;
   font-size: 0.7rem;
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
   color: #333333;
 }
 
+.receipt-footer-policy {
+  font-size: 0.68rem;
+  color: #555555;
+  margin: 0.25rem 0;
+  font-style: italic;
+}
+
 .barcode-font {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.15em;
-  margin-top: 0.35rem;
+  margin: 0.25rem 0 0.1rem 0;
 }
 
 /* =======================================================

@@ -27,6 +27,7 @@ import {
   Package,
   ShoppingBag,
   HelpCircle,
+  ArrowRight,
 } from 'lucide-react';
 
 export const MakeSaleView = () => {
@@ -375,9 +376,9 @@ export const MakeSaleView = () => {
   // Cash vs Digital Payment Calculation
   const isCash = paymentMethod === 'Cash';
   const amountRecNum = amountReceived !== ''
-    ? (parseFloat(amountReceived) || cartNetTotal)
+    ? (parseFloat(amountReceived) || 0)
     : cartNetTotal;
-  const changeReturned = isCash
+  const changeReturned = isCash && amountReceived !== ''
     ? Math.max(0, amountRecNum - cartNetTotal)
     : 0;
 
@@ -389,25 +390,16 @@ export const MakeSaleView = () => {
 
     const saleResult = completeSale(paymentMethod, amountRecNum);
     if (saleResult) {
-      // Direct thermal print to auto-detected receipt printer
-      printThermalReceipt(saleResult, shopSettings);
-
       confetti({
         particleCount: 90,
         spread: 75,
         origin: { y: 0.6 },
       });
 
-      const receiptDevName = shopSettings?.receiptPrinter || printerSettings?.receiptPrinter || 'Receipt Printer';
-      showToast(`Sale #${saleResult.receiptNumber} completed! Receipt printed silently to ${receiptDevName}.`, 'success');
+      showToast(`Sale #${saleResult.receiptNumber} recorded! Invoice saved to Analytics.`, 'success');
       setAmountReceived('');
       setIsDiscountPinUnlocked(false); // Automatically re-arms stealth PIN protection for next sale
-
-      if (printerSettings?.showReceiptModal !== false) {
-        setCompletedSaleData(saleResult);
-      } else {
-        clearCart();
-      }
+      setCompletedSaleData(saleResult);
     }
   };
 
@@ -816,9 +808,9 @@ export const MakeSaleView = () => {
                 <input
                   type="number"
                   className="form-input font-mono calc-input font-weight-700"
-                  value={amountReceived !== '' ? amountReceived : (cartNetTotal > 0 ? cartNetTotal : '')}
+                  value={amountReceived}
                   onChange={(e) => setAmountReceived(e.target.value)}
-                  placeholder={cartNetTotal.toString()}
+                  placeholder="Enter cash received (e.g. 5000)"
                 />
               </div>
 
@@ -855,23 +847,23 @@ export const MakeSaleView = () => {
             onClick={handleCheckout}
             aria-label="Save Order & Print Receipt"
           >
-            <Printer size={18} /> Save Order &amp; Print Receipt
+            <CheckCircle2 size={18} /> Save Order &amp; Checkout
           </button>
         </div>
       </div>
 
-      {/* 75mm THERMAL RECEIPT SUCCESS MODAL */}
+      {/* 75mm THERMAL RECEIPT PREVIEW & ACTIONS MODAL */}
       {completedSaleData && (
         <div
-          className="modal-overlay receipt-modal-overlay"
+          className="receipt-dialog-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) setCompletedSaleData(null);
           }}
         >
-          <div className="modal-content receipt-modal-card">
-            <div className="modal-header">
+          <div className="receipt-dialog-card">
+            <div className="receipt-dialog-header">
               <div className="modal-title">
-                <CheckCircle2 size={22} className="text-success" />
+                <CheckCircle2 size={20} className="text-success" />
                 <h3>Order Saved &amp; Printed • 75mm Thermal Receipt</h3>
               </div>
               <button
@@ -884,16 +876,18 @@ export const MakeSaleView = () => {
               </button>
             </div>
 
-            <div className="thermal-receipt-modal-scrollable">
-              <div className="thermal-receipt-preview printable-area">
+            <div className="receipt-dialog-body">
+              <div className="receipt-paper-slip printable-area">
+                {/* HEADER */}
                 <div className="receipt-header-center">
-                  <Scissors size={26} className="text-primary mb-1" />
+                  <Scissors size={24} className="text-primary mb-1" />
                   <h2>{shopSettings.shopName || 'NOVA MEN AND WOMEN'}</h2>
-                  <p>{shopSettings.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat'}</p>
+                  <p>{shopSettings.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan'}</p>
                   <p>Tel: {shopSettings.shopPhone || '+92 300 1234567'}</p>
                   <div className="receipt-divider">================================</div>
                 </div>
 
+                {/* META: Cashier, Payment, Date, Invoice */}
                 <div className="receipt-meta-grid">
                   <div>Cashier: <strong>{completedSaleData.salesman || 'Cashier'}</strong></div>
                   <div>Payment: <strong>{completedSaleData.paymentMethod}</strong></div>
@@ -903,12 +897,14 @@ export const MakeSaleView = () => {
 
                 <div className="receipt-divider">--------------------------------</div>
 
+                {/* ITEMS TABLE: Article, Qty, Price, Disc, Total */}
                 <table className="receipt-table">
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left' }}>Article</th>
                       <th className="text-center">Qty</th>
                       <th className="text-right">Price</th>
+                      <th className="text-right">Disc</th>
                       <th className="text-right">Total</th>
                     </tr>
                   </thead>
@@ -921,6 +917,7 @@ export const MakeSaleView = () => {
                         </td>
                         <td className="text-center">{it.qty}</td>
                         <td className="text-right">Rs. {it.unitPrice.toLocaleString()}</td>
+                        <td className="text-right">{it.itemDiscount > 0 ? `-Rs. ${it.itemDiscount.toLocaleString()}` : '-'}</td>
                         <td className="text-right">Rs. {it.total.toLocaleString()}</td>
                       </tr>
                     ))}
@@ -929,59 +926,68 @@ export const MakeSaleView = () => {
 
                 <div className="receipt-divider">--------------------------------</div>
 
+                {/* TOTALS SECTION */}
                 <div className="receipt-totals-section">
                   <div className="r-row"><span>Subtotal:</span> <span>Rs. {completedSaleData.subtotal.toLocaleString()}</span></div>
                   {completedSaleData.storewideDiscount > 0 && (
-                    <div className="r-row"><span>Storewide Promo:</span> <span>-Rs. {completedSaleData.storewideDiscount.toLocaleString()}</span></div>
+                    <div className="r-row text-success"><span>Storewide Promo:</span> <span>-Rs. {completedSaleData.storewideDiscount.toLocaleString()}</span></div>
                   )}
                   {completedSaleData.wholeSaleDiscount > 0 && (
-                    <div className="r-row"><span>Wholesale Discount ({completedSaleData.wholeSaleDiscountPercent || 0}%):</span> <span>-Rs. {completedSaleData.wholeSaleDiscount.toLocaleString()}</span></div>
+                    <div className="r-row text-success"><span>Wholesale Discount ({completedSaleData.wholeSaleDiscountPercent || 0}%):</span> <span>-Rs. {completedSaleData.wholeSaleDiscount.toLocaleString()}</span></div>
                   )}
                   <div className="r-row r-bold"><span>NET TOTAL:</span> <span>Rs. {completedSaleData.netTotal.toLocaleString()}</span></div>
-                  <div className="r-row"><span>Amount Received:</span> <span>Rs. {completedSaleData.amountReceived.toLocaleString()}</span></div>
+                  <div className="r-row"><span>Cash Received:</span> <span>Rs. {completedSaleData.amountReceived.toLocaleString()}</span></div>
                   {(completedSaleData.paymentMethod === 'Cash' || parseFloat(completedSaleData.changeReturned) > 0) && (
-                    <div className="r-row"><span>Change Returned:</span> <span>Rs. {completedSaleData.changeReturned.toLocaleString()}</span></div>
+                    <div className="r-row"><span>Cash Returned:</span> <span>Rs. {completedSaleData.changeReturned.toLocaleString()}</span></div>
                   )}
                 </div>
 
                 <div className="receipt-divider">================================</div>
+
+                {/* FOOTER */}
                 <div className="receipt-footer-center">
-                  <p>{shopSettings.receiptFooterNote || 'Thank you for shopping with us! Please visit again.'}</p>
+                  <p>{shopSettings.receiptFooterNote || 'Thank you for shopping at NOVA MEN AND WOMEN.'}</p>
+                  <p className="receipt-footer-policy">Exchanges accepted within 14 days with original invoice.</p>
                   <p className="barcode-font">* {completedSaleData.receiptNumber} *</p>
                   <small className="text-xs text-muted">Scan barcode above for rapid returns &amp; exchanges</small>
                 </div>
               </div>
             </div>
 
-            <div className="modal-actions receipt-modal-actions flex-between gap-2">
+            <div className="receipt-dialog-footer">
               <button
                 type="button"
                 className="btn btn-secondary flex-align-center gap-1"
                 onClick={() => setCompletedSaleData(null)}
                 aria-label="Cancel or Close Receipt"
               >
-                <X size={15} /> Cancel / Close
+                <X size={15} /> Close
               </button>
 
-              <div className="flex-align-center gap-2">
+              <div className="receipt-dialog-footer-right">
                 <button
                   type="button"
                   className="btn btn-secondary flex-align-center gap-1"
-                  onClick={() => printThermalReceipt(completedSaleData, shopSettings)}
-                  aria-label="Trigger Print Receipt"
+                  onClick={() => {
+                    setCompletedSaleData(null);
+                    showToast(`Invoice #${completedSaleData.receiptNumber} saved to Analytics! Ready for next sale.`, 'success');
+                  }}
+                  aria-label="Done & Next Customer / Save & Move to Next"
                 >
-                  <Printer size={15} /> Print Receipt (75mm)
+                  <ArrowRight size={15} /> Save &amp; Move to Next
                 </button>
                 <button
                   type="button"
                   className="btn btn-primary flex-align-center gap-1"
                   onClick={() => {
+                    printThermalReceipt(completedSaleData, shopSettings);
+                    const receiptDevName = shopSettings?.receiptPrinter || printerSettings?.receiptPrinter || 'BIXOLON SRP-Q302';
+                    showToast(`Printing receipt for #${completedSaleData.receiptNumber} to ${receiptDevName}...`, 'info');
                     setCompletedSaleData(null);
-                    clearCart();
                   }}
-                  aria-label="Done & Next Customer"
+                  aria-label="Trigger Print Receipt"
                 >
-                  <CheckCircle2 size={15} /> Done &amp; Next Customer
+                  <Printer size={15} /> Print Receipt
                 </button>
               </div>
             </div>

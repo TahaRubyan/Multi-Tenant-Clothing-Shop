@@ -5,7 +5,7 @@ describe('Performance & Benchmark Tests', () => {
   it('benchmarks catalog search filtering across 500+ items to execute quickly', () => {
     // Generate synthetic large dataset by cloning mock products
     const largeCatalog = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 40; i++) {
       INITIAL_PRODUCTS.forEach((p, idx) => {
         largeCatalog.push({
           ...p,
