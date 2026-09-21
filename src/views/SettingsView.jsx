@@ -66,6 +66,7 @@ export const SettingsView = () => {
   const [labelPrinter, setLabelPrinter] = useState(printerSettings?.labelPrinter || 'ZDesigner iMZ220 (ZPL)');
   const [receiptPaperWidth, setReceiptPaperWidth] = useState(printerSettings?.receiptPaperWidth || '75mm');
   const [labelSize, setLabelSize] = useState(printerSettings?.labelSize || '50x30mm');
+  const [printMethod, setPrintMethod] = useState(printerSettings?.printMethod || 'thermal_transfer');
   const [autoPrintReceipt, setAutoPrintReceipt] = useState(printerSettings?.autoPrintReceipt !== false);
   const [silentPrinting, setSilentPrinting] = useState(printerSettings?.silentPrinting !== false);
   const [showReceiptModal, setShowReceiptModal] = useState(printerSettings?.showReceiptModal === true);
@@ -83,6 +84,9 @@ export const SettingsView = () => {
     }
     if (printerSettings?.labelSize) {
       setLabelSize(printerSettings.labelSize);
+    }
+    if (printerSettings?.printMethod) {
+      setPrintMethod(printerSettings.printMethod);
     }
     if (printerSettings?.silentPrinting !== undefined) {
       setSilentPrinting(printerSettings.silentPrinting);
@@ -176,6 +180,7 @@ export const SettingsView = () => {
       labelPrinter,
       receiptPaperWidth,
       labelSize,
+      printMethod,
       autoPrintReceipt,
       silentPrinting,
       showReceiptModal,
@@ -788,7 +793,7 @@ export const SettingsView = () => {
                 <h4 className="text-xs font-weight-700 text-main mb-0">Hardware Printers Configured &amp; Active for Demo</h4>
                 <p className="text-xxs text-muted mb-0 mt-0.5">
                   Receipt: <strong className="text-main">{receiptPrinter}</strong> (75mm Thermal • USB003) &nbsp;|&nbsp; 
-                  Label: <strong className="text-main">{labelPrinter}</strong> (50x30mm Zebra GK888t EPL Direct Thermal • USB004)
+                  Label: <strong className="text-main">{labelPrinter}</strong> (50x30mm Zebra GK888t • {printMethod === 'thermal_transfer' ? 'Thermal Transfer (Ribbon Active)' : 'Direct Thermal'} • USB004)
                 </p>
               </div>
             </div>
@@ -799,15 +804,17 @@ export const SettingsView = () => {
                 onClick={() => {
                   setReceiptPrinter('BIXOLON SRP-Q302');
                   setLabelPrinter('ZDesigner iMZ220 (ZPL)');
+                  setPrintMethod('thermal_transfer');
                   updatePrinterSettings({
                     receiptPrinter: 'BIXOLON SRP-Q302',
                     labelPrinter: 'ZDesigner iMZ220 (ZPL)',
                     receiptPaperWidth: '75mm',
                     labelSize: '50x30mm',
+                    printMethod: 'thermal_transfer',
                     silentPrinting: true,
                   });
                 }}
-                title="Restore verified hardware mapping: Receipt -> BIXOLON (USB003), Label -> Zebra (USB004)"
+                title="Restore verified hardware mapping: Receipt -> BIXOLON (USB003), Label -> Zebra Thermal Transfer (USB004)"
               >
                 <CheckCircle2 size={12} /> Reset Verified Hardware Mapping
               </button>
@@ -973,7 +980,7 @@ export const SettingsView = () => {
                         style={{ height: '36px' }}
                         onClick={() =>
                           testPrintBarcodeLabel(
-                            { ...shopSettings, labelPrinter, labelSize },
+                            { ...shopSettings, labelPrinter, labelSize, printMethod },
                             { deviceName: labelPrinter, silent: silentPrinting }
                           )
                         }
@@ -982,6 +989,32 @@ export const SettingsView = () => {
                         <Tag size={13} className="text-primary" /> Test Print Barcode Tag
                       </button>
                     </div>
+                  </div>
+
+                  <div className="form-group mb-3">
+                    <label htmlFor="label-print-method-select" className="form-label text-xs font-weight-700">
+                      Print Method / Ribbon Mode *
+                    </label>
+                    <select
+                      id="label-print-method-select"
+                      className="form-select font-weight-600 text-xs font-mono"
+                      value={printMethod}
+                      onChange={(e) => setPrintMethod(e.target.value)}
+                    >
+                      <option value="thermal_transfer">Thermal Transfer (Ribbon Roll - Recommended for Zebra GK888t)</option>
+                      <option value="direct_thermal">Direct Thermal (No Ribbon - Heat-Sensitive Labels)</option>
+                    </select>
+                    <small className="text-muted text-xxs mt-1 block">
+                      {printMethod === 'thermal_transfer' ? (
+                        <span style={{ color: '#059669', fontWeight: 600 }}>
+                          ✓ Thermal Transfer Active (Ribbon Motor Engaged): The printer actively rewinds the black ribbon roll onto its take-up spindle so it does not spill out with the sticker.
+                        </span>
+                      ) : (
+                        <span style={{ color: '#d97706', fontWeight: 600 }}>
+                          ⚠ Direct Thermal: Only for ribbonless paper. If your Zebra has a black ink roll, keep this set to Thermal Transfer.
+                        </span>
+                      )}
+                    </small>
                   </div>
 
                   <div className="form-group mb-3">

@@ -766,6 +766,7 @@ export const INITIAL_PRINTER_SETTINGS = {
   labelPrinter: 'ZDesigner iMZ220 (ZPL)',
   receiptPaperWidth: '75mm',
   labelSize: '50x30mm',
+  printMethod: 'thermal_transfer',
   autoPrintReceipt: true,
   autoPrintLabel: false,
   silentPrinting: true,
@@ -784,6 +785,7 @@ export const INITIAL_SHOP_SETTINGS = {
   labelPrinter: 'ZDesigner iMZ220 (ZPL)',
   receiptPaperWidth: '75mm',
   labelSize: '50x30mm',
+  printMethod: 'thermal_transfer',
   autoPrintReceipt: true,
   silentPrinting: true,
 };

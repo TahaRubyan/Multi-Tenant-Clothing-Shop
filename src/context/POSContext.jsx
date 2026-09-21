@@ -84,6 +84,7 @@ export function sanitizePrinterConfig(settings = {}) {
     ...settings,
     receiptPrinter,
     labelPrinter,
+    printMethod: settings?.printMethod || 'thermal_transfer',
   };
 }
 
@@ -326,6 +327,7 @@ export const POSProvider = ({ children }) => {
         const sanitized = sanitizePrinterConfig({
           receiptPrinter: targetReceipt,
           labelPrinter: targetLabel,
+          printMethod: 'thermal_transfer',
           silentPrinting: true,
         });
 
@@ -356,6 +358,7 @@ export const POSProvider = ({ children }) => {
         const sanitized = sanitizePrinterConfig({
           receiptPrinter: targetReceipt,
           labelPrinter: targetLabel,
+          printMethod: 'thermal_transfer',
           silentPrinting: true,
         });
 

@@ -163,7 +163,7 @@ describe('Print Utilities Unit Tests', () => {
 
       // Verify core EPL2 printer controls
       expect(epl).toContain('N\n'); // Clear buffer
-      expect(epl).toContain('OD\n'); // Direct thermal mode
+      expect(epl).toContain('OR\n'); // Thermal transfer mode (with ribbon motor active)
       expect(epl).toContain('D13\n'); // Darkness density 13
       expect(epl).toContain('S2\n'); // Print speed 2 ips
       expect(epl).toContain('q384\n'); // Width 384 dots (48mm)
@@ -186,6 +186,38 @@ describe('Print Utilities Unit Tests', () => {
       expect(epl).toContain('"PRICE: Rs. 8,500"');
       // Label print count
       expect(epl).toContain('P2\n');
+    });
+
+    it('switches between thermal transfer (OR) and direct thermal (OD) properly in EPL2', () => {
+      const mockProduct = {
+        fabricMaterial: 'Silk Kurta',
+        barcode: '123456789012',
+        retailPrice: 4500,
+      };
+
+      const eplThermalTransfer = generateEplLabel(mockProduct, { printMethod: 'thermal_transfer' });
+      expect(eplThermalTransfer).toContain('OR\n');
+      expect(eplThermalTransfer).not.toContain('OD\n');
+
+      const eplDirectThermal = generateEplLabel(mockProduct, { printMethod: 'direct_thermal' });
+      expect(eplDirectThermal).toContain('OD\n');
+      expect(eplDirectThermal).not.toContain('OR\n');
+    });
+
+    it('switches between thermal transfer (^MTT) and direct thermal (^MTD) properly in ZPL', () => {
+      const mockProduct = {
+        fabricMaterial: 'Silk Kurta',
+        barcode: '123456789012',
+        retailPrice: 4500,
+      };
+
+      const zplThermalTransfer = generateZplLabel(mockProduct, { printMethod: 'thermal_transfer' });
+      expect(zplThermalTransfer).toContain('^MTT');
+      expect(zplThermalTransfer).not.toContain('^MTD');
+
+      const zplDirectThermal = generateZplLabel(mockProduct, { printMethod: 'direct_thermal' });
+      expect(zplDirectThermal).toContain('^MTD');
+      expect(zplDirectThermal).not.toContain('^MTT');
     });
   });
 

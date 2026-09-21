@@ -628,9 +628,11 @@ export function generateZplLabel(product, shopSettings = {}, count = 1) {
   const itemCode = String(product?.barcode || product?.sku || '000000000000').trim();
   const price = (product?.retailPrice || 0).toLocaleString();
   const printQty = Math.max(1, parseInt(count, 10) || 1);
+  const printMethod = shopSettings?.printMethod || 'thermal_transfer';
+  const mediaTypeCmd = printMethod === 'direct_thermal' ? '^MTD' : '^MTT';
 
   return `^XA
-^MTD
+${mediaTypeCmd}
 ~SD25
 ^PR2
 ^PW384
@@ -648,7 +650,7 @@ export function generateZplLabel(product, shopSettings = {}, count = 1) {
 }
 
 /**
- * Generates authentic EPL2 (Eltron Programming Language 2) string for direct thermal label printers.
+ * Generates authentic EPL2 (Eltron Programming Language 2) string for direct thermal / thermal transfer label printers.
  * Specially formatted for desktop printers such as Zebra GK888t (EPL), GC420t, 2844, 2824.
  * Strict 6-line layout on standard 48mm/50mm (384 dots @ 203 DPI) x 30mm (240 dots) thermal sticker rolls:
  * Line 1: shop name
@@ -668,6 +670,10 @@ export function generateEplLabel(product, shopSettings = {}, count = 1) {
   const itemCode = String(product?.barcode || product?.sku || '000000000000').trim().slice(0, 20);
   const price = (product?.retailPrice || 0).toLocaleString();
   const printQty = Math.max(1, parseInt(count, 10) || 1);
+  const printMethod = shopSettings?.printMethod || 'thermal_transfer';
+  // OR = Thermal Transfer (with Ribbon - engages ribbon motor/sensor so ribbon doesn't spill out)
+  // OD = Direct Thermal (without Ribbon)
+  const mediaMode = printMethod === 'direct_thermal' ? 'OD' : 'OR';
 
   // EPL2 Character Width Calculations for 384-dot (48mm / 50mm) label
   const xShop = Math.max(10, Math.floor((384 - (shopName.length * 12)) / 2));
@@ -685,7 +691,7 @@ export function generateEplLabel(product, shopSettings = {}, count = 1) {
 
   return [
     'N',
-    'OD',
+    mediaMode,
     'D13',
     'S2',
     'q384',
