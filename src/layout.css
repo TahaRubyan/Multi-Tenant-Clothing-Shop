@@ -462,7 +462,7 @@
    VIEW TRANSITION ANIMATION & NAVBAR DAY SETTLEMENT
    ======================================================= */
 .view-transition-container {
-  animation: viewFadeSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: viewFadeSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -472,11 +472,11 @@
 @keyframes viewFadeSlideIn {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.995);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 

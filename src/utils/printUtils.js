@@ -81,47 +81,61 @@ export function generateBarcodeSvg(code = '000000000000', options = {}) {
   </svg>`;
 }
 
+export const LABEL_PRINTER_KEYWORD_REGEX = /zdesigner|imz|zpl|epl|zebra|gk888|gc420|2844|2824|label|sticker|barcode|xp-?3/i;
+export const RECEIPT_PRINTER_KEYWORD_REGEX = /bixolon|srp|receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|sam4s|58|xp-?58|pos-?58/i;
+
 /**
  * Automatically identify connected receipt printer and label printer without user pop-ups.
+ * Strictly prevents any crossed assignment between receipt and label hardware.
  */
 export function autoDetectPrinters(printers = []) {
   let detectedReceipt = null;
   let detectedLabel = null;
 
-  const labelRegex = /label|barcode|sticker|xp-?3|gp-?1|gp-?2|gp-?3|tsc|zebra|zdesigner|zpl|epl|cpl|imz|mz\d|zd\d|gx\d|gk\d|gt\d|tlp|lp2|4bar|hprt|postek|godex|argox|gprinter|dymo|brother.*ql|intermec|datamax|bk-?l/i;
-  const receiptRegex = /receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|bixolon|srp|sam4s|58|xp-?58|pos-?58/i;
-
   const validPrinters = printers
     .map(p => (typeof p === 'string' ? p : p.name || p.displayName || '').trim())
     .filter(Boolean);
 
-  // 1. Keyword search
+  // 1. Keyword search with strict partition
   for (const name of validPrinters) {
-    if (!detectedLabel && labelRegex.test(name)) {
+    if (!detectedLabel && LABEL_PRINTER_KEYWORD_REGEX.test(name)) {
       detectedLabel = name;
     }
-    if (!detectedReceipt && receiptRegex.test(name)) {
+    if (!detectedReceipt && RECEIPT_PRINTER_KEYWORD_REGEX.test(name)) {
       detectedReceipt = name;
     }
   }
 
-  // 2. Fallback heuristic for 2 physical devices (ignoring virtual PDF/Fax/OneNote)
+  // 2. Disallow crossed assignment
+  if (detectedReceipt && LABEL_PRINTER_KEYWORD_REGEX.test(detectedReceipt)) {
+    detectedReceipt = null;
+  }
+  if (detectedLabel && RECEIPT_PRINTER_KEYWORD_REGEX.test(detectedLabel)) {
+    detectedLabel = null;
+  }
+
+  // 3. Fallback heuristic for 2 physical devices (ignoring virtual PDF/Fax/OneNote)
   const physicalPrinters = validPrinters.filter(
     n => !/pdf|onenote|xps|fax|default/i.test(n)
   );
 
   if (physicalPrinters.length >= 2) {
     if (!detectedReceipt && detectedLabel) {
-      detectedReceipt = physicalPrinters.find(p => p !== detectedLabel) || physicalPrinters[0];
+      detectedReceipt = physicalPrinters.find(p => p !== detectedLabel && !LABEL_PRINTER_KEYWORD_REGEX.test(p)) || 'BIXOLON SRP-Q302';
     } else if (!detectedLabel && detectedReceipt) {
-      detectedLabel = physicalPrinters.find(p => p !== detectedReceipt) || physicalPrinters[1];
+      detectedLabel = physicalPrinters.find(p => p !== detectedReceipt && !RECEIPT_PRINTER_KEYWORD_REGEX.test(p)) || 'ZDesigner iMZ220 (ZPL)';
     } else if (!detectedReceipt && !detectedLabel) {
-      detectedReceipt = physicalPrinters[0];
-      detectedLabel = physicalPrinters[1];
+      detectedReceipt = physicalPrinters.find(p => RECEIPT_PRINTER_KEYWORD_REGEX.test(p)) || physicalPrinters[0];
+      detectedLabel = physicalPrinters.find(p => LABEL_PRINTER_KEYWORD_REGEX.test(p)) || physicalPrinters[1];
     }
-  } else if (physicalPrinters.length === 1) {
-    if (!detectedReceipt) detectedReceipt = physicalPrinters[0];
-    if (!detectedLabel) detectedLabel = physicalPrinters[0];
+  }
+
+  // Final guarantees
+  if (!detectedReceipt || LABEL_PRINTER_KEYWORD_REGEX.test(detectedReceipt)) {
+    detectedReceipt = validPrinters.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n)) || 'BIXOLON SRP-Q302';
+  }
+  if (!detectedLabel || RECEIPT_PRINTER_KEYWORD_REGEX.test(detectedLabel)) {
+    detectedLabel = validPrinters.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n)) || 'ZDesigner iMZ220 (ZPL)';
   }
 
   return { detectedReceipt, detectedLabel };
@@ -178,6 +192,93 @@ function fallbackIframePrint(htmlContent, shouldTriggerPrint = true) {
 }
 
 /**
+ * Generates authentic ESC/POS commands for thermal receipt printers (BIXOLON SRP-Q302).
+ */
+export function generateEscPosReceipt(saleData, shopSettings = {}) {
+  if (!saleData) return '';
+  const shopName = (shopSettings?.shopName || 'NOVA MEN AND WOMEN').slice(0, 42);
+  const shopLocation = (shopSettings?.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat').slice(0, 42);
+  const shopPhone = (shopSettings?.shopPhone || '+92 300 1234567').slice(0, 32);
+  const footerNote = (shopSettings?.receiptFooterNote || 'Thank you for shopping with us! Please visit again.').slice(0, 48);
+
+  const items = saleData.items || [];
+  const subtotal = (saleData.subtotal || 0).toLocaleString();
+  const netTotal = (saleData.netTotal || 0).toLocaleString();
+  const storewideDiscount = saleData.storewideDiscount || 0;
+  const wholeSaleDiscount = saleData.wholeSaleDiscount || 0;
+  const wholeSaleDiscountPercent = saleData.wholeSaleDiscountPercent || 0;
+  const totalDiscount = (storewideDiscount + wholeSaleDiscount);
+  const amountReceived = (saleData.amountReceived || saleData.netTotal || 0).toLocaleString();
+  const changeReturned = (saleData.changeReturned || 0).toLocaleString();
+  const paymentMethod = saleData.paymentMethod || 'Cash';
+  const cashier = saleData.salesman || 'Cashier';
+  const dateTime = saleData.dateTime || new Date().toLocaleString();
+  const receiptNumber = saleData.receiptNumber || `INV-${Date.now().toString().slice(-6)}`;
+
+  const lines = [];
+  lines.push('\x1b@'); // Initialize printer
+  lines.push('\x1ba\x01'); // Center align
+  lines.push('\x1bE\x01' + shopName + '\n' + '\x1bE\x00'); // Shop Name Bold
+  lines.push(shopLocation + '\n');
+  lines.push('Tel: ' + shopPhone + '\n');
+  lines.push('================================================\n');
+
+  lines.push('\x1ba\x00'); // Left align
+  lines.push(`Cashier: ${cashier.padEnd(14)} Payment: ${paymentMethod}\n`);
+  lines.push(`Date:    ${dateTime}\n`);
+  lines.push(`Invoice: ${receiptNumber}\n`);
+  lines.push('------------------------------------------------\n');
+  lines.push('Article                            Qty     Total\n');
+  lines.push('------------------------------------------------\n');
+
+  const formatRow = (col1, col2) => {
+    const c1 = String(col1 || '').slice(0, 30);
+    const c2 = String(col2 || '');
+    const spaces = Math.max(1, 48 - c1.length - c2.length);
+    return `${c1}${' '.repeat(spaces)}${c2}\n`;
+  };
+
+  for (const it of items) {
+    const variantTag = it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece';
+    const name = `[${variantTag}] ${it.fabric || it.name || 'Garment'}${it.isReturn ? ' (RET)' : ''}`;
+    const qty = String(it.qty || 1);
+    const total = `Rs. ${(it.total || 0).toLocaleString()}`;
+    
+    lines.push(name.slice(0, 48) + '\n');
+    lines.push(formatRow(`  Qty: ${qty}`, total));
+  }
+
+  lines.push('------------------------------------------------\n');
+  lines.push(formatRow('Subtotal:', `Rs. ${subtotal}`));
+  if (storewideDiscount > 0) {
+    lines.push(formatRow('Promo Discount:', `-Rs. ${storewideDiscount.toLocaleString()}`));
+  }
+  if (wholeSaleDiscount > 0) {
+    lines.push(formatRow(`Wholesale Disc (${wholeSaleDiscountPercent}%):`, `-Rs. ${wholeSaleDiscount.toLocaleString()}`));
+  }
+  if (totalDiscount > 0 && storewideDiscount === 0 && wholeSaleDiscount === 0) {
+    lines.push(formatRow('Total Discount:', `-Rs. ${totalDiscount.toLocaleString()}`));
+  }
+
+  lines.push('\x1bE\x01'); // Bold Net Total
+  lines.push(formatRow('NET TOTAL:', `Rs. ${netTotal}`));
+  lines.push('\x1bE\x00');
+  lines.push(formatRow('Amount Received:', `Rs. ${amountReceived}`));
+  if (paymentMethod === 'Cash' || parseFloat(saleData.changeReturned) > 0) {
+    lines.push(formatRow('Change Returned:', `Rs. ${changeReturned}`));
+  }
+
+  lines.push('================================================\n');
+  lines.push('\x1ba\x01'); // Center align
+  lines.push(footerNote + '\n');
+  lines.push(`* ${receiptNumber} *\n`);
+  lines.push('Scan barcode for rapid exchange & returns\n\n\n\n');
+  lines.push('\x1dV\x00'); // Paper cut
+
+  return lines.join('');
+}
+
+/**
  * Executes printing through direct Electron hardware print, Vite hardware bridge, or isolated invisible iframe.
  */
 function executePrint(htmlContent, options = {}) {
@@ -193,11 +294,13 @@ function executePrint(htmlContent, options = {}) {
     const type = options?.type || 'any';
     const zpl = options?.zpl;
     const epl = options?.epl;
+    const escpos = options?.escpos;
 
     window.electronAPI.printDirect({
       html: htmlContent,
       zpl,
       epl,
+      escpos,
       deviceName: deviceName && deviceName !== 'Default System Printer' ? deviceName : undefined,
       type,
       silent,
@@ -219,15 +322,17 @@ function executePrint(htmlContent, options = {}) {
     !(typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.VITEST));
 
   const isLabelJob = options?.type === 'label' || Boolean(options?.zpl || options?.epl);
+  const isSilentReceiptJob = options?.type === 'receipt' && options?.silent !== false;
+  const isBridgeJob = (isLabelJob || isSilentReceiptJob);
 
-  // In HTTP browser environment, label printing is handled by Vite hardware bridge with zero popups
-  const shouldTriggerBrowserPrint = !(isHttpEnv && isLabelJob);
+  // In HTTP browser environment with bridge available, silent jobs are handled with zero popups
+  const shouldTriggerBrowserPrint = !(isHttpEnv && isBridgeJob);
 
   // Render isolated frame (guarantees DOM presence, unit tests, and layout)
   fallbackIframePrint(htmlContent, shouldTriggerBrowserPrint);
 
   // 2. Hardware Bridge via Vite Dev Server API (for Browser / Chrome)
-  if (isHttpEnv && isLabelJob && typeof fetch === 'function') {
+  if (isHttpEnv && isBridgeJob && typeof fetch === 'function') {
     fetch('/api/print-direct', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -235,15 +340,16 @@ function executePrint(htmlContent, options = {}) {
         html: htmlContent,
         zpl: options.zpl,
         epl: options.epl,
+        escpos: options.escpos,
         deviceName: options.deviceName,
-        type: options.type || 'label',
+        type: options.type || (isLabelJob ? 'label' : 'receipt'),
         silent: options.silent !== false,
         pageSize: options.pageSize,
       }),
     })
       .then(res => res.json())
       .then(data => {
-        console.log('[Hardware Print Bridge] Direct label print job sent:', data);
+        console.log(`[Hardware Print Bridge] Direct ${options.type || 'hardware'} print job sent:`, data);
       })
       .catch(err => {
         console.warn('Hardware print bridge fetch error, triggering browser fallback:', err);
@@ -269,7 +375,9 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
   } catch (_) {}
 
   const rawDevice = options?.deviceName || shopSettings?.receiptPrinter || savedPrinterSettings?.receiptPrinter;
-  const deviceName = (!rawDevice || rawDevice.includes('Default') || rawDevice.includes('XP-80C'))
+  // STRICT GUARD: Receipt must NEVER be sent to a label printer or blank default
+  const isLabelTarget = rawDevice && LABEL_PRINTER_KEYWORD_REGEX.test(rawDevice);
+  const deviceName = (!rawDevice || rawDevice.includes('Default') || rawDevice.includes('XP-80C') || isLabelTarget)
     ? 'BIXOLON SRP-Q302'
     : rawDevice;
   const silent = options?.silent !== undefined
@@ -496,7 +604,8 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
 </body>
 </html>`;
 
-  executePrint(html, { deviceName, silent, type: 'receipt' });
+  const escpos = generateEscPosReceipt(saleData, shopSettings);
+  executePrint(html, { deviceName, silent, type: 'receipt', escpos });
 }
 
 /**
@@ -617,7 +726,9 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   } catch (_) {}
 
   const rawDevice = options?.deviceName || shopSettings?.labelPrinter || savedPrinterSettings?.labelPrinter;
-  const deviceName = (!rawDevice || rawDevice.includes('Default') || rawDevice.includes('XP-365B'))
+  // STRICT GUARD: Label printer must NEVER be a receipt printer or blank default
+  const isReceiptTarget = rawDevice && RECEIPT_PRINTER_KEYWORD_REGEX.test(rawDevice);
+  const deviceName = (!rawDevice || rawDevice.includes('Default') || rawDevice.includes('XP-365B') || isReceiptTarget)
     ? 'ZDesigner iMZ220 (ZPL)'
     : rawDevice;
   const silent = options?.silent !== undefined

@@ -28,7 +28,12 @@ import {
   Boxes,
   Tag,
 } from 'lucide-react';
-import { testPrintThermalReceipt, testPrintBarcodeLabel } from '../utils/printUtils';
+import {
+  testPrintThermalReceipt,
+  testPrintBarcodeLabel,
+  LABEL_PRINTER_KEYWORD_REGEX,
+  RECEIPT_PRINTER_KEYWORD_REGEX,
+} from '../utils/printUtils';
 
 export const SettingsView = () => {
   const {
@@ -92,15 +97,15 @@ export const SettingsView = () => {
 
   const allReceiptPrinters = Array.from(new Set([
     'BIXOLON SRP-Q302',
-    receiptPrinter,
-    ...availablePrinters,
-  ])).filter(Boolean);
+    !LABEL_PRINTER_KEYWORD_REGEX.test(receiptPrinter) ? receiptPrinter : 'BIXOLON SRP-Q302',
+    ...availablePrinters.filter(p => !LABEL_PRINTER_KEYWORD_REGEX.test(p)),
+  ])).filter(p => Boolean(p) && !LABEL_PRINTER_KEYWORD_REGEX.test(p));
 
   const allLabelPrinters = Array.from(new Set([
     'ZDesigner iMZ220 (ZPL)',
-    labelPrinter,
-    ...availablePrinters,
-  ])).filter(Boolean);
+    !RECEIPT_PRINTER_KEYWORD_REGEX.test(labelPrinter) ? labelPrinter : 'ZDesigner iMZ220 (ZPL)',
+    ...availablePrinters.filter(p => !RECEIPT_PRINTER_KEYWORD_REGEX.test(p)),
+  ])).filter(p => Boolean(p) && !RECEIPT_PRINTER_KEYWORD_REGEX.test(p));
 
   // Modals
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
@@ -788,6 +793,24 @@ export const SettingsView = () => {
               </div>
             </div>
             <div className="flex-align-center gap-2">
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-xs flex-align-center gap-1"
+                onClick={() => {
+                  setReceiptPrinter('BIXOLON SRP-Q302');
+                  setLabelPrinter('ZDesigner iMZ220 (ZPL)');
+                  updatePrinterSettings({
+                    receiptPrinter: 'BIXOLON SRP-Q302',
+                    labelPrinter: 'ZDesigner iMZ220 (ZPL)',
+                    receiptPaperWidth: '75mm',
+                    labelSize: '50x30mm',
+                    silentPrinting: true,
+                  });
+                }}
+                title="Restore verified hardware mapping: Receipt -> BIXOLON (USB003), Label -> Zebra (USB004)"
+              >
+                <CheckCircle2 size={12} /> Reset Verified Hardware Mapping
+              </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-xs flex-align-center gap-1"

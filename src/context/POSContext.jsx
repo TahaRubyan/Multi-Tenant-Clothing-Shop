@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { autoDetectPrinters } from '../utils/printUtils';
+import {
+  autoDetectPrinters,
+  LABEL_PRINTER_KEYWORD_REGEX,
+  RECEIPT_PRINTER_KEYWORD_REGEX,
+} from '../utils/printUtils';
 import {
   INITIAL_TENANTS,
   INITIAL_PRODUCTS,
@@ -66,6 +70,23 @@ const getStoredOrDefault = (key, defaultVal) => {
   return defaultVal;
 };
 
+export function sanitizePrinterConfig(settings = {}) {
+  const rawRec = settings?.receiptPrinter;
+  const rawLbl = settings?.labelPrinter;
+
+  const isInvalidRec = !rawRec || rawRec.includes('Default') || rawRec.includes('XP-80C') || LABEL_PRINTER_KEYWORD_REGEX.test(rawRec);
+  const receiptPrinter = isInvalidRec ? 'BIXOLON SRP-Q302' : rawRec;
+
+  const isInvalidLbl = !rawLbl || rawLbl.includes('Default') || rawLbl.includes('XP-365B') || RECEIPT_PRINTER_KEYWORD_REGEX.test(rawLbl);
+  const labelPrinter = isInvalidLbl ? 'ZDesigner iMZ220 (ZPL)' : rawLbl;
+
+  return {
+    ...settings,
+    receiptPrinter,
+    labelPrinter,
+  };
+}
+
 export const POSProvider = ({ children }) => {
   // Always Light Cream Theme
   useEffect(() => {
@@ -88,13 +109,11 @@ export const POSProvider = ({ children }) => {
   // Shop Settings
   const [shopSettings, setShopSettings] = useState(() => {
     const saved = getStoredOrDefault('pos_shopSettings', INITIAL_SHOP_SETTINGS);
-    const rec = saved?.receiptPrinter;
-    const lbl = saved?.labelPrinter;
+    const sanitized = sanitizePrinterConfig(saved);
     return {
       ...INITIAL_SHOP_SETTINGS,
       ...saved,
-      receiptPrinter: (!rec || rec.includes('Default') || rec.includes('XP-80C')) ? 'BIXOLON SRP-Q302' : rec,
-      labelPrinter: (!lbl || lbl.includes('Default') || lbl.includes('XP-365B')) ? 'ZDesigner iMZ220 (ZPL)' : lbl,
+      ...sanitized,
     };
   });
 
@@ -112,13 +131,11 @@ export const POSProvider = ({ children }) => {
   // Printer & POS Hardware Configuration
   const [printerSettings, setPrinterSettings] = useState(() => {
     const saved = getStoredOrDefault('pos_printer_settings', INITIAL_PRINTER_SETTINGS);
-    const rec = saved?.receiptPrinter;
-    const lbl = saved?.labelPrinter;
+    const sanitized = sanitizePrinterConfig(saved);
     return {
       ...INITIAL_PRINTER_SETTINGS,
       ...saved,
-      receiptPrinter: (!rec || rec.includes('Default') || rec.includes('XP-80C')) ? 'BIXOLON SRP-Q302' : rec,
-      labelPrinter: (!lbl || lbl.includes('Default') || lbl.includes('XP-365B')) ? 'ZDesigner iMZ220 (ZPL)' : lbl,
+      ...sanitized,
     };
   });
 
@@ -270,8 +287,9 @@ export const POSProvider = ({ children }) => {
 
   // Thermal Hardware & Label Printer Management
   const updatePrinterSettings = (newSettings) => {
-    setPrinterSettings(prev => ({ ...prev, ...newSettings }));
-    setShopSettings(prev => ({ ...prev, ...newSettings }));
+    const sanitized = sanitizePrinterConfig(newSettings);
+    setPrinterSettings(prev => ({ ...prev, ...sanitized }));
+    setShopSettings(prev => ({ ...prev, ...sanitized }));
     showToast('Printer hardware configuration updated successfully', 'success');
   };
 
@@ -300,25 +318,21 @@ export const POSProvider = ({ children }) => {
         setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
 
         const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
-        const bixolonMatch = names.find(n => /bixolon|srp/i.test(n));
-        const zebraMatch = names.find(n => /zdesigner|imz|zpl|zebra|gk888/i.test(n));
-        const targetReceipt = bixolonMatch || detectedReceipt || 'BIXOLON SRP-Q302';
-        const targetLabel = zebraMatch || detectedLabel || 'ZDesigner iMZ220 (ZPL)';
+        const bixolonMatch = names.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n));
+        const zebraMatch = names.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n));
+        const targetReceipt = bixolonMatch || (detectedReceipt && !LABEL_PRINTER_KEYWORD_REGEX.test(detectedReceipt) ? detectedReceipt : 'BIXOLON SRP-Q302');
+        const targetLabel = zebraMatch || (detectedLabel && !RECEIPT_PRINTER_KEYWORD_REGEX.test(detectedLabel) ? detectedLabel : 'ZDesigner iMZ220 (ZPL)');
 
-        setPrinterSettings(prev => ({
-          ...prev,
+        const sanitized = sanitizePrinterConfig({
           receiptPrinter: targetReceipt,
           labelPrinter: targetLabel,
           silentPrinting: true,
-        }));
-        setShopSettings(prev => ({
-          ...prev,
-          receiptPrinter: targetReceipt,
-          labelPrinter: targetLabel,
-          silentPrinting: true,
-        }));
+        });
 
-        showToast(`Printers Connected: Receipt (${targetReceipt}), Label (${targetLabel})`, 'success');
+        setPrinterSettings(prev => ({ ...prev, ...sanitized }));
+        setShopSettings(prev => ({ ...prev, ...sanitized }));
+
+        showToast(`Printers Connected: Receipt (${sanitized.receiptPrinter}), Label (${sanitized.labelPrinter})`, 'success');
         return;
       }
     } catch (err) {
@@ -334,24 +348,19 @@ export const POSProvider = ({ children }) => {
         setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
 
         const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
-        const bixolonMatch = names.find(n => /bixolon|srp/i.test(n));
-        const zebraMatch = names.find(n => /zdesigner|imz|zpl|zebra|gk888/i.test(n));
-        const targetReceipt = bixolonMatch || detectedReceipt || 'BIXOLON SRP-Q302';
-        const targetLabel = zebraMatch || detectedLabel || 'ZDesigner iMZ220 (ZPL)';
+        const bixolonMatch = names.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n));
+        const zebraMatch = names.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n));
+        const targetReceipt = bixolonMatch || (detectedReceipt && !LABEL_PRINTER_KEYWORD_REGEX.test(detectedReceipt) ? detectedReceipt : 'BIXOLON SRP-Q302');
+        const targetLabel = zebraMatch || (detectedLabel && !RECEIPT_PRINTER_KEYWORD_REGEX.test(detectedLabel) ? detectedLabel : 'ZDesigner iMZ220 (ZPL)');
 
-        setPrinterSettings(prev => ({
-          ...prev,
+        const sanitized = sanitizePrinterConfig({
           receiptPrinter: targetReceipt,
           labelPrinter: targetLabel,
           silentPrinting: true,
-        }));
+        });
 
-        setShopSettings(prev => ({
-          ...prev,
-          receiptPrinter: targetReceipt,
-          labelPrinter: targetLabel,
-          silentPrinting: true,
-        }));
+        setPrinterSettings(prev => ({ ...prev, ...sanitized }));
+        setShopSettings(prev => ({ ...prev, ...sanitized }));
       }
     }).catch(() => {});
   }, []);

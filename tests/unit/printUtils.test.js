@@ -212,4 +212,69 @@ describe('Print Utilities Unit Tests', () => {
       expect(doc.body.innerHTML).toContain('PRICE: Rs.');
     });
   });
+
+  describe('generateEscPosReceipt', () => {
+    it('generates authentic ESC/POS binary command string for BIXOLON thermal receipt printer', async () => {
+      const { generateEscPosReceipt } = await import('../../src/utils/printUtils');
+      const mockSaleData = {
+        receiptNumber: 'INV-ESC-999',
+        dateTime: '21-09-2026 23:00',
+        salesman: 'Ali Cashier',
+        paymentMethod: 'Cash',
+        subtotal: 5000,
+        netTotal: 5000,
+        amountReceived: 5000,
+        changeReturned: 0,
+        items: [
+          {
+            fabric: 'Wash & Wear Suit',
+            unitType: 'Suit',
+            qty: 1,
+            unitPrice: 5000,
+            total: 5000,
+          },
+        ],
+      };
+
+      const esc = generateEscPosReceipt(mockSaleData, {
+        shopName: 'NOVA MEN AND WOMEN',
+        shopLocation: 'Main Bazar, Gujrat',
+        shopPhone: '+92 300 1234567',
+      });
+
+      expect(esc).toContain('\x1b@'); // Initialize printer
+      expect(esc).toContain('NOVA MEN AND WOMEN');
+      expect(esc).toContain('INV-ESC-999');
+      expect(esc).toContain('Wash & Wear Suit');
+      expect(esc).toContain('Rs. 5,000');
+      expect(esc).toContain('\x1dV\x00'); // Paper cut command
+    });
+  });
+
+  describe('autoDetectPrinters strict partitioning', () => {
+    it('never cross-assigns label printer to receipt or receipt printer to label', async () => {
+      const { autoDetectPrinters } = await import('../../src/utils/printUtils');
+
+      const mockPrinters = [
+        'ZDesigner iMZ220 (ZPL)',
+        'BIXOLON SRP-Q302',
+        'Microsoft Print to PDF',
+      ];
+
+      const detected = autoDetectPrinters(mockPrinters);
+      expect(detected.detectedReceipt).toBe('BIXOLON SRP-Q302');
+      expect(detected.detectedLabel).toBe('ZDesigner iMZ220 (ZPL)');
+    });
+
+    it('correctly falls back if an inverted list is supplied', async () => {
+      const { autoDetectPrinters } = await import('../../src/utils/printUtils');
+
+      // Even if order is reversed:
+      const reversed = ['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)'];
+      const detected = autoDetectPrinters(reversed);
+      expect(detected.detectedReceipt).toBe('BIXOLON SRP-Q302');
+      expect(detected.detectedLabel).toBe('ZDesigner iMZ220 (ZPL)');
+    });
+  });
 });
+

@@ -128,33 +128,40 @@ async function resolvePrinterName(requestedName, type = 'any') {
       if (partial) return partial.name;
     }
 
-    const labelRegex = /label|barcode|sticker|xp-?3|gp-?1|gp-?2|gp-?3|tsc|zebra|zdesigner|zpl|epl|cpl|imz|mz\d|zd\d|gx\d|gk\d|gt\d|tlp|lp2|4bar|hprt|postek|godex|argox|gprinter|dymo|brother.*ql|intermec|datamax|bk-?l/i;
-    const receiptRegex = /receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|bixolon|srp|sam4s|58|xp-?58|pos-?58/i;
+    const labelRegex = /zdesigner|imz|zpl|epl|zebra|gk888|gc420|2844|2824|label|sticker|barcode|xp-?3/i;
+    const receiptRegex = /bixolon|srp|receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|sam4s|58|xp-?58|pos-?58/i;
     const physicalPrinters = sysPrinters.filter(p => !/pdf|onenote|xps|fax/i.test(p.name));
 
+    // STRICT TYPE ENFORCEMENT: Never allow label type to resolve to receipt printer, and vice versa
     if (type === 'label') {
+      if (requestedName && labelRegex.test(requestedName)) {
+        const match = sysPrinters.find(p => (p.name || '').toLowerCase() === requestedName.toLowerCase());
+        if (match) return match.name;
+      }
       const labelMatch = physicalPrinters.find(p => labelRegex.test(p.name));
       if (labelMatch) return labelMatch.name;
-      const receiptMatch = physicalPrinters.find(p => receiptRegex.test(p.name));
-      if (receiptMatch && physicalPrinters.length >= 2) {
-        const other = physicalPrinters.find(p => p.name !== receiptMatch.name);
-        if (other) return other.name;
-      }
-    } else if (type === 'receipt') {
-      const receiptMatch = physicalPrinters.find(p => receiptRegex.test(p.name));
-      if (receiptMatch) return receiptMatch.name;
-      const labelMatch = physicalPrinters.find(p => labelRegex.test(p.name));
-      if (labelMatch && physicalPrinters.length >= 2) {
-        const other = physicalPrinters.find(p => p.name !== labelMatch.name);
-        if (other) return other.name;
-      }
+      return 'ZDesigner iMZ220 (ZPL)';
     }
 
+    if (type === 'receipt') {
+      if (requestedName && receiptRegex.test(requestedName)) {
+        const match = sysPrinters.find(p => (p.name || '').toLowerCase() === requestedName.toLowerCase());
+        if (match) return match.name;
+      }
+      const receiptMatch = physicalPrinters.find(p => receiptRegex.test(p.name));
+      if (receiptMatch) return receiptMatch.name;
+      return 'BIXOLON SRP-Q302';
+    }
+
+    // Exact match fallback
+    const exact = sysPrinters.find(p => p.name === requestedName || p.displayName === requestedName);
+    if (exact) return exact.name;
+
     const def = sysPrinters.find(p => p.isDefault) || physicalPrinters[0] || sysPrinters[0];
-    return def ? def.name : requestedName;
+    return def ? def.name : (requestedName || 'BIXOLON SRP-Q302');
   } catch (err) {
     console.warn('Printer resolution warning:', err);
-    return requestedName;
+    return type === 'label' ? 'ZDesigner iMZ220 (ZPL)' : 'BIXOLON SRP-Q302';
   }
 }
 
@@ -194,23 +201,34 @@ ipcMain.handle('get-printers', async () => {
   }
 });
 
-ipcMain.handle('print-direct', async (event, { html, zpl, epl, deviceName, type = 'any', silent = true, pageSize }) => {
+ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceName, type = 'any', silent = true, pageSize }) => {
   try {
     const resolvedDevice = await resolvePrinterName(deviceName, type);
-    const isZebra = resolvedDevice && /zdesigner|zpl|zebra|imz|gk888|epl|gc420|2844|2824/i.test(resolvedDevice);
 
-    // If target is a Zebra / EPL printer and EPL or ZPL code is supplied, route raw commands directly to hardware spooler
-    if (isZebra && (epl || zpl)) {
-      const isEpl = Boolean(epl && detectEplHardware(resolvedDevice));
+    // 1. Label Printing (Strictly ZDesigner / Zebra GK888t)
+    if (type === 'label' || (type !== 'receipt' && (epl || zpl))) {
+      const targetPrinter = resolvedDevice || 'ZDesigner iMZ220 (ZPL)';
+      const isEpl = Boolean(epl && detectEplHardware(targetPrinter));
       const rawPayload = isEpl ? epl : (zpl || epl);
       const docName = isEpl ? 'EPL Barcode Label' : 'ZPL Barcode Label';
-      console.log(`Routing raw ${isEpl ? 'EPL' : 'ZPL'} print job directly to hardware: ${resolvedDevice}`);
+      console.log(`[Electron Hardware Bridge] Routing raw ${isEpl ? 'EPL' : 'ZPL'} to: ${targetPrinter}`);
 
-      const rawRes = await rawPrint(resolvedDevice, rawPayload, docName);
+      const rawRes = await rawPrint(targetPrinter, rawPayload, docName);
       if (rawRes.success) {
-        return { success: true, method: isEpl ? 'epl-raw' : 'zpl-raw', deviceName: resolvedDevice };
+        return { success: true, method: isEpl ? 'epl-raw' : 'zpl-raw', deviceName: targetPrinter };
       }
       console.warn(`Raw ${isEpl ? 'EPL' : 'ZPL'} print returned false, falling back to GDI raster window...`);
+    }
+
+    // 2. Thermal Receipt Printing (Strictly BIXOLON SRP-Q302)
+    if (type === 'receipt' || escpos) {
+      const targetPrinter = resolvedDevice || 'BIXOLON SRP-Q302';
+      const payload = escpos || html || '';
+      console.log(`[Electron Hardware Bridge] Routing raw ESC/POS to receipt printer: ${targetPrinter}`);
+      const rawRes = await rawPrint(targetPrinter, payload, 'Thermal POS Receipt');
+      if (rawRes.success) {
+        return { success: true, method: 'escpos-raw', deviceName: targetPrinter };
+      }
     }
 
     const printWindow = new BrowserWindow({
