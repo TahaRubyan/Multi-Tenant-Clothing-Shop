@@ -432,7 +432,7 @@ export const INITIAL_PRINTER_SETTINGS = {
   printMethod: 'thermal_transfer',
   autoPrintReceipt: true,
   autoPrintLabel: false,
-  silentPrinting: true,
+  silentPrinting: false,
   showReceiptModal: true,
 };
 
@@ -450,7 +450,7 @@ export const INITIAL_SHOP_SETTINGS = {
   labelSize: '50x30mm',
   printMethod: 'thermal_transfer',
   autoPrintReceipt: true,
-  silentPrinting: true,
+  silentPrinting: false,
 };
 
 export const INITIAL_PRODUCT_TEMPLATES = [
@@ -519,167 +519,10 @@ export const INITIAL_PRODUCT_TEMPLATES = [
   },
 ];
 
-export const INITIAL_DAY_SETTLEMENTS = [
-  {
-    id: 'set-2026-0901',
-    date: '01-09-2026',
-    closedAt: '01-09-2026 21:30',
-    closedBy: 'NOVA Store Administrator (Admin)',
-    cashierName: 'Front-Desk Terminal Cashier',
-    expectedCash: 34500,
-    actualCash: 34500,
-    discrepancy: 0,
-    digitalSales: 28000,
-    totalSales: 62500,
-    status: 'balanced',
-    reasonNote: 'Cashier drawer balanced perfectly with counter register.',
-  },
-];
+export const INITIAL_DAY_SETTLEMENTS = [];
 
-export const MOCK_SALES_LOG = [
-  {
-    receiptNumber: 'INV-2026-9201',
-    tenantId: 'tenant-nova-101',
-    dateTime: '22-09-2026 14:30',
-    salesman: 'Front-Desk Terminal Cashier',
-    salesmanId: 'u-cashier',
-    subtotal: 2400,
-    storewideDiscount: 0,
-    wholeSaleDiscount: 0,
-    wholeSaleDiscountPercent: 0,
-    netTotal: 2400,
-    grossProfit: 1200,
-    amountReceived: 3000,
-    changeReturned: 600,
-    paymentMethod: 'Cash',
-    items: [
-      { barcode: '1001', fabric: 'Khaadi Embroidered Ready-to-Wear Kurti (Mustard Yellow)', qty: 1, unitPrice: 2400, wholesalePrice: 1200, itemDiscount: 0, total: 2400, isReturn: false, unitType: 'Piece', department: 'Ladies Pret' },
-    ],
-  },
-  {
-    receiptNumber: 'INV-2026-9202',
-    tenantId: 'tenant-nova-101',
-    dateTime: '22-09-2026 15:45',
-    salesman: 'Front-Desk Terminal Cashier',
-    salesmanId: 'u-cashier',
-    subtotal: 6500,
-    storewideDiscount: 0,
-    wholeSaleDiscount: 0,
-    wholeSaleDiscountPercent: 0,
-    netTotal: 6500,
-    grossProfit: 3000,
-    amountReceived: 6500,
-    changeReturned: 0,
-    paymentMethod: 'Card',
-    items: [
-      { barcode: '1002', fabric: 'Pasha Premium Stitched Boski Gents Suit (Off-White)', qty: 1, unitPrice: 6500, wholesalePrice: 3500, itemDiscount: 0, total: 6500, isReturn: false, unitType: 'Suit', department: 'Gents Wear' },
-    ],
-  },
-  {
-    receiptNumber: 'INV-2026-9203',
-    tenantId: 'tenant-nova-101',
-    dateTime: '22-09-2026 16:30',
-    salesman: 'Front-Desk Terminal Cashier',
-    salesmanId: 'u-cashier',
-    subtotal: 2800,
-    storewideDiscount: 0,
-    wholeSaleDiscount: 0,
-    wholeSaleDiscountPercent: 0,
-    netTotal: 2800,
-    grossProfit: 1400,
-    amountReceived: 3000,
-    changeReturned: 200,
-    paymentMethod: 'Cash',
-    items: [
-      { barcode: '1003', fabric: 'Executive Royal Oxford Shirt - Formal (Sky Blue (L (42)))', qty: 1, unitPrice: 2800, wholesalePrice: 1400, itemDiscount: 0, total: 2800, isReturn: false, unitType: 'Piece', department: 'Gents Wear' },
-    ],
-  },
-  {
-    receiptNumber: 'INV-2026-9204',
-    tenantId: 'tenant-nova-101',
-    dateTime: '22-09-2026 17:15',
-    salesman: 'Front-Desk Terminal Cashier',
-    salesmanId: 'u-cashier',
-    subtotal: 9500,
-    storewideDiscount: 0,
-    wholeSaleDiscount: 0,
-    wholeSaleDiscountPercent: 0,
-    netTotal: 9500,
-    grossProfit: 5000,
-    amountReceived: 9500,
-    changeReturned: 0,
-    paymentMethod: 'Mobile Banking',
-    items: [
-      { barcode: '1004', fabric: 'Bareeze Stitched Pure Raw Silk 3-Piece Festive Pret (Deep Crimson Red)', qty: 1, unitPrice: 9500, wholesalePrice: 4500, itemDiscount: 0, total: 9500, isReturn: false, unitType: 'Suit', department: 'Ladies Pret' },
-    ],
-  },
-];
+export const MOCK_SALES_LOG = [];
 
-export const MOCK_STOCK_UPDATES = [
-  {
-    id: 'stk-1',
-    tenantId: 'tenant-nova-101',
-    barcode: 'PAK-LAD-101',
-    itemName: 'Gul Ahmed Premium Stitched 3-Piece Lawn Pret',
-    type: 'Lawn',
-    qtyAdded: 25,
-    unitType: 'Suit',
-    reason: 'Restock shipment from Gul Ahmed Wholesalers',
-    dateLogged: '28-08-2026 09:30',
-    loggedBy: 'Haji Muhammad Ahmed',
-    vendorId: 'ven-1',
-  },
-  {
-    id: 'stk-2',
-    tenantId: 'tenant-nova-101',
-    barcode: 'PAK-GNT-201',
-    itemName: 'J. Junaid Jamshed Stitched Kurta & Shalwar',
-    type: 'Cotton',
-    qtyAdded: 30,
-    unitType: 'Suit',
-    reason: 'Fresh Eid stock delivery from J. Agency',
-    dateLogged: '29-08-2026 11:15',
-    loggedBy: 'Haji Muhammad Ahmed',
-    vendorId: 'ven-3',
-  },
-  {
-    id: 'stk-3',
-    tenantId: 'tenant-nova-101',
-    barcode: 'PAK-BOX-880103',
-    itemName: 'J. Junaid Jamshed Jacquard Gift Box Set',
-    type: 'Jacquard',
-    qtyAdded: 15,
-    unitType: 'Box',
-    reason: 'Eid Gift Box collection restock',
-    dateLogged: '30-08-2026 14:00',
-    loggedBy: 'Haji Muhammad Ahmed',
-    vendorId: 'ven-3',
-  },
-];
+export const MOCK_STOCK_UPDATES = [];
 
-export const MOCK_DAMAGED_ITEMS = [
-  {
-    id: 'dmg-1',
-    tenantId: 'tenant-nova-101',
-    barcode: 'APP-SHT-550301',
-    itemName: 'Royal Cotton Oxford Slim-Fit Formal Shirt',
-    type: 'Cotton',
-    qtyRemoved: 1,
-    unitType: 'Piece',
-    reason: 'Cuff stitching fault detected during unboxing',
-    dateLogged: '27-08-2026 11:20',
-    loggedBy: 'Front-Desk Terminal Cashier',
-  },
-  {
-    id: 'dmg-2',
-    tenantId: 'tenant-nova-101',
-    barcode: 'PAK-LAD-101',
-    itemName: 'Gul Ahmed Premium Stitched 3-Piece Lawn Pret',
-    type: 'Lawn',
-    qtyRemoved: 1,
-    unitType: 'Suit',
-    reason: 'Button missing on front neckline piece',
-    dateLogged: '29-08-2026 16:40',
-    loggedBy: 'Front-Desk Terminal Cashier',
-  },
-];
+export const MOCK_DAMAGED_ITEMS = [];

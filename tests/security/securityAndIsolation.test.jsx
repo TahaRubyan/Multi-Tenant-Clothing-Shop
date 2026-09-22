@@ -89,6 +89,6 @@ describe('Security, Authorization & Multi-Tenant Isolation Tests', () => {
     });
 
     expect(saleResult).toBeNull();
-    expect(result.current.salesLogs.length).toBe(4); // Only initial mock sales
+    expect(result.current.salesLogs.length).toBe(0); // Cart is empty, no sales created
   });
 });

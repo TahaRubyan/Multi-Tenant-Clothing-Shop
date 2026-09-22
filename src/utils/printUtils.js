@@ -161,12 +161,12 @@ function fallbackIframePrint(htmlContent, shouldTriggerPrint = true) {
 
   const iframe = document.createElement('iframe');
   iframe.id = 'pos-clean-print-frame';
-  // Use off-screen rendering with real viewport dimensions so layout engines evaluate CSS properly
+  // Use on-screen rendering with full viewport dimensions so browser layout engines evaluate CSS and SVG properly
   iframe.style.position = 'fixed';
-  iframe.style.left = '-9999px';
-  iframe.style.top = '-9999px';
-  iframe.style.width = '400px';
-  iframe.style.height = '400px';
+  iframe.style.left = '0';
+  iframe.style.top = '0';
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
   iframe.style.border = 'none';
   iframe.style.opacity = '0';
   iframe.style.pointerEvents = 'none';
@@ -181,7 +181,7 @@ function fallbackIframePrint(htmlContent, shouldTriggerPrint = true) {
     frameDoc.close();
 
     if (shouldTriggerPrint) {
-      // Allow CSS rendering before initiating print
+      // Allow CSS rendering and SVG vector rasterization before initiating print pop-up
       setTimeout(() => {
         try {
           if (iframe.contentWindow && typeof iframe.contentWindow.print === 'function') {
@@ -194,7 +194,7 @@ function fallbackIframePrint(htmlContent, shouldTriggerPrint = true) {
           console.warn('Iframe print warning, falling back to window.print:', err);
           if (typeof window.print === 'function') window.print();
         }
-      }, 250);
+      }, 350);
     }
   } catch (err) {
     console.error('Print initialization error:', err);
@@ -348,7 +348,7 @@ function executePrint(htmlContent, options = {}) {
   }
 
   // 1. Direct Hardware Print via Electron IPC (silent, zero popup)
-  if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.printDirect === 'function') {
+  if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.printDirect === 'function' && window.electronAPI.platform) {
     const deviceName = options?.deviceName;
     const silent = options?.silent !== false;
     const pageSize = options?.pageSize;
@@ -367,88 +367,42 @@ function executePrint(htmlContent, options = {}) {
       silent,
       pageSize,
     }).catch(err => {
-      console.warn('Electron direct print warning, falling back to frame:', err);
+      console.warn('Electron direct print warning, falling back to browser print dialog:', err);
+      fallbackIframePrint(htmlContent, true);
     });
 
-    // In true Electron environment, direct print was dispatched
-    if (window.electronAPI.platform) {
-      return;
-    }
+    return;
   }
 
+  // 2. Web / Browser / Vercel Mode:
+  // Trigger browser print pop-up dialog so user can select their printer and print directly
+  fallbackIframePrint(htmlContent, true);
+
+  // Optional background bridge dispatch for local workstation printing
   const isHttpEnv = typeof window !== 'undefined' &&
     window.location &&
     window.location.protocol &&
     window.location.protocol.startsWith('http') &&
     !(typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.VITEST));
 
-  const isLabelJob = options?.type === 'label' || Boolean(options?.zpl || options?.epl);
-  const isSilentReceiptJob = options?.type === 'receipt' && options?.silent !== false;
-  const isBridgeJob = (isLabelJob || isSilentReceiptJob);
-
-  // Pop-up occurs ONLY if the user explicitly requested interactive/non-silent browser print
-  const shouldTriggerBrowserPrint = Boolean(options?.forceBrowserPrint || options?.silent === false);
-
-  // Render isolated frame (guarantees DOM presence, unit tests, and layout)
-  fallbackIframePrint(htmlContent, shouldTriggerBrowserPrint);
-
-  // 2. Hardware Bridge via Localhost / Dev Server API
-  if (isHttpEnv && isBridgeJob && typeof fetch === 'function') {
+  if (isHttpEnv && typeof fetch === 'function') {
     const payload = JSON.stringify({
       html: htmlContent,
       zpl: options.zpl,
       epl: options.epl,
       escpos: options.escpos,
       deviceName: options.deviceName,
-      type: options.type || (isLabelJob ? 'label' : 'receipt'),
+      type: options.type || 'receipt',
       silent: options.silent !== false,
       pageSize: options.pageSize,
     });
 
-    const sendBridgeJob = async () => {
-      // First try relative endpoint (/api/print-direct)
-      try {
-        const res = await fetch('/api/print-direct', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          console.log(`[Hardware Print Bridge] Direct ${options.type || 'hardware'} print job sent:`, data);
-          return;
-        }
-      } catch (_) {}
-
-      // If relative failed (e.g. running on Vercel deployment), probe local POS workstation bridge
-      if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        try {
-          const res = await fetch('http://127.0.0.1:3000/api/print-direct', {
-            method: 'POST',
-            mode: 'cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload,
-          });
-          if (res.ok) {
-            const data = await res.json();
-            console.log(`[Local Workstation Bridge] Print job routed to physical printer:`, data);
-            return;
-          }
-        } catch (_) {}
-      }
-
-      // If both bridges unavailable:
-      // If user specifically requested non-silent print dialog, trigger iframe print
-      if (shouldTriggerBrowserPrint) {
-        fallbackIframePrint(htmlContent, true);
-      } else {
-        console.info(`[POS Print Router] Hardware bridge unreachable for silent print. Document prepared in print frame.`);
-      }
-    };
-
-    sendBridgeJob().catch(err => {
-      console.warn('Hardware print dispatch warning:', err);
-    });
+    // Fire-and-forget probe local workstation bridge if present
+    fetch('/api/print-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+    }).catch(() => {});
   }
 }
 
@@ -952,27 +906,28 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
         color-adjust: exact !important;
       }
       html, body {
-        width: 50mm !important;
-        height: 30mm !important;
-        max-width: 50mm !important;
-        max-height: 30mm !important;
+        width: 100% !important;
+        height: auto !important;
         margin: 0mm !important;
         padding: 0mm !important;
-        overflow: hidden !important;
         background: #ffffff !important;
         color: #000000 !important;
       }
       .sticker-label {
-        width: 50mm !important;
-        height: 30mm !important;
-        max-width: 50mm !important;
-        max-height: 30mm !important;
-        margin: 0mm !important;
+        width: 48mm !important;
+        height: 28mm !important;
+        max-width: 48mm !important;
+        max-height: 28mm !important;
+        margin: 1mm auto !important;
         box-sizing: border-box !important;
-        page-break-after: always !important;
-        break-after: page !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+      .sticker-label:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
     }
     * {
@@ -984,8 +939,8 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       color-adjust: exact !important;
     }
     html, body {
-      width: 50mm;
-      height: 30mm;
+      width: 100%;
+      height: auto;
       margin: 0;
       padding: 0;
       background: #ffffff !important;
@@ -996,10 +951,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       shape-rendering: crispEdges !important;
     }
     .sticker-label {
-      width: 50mm;
-      height: 30mm;
-      max-width: 50mm;
-      max-height: 30mm;
+      width: 48mm;
+      height: 28mm;
+      max-width: 48mm;
+      max-height: 28mm;
       padding: 1mm 1.5mm;
       display: flex;
       flex-direction: column;
@@ -1008,10 +963,16 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       text-align: center;
       background: #ffffff !important;
       color: #000000 !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
       page-break-after: always;
       break-after: page;
       overflow: hidden;
       border: 1px solid #000000;
+    }
+    .sticker-label:last-child {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
     }
     .lbl-shop-name {
       font-size: 8px;

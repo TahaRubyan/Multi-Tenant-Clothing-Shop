@@ -22,7 +22,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v8.3_four_items_clean';
+const POS_DATA_VERSION = 'v8.4_clean_logs';
 
 // Clean one-time migration for legacy localStorage cache
 try {
@@ -59,7 +59,7 @@ const getStoredOrDefault = (key, defaultVal) => {
     const saved = localStorage.getItem(key);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(defaultVal) && (!Array.isArray(parsed) || parsed.length === 0)) {
+      if (Array.isArray(defaultVal) && defaultVal.length > 0 && (!Array.isArray(parsed) || parsed.length === 0)) {
         return defaultVal;
       }
       return parsed;

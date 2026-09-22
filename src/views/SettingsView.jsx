@@ -68,8 +68,8 @@ export const SettingsView = () => {
   const [labelSize, setLabelSize] = useState(printerSettings?.labelSize || '50x30mm');
   const [printMethod, setPrintMethod] = useState(printerSettings?.printMethod || 'thermal_transfer');
   const [autoPrintReceipt, setAutoPrintReceipt] = useState(printerSettings?.autoPrintReceipt !== false);
-  const [silentPrinting, setSilentPrinting] = useState(printerSettings?.silentPrinting !== false);
-  const [showReceiptModal, setShowReceiptModal] = useState(printerSettings?.showReceiptModal === true);
+  const [silentPrinting, setSilentPrinting] = useState(printerSettings?.silentPrinting === true);
+  const [showReceiptModal, setShowReceiptModal] = useState(printerSettings?.showReceiptModal !== false);
 
   // Synchronize local form state whenever POSContext printer settings update
   useEffect(() => {

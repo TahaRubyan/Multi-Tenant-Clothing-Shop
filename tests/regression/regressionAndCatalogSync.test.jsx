@@ -126,8 +126,8 @@ describe('Regression & System-Wide 4-Item Catalog Sync Tests', () => {
   it('updates Dashboard KPIs in real time when completing Cash and Digital sales', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    // Initial 4 sales logged today
-    expect(result.current.salesLogs.length).toBe(4);
+    // Starts with clean salesLogs register for live demo
+    expect(result.current.salesLogs.length).toBe(0);
 
     const initialP1Stock = result.current.products.find(p => p.barcode === '1001').stock;
 
@@ -145,7 +145,7 @@ describe('Regression & System-Wide 4-Item Catalog Sync Tests', () => {
 
     // Verify stock decremented
     expect(result.current.products.find(p => p.barcode === '1001').stock).toBe(initialP1Stock - 1);
-    expect(result.current.salesLogs.length).toBe(5);
+    expect(result.current.salesLogs.length).toBe(1);
 
     // Render Dashboard to verify live metric cards
     render(

@@ -35,26 +35,25 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
     expect(p1004.stock).toBe(15);
   });
 
-  it('contains the 4 live demo test sales dated for today in salesLogs', () => {
+  it('starts with a clean salesLogs register for live demo and records new sales accurately', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    const inv1 = result.current.salesLogs.find((s) => s.receiptNumber === 'INV-2026-9201');
-    const inv2 = result.current.salesLogs.find((s) => s.receiptNumber === 'INV-2026-9202');
-    const inv3 = result.current.salesLogs.find((s) => s.receiptNumber === 'INV-2026-9203');
-    const inv4 = result.current.salesLogs.find((s) => s.receiptNumber === 'INV-2026-9204');
+    expect(result.current.salesLogs.length).toBe(0);
 
-    expect(inv1).toBeDefined();
-    expect(inv1.dateTime).toContain('22-09-2026');
-    expect(inv1.netTotal).toBe(2400);
+    act(() => {
+      const p1 = result.current.products.find((p) => p.barcode === '1001');
+      result.current.addToCart(p1, 1);
+    });
 
-    expect(inv2).toBeDefined();
-    expect(inv2.netTotal).toBe(6500);
+    let completed;
+    act(() => {
+      completed = result.current.completeSale('Cash', 3000);
+    });
 
-    expect(inv3).toBeDefined();
-    expect(inv3.netTotal).toBe(2800);
-
-    expect(inv4).toBeDefined();
-    expect(inv4.netTotal).toBe(9500);
+    expect(completed).not.toBeNull();
+    expect(result.current.salesLogs.length).toBe(1);
+    expect(result.current.salesLogs[0].netTotal).toBe(2160);
+    expect(result.current.salesLogs[0].paymentMethod).toBe('Cash');
   });
 
   it('deducts stock upon completing a sale and synchronizes immediately with Analytics', () => {
