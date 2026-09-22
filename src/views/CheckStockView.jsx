@@ -13,6 +13,7 @@ import {
   Layers,
   DollarSign,
   Printer,
+  Tag,
   Lock,
   KeyRound,
   X,
@@ -107,8 +108,8 @@ export const CheckStockView = () => {
     }
   };
 
-  const handleSavePriceEdit = (e) => {
-    e.preventDefault();
+  const handleSavePriceEdit = (e, andPrint = false) => {
+    if (e) e.preventDefault();
     if (!editPriceModalProduct) return;
 
     const newRetail = parseFloat(editRetail) || editPriceModalProduct.retailPrice;
@@ -117,14 +118,15 @@ export const CheckStockView = () => {
     updateProductPrices(editPriceModalProduct.id, newWholesale, newRetail);
     showToast(`Updated prices for ${editPriceModalProduct.fabricMaterial}`, 'success');
 
-    // Pop up thermal sticker modal defaulted to in-stock count
-    const updatedProd = {
-      ...editPriceModalProduct,
-      retailPrice: newRetail,
-      wholesalePrice: newWholesale,
-    };
-    setStickerModalProduct(updatedProd);
-    setStickerPrintCount(editPriceModalProduct.stock > 0 ? editPriceModalProduct.stock : 1);
+    if (andPrint) {
+      const updatedProd = {
+        ...editPriceModalProduct,
+        retailPrice: newRetail,
+        wholesalePrice: newWholesale,
+      };
+      setStickerModalProduct(updatedProd);
+      setStickerPrintCount(editPriceModalProduct.stock > 0 ? editPriceModalProduct.stock : 1);
+    }
     setEditPriceModalProduct(null);
   };
 
@@ -443,13 +445,22 @@ export const CheckStockView = () => {
                 />
               </div>
 
-              <div className="modal-actions flex-end gap-2">
+              <div className="modal-actions flex-between pt-2">
                 <button type="button" className="btn btn-secondary" onClick={() => setEditPriceModalProduct(null)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary flex-align-center gap-1">
-                  <CheckCircle2 size={16} /> Save & Print New Price Stickers
-                </button>
+                <div className="flex-align-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary flex-align-center gap-1"
+                    onClick={(e) => handleSavePriceEdit(e, true)}
+                  >
+                    <Tag size={15} /> Save &amp; Print Stickers
+                  </button>
+                  <button type="submit" className="btn btn-primary flex-align-center gap-1">
+                    <CheckCircle2 size={16} /> Save Changes
+                  </button>
+                </div>
               </div>
             </form>
           </div>

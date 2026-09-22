@@ -74,10 +74,10 @@ export function sanitizePrinterConfig(settings = {}) {
   const rawRec = settings?.receiptPrinter;
   const rawLbl = settings?.labelPrinter;
 
-  const isInvalidRec = !rawRec || rawRec.includes('Default') || rawRec.includes('XP-80C') || LABEL_PRINTER_KEYWORD_REGEX.test(rawRec);
+  const isInvalidRec = !rawRec || rawRec === 'Default System Printer' || LABEL_PRINTER_KEYWORD_REGEX.test(rawRec);
   const receiptPrinter = isInvalidRec ? 'BIXOLON SRP-Q302' : rawRec;
 
-  const isInvalidLbl = !rawLbl || rawLbl.includes('Default') || rawLbl.includes('XP-365B') || RECEIPT_PRINTER_KEYWORD_REGEX.test(rawLbl);
+  const isInvalidLbl = !rawLbl || rawLbl === 'Default System Printer' || RECEIPT_PRINTER_KEYWORD_REGEX.test(rawLbl);
   const labelPrinter = isInvalidLbl ? 'ZDesigner iMZ220 (ZPL)' : rawLbl;
 
   return {
@@ -155,7 +155,13 @@ export const POSProvider = ({ children }) => {
 
   const [availablePrinters, setAvailablePrinters] = useState([
     'BIXOLON SRP-Q302',
+    'POS-80 / XP-80C Thermal Receipt',
+    'Epson TM-T20 / TM-T82 Receipt',
     'ZDesigner iMZ220 (ZPL)',
+    'Zebra GK888t (EPL / ZPL)',
+    'Xprinter XP-365B (50x30mm Label)',
+    'TSC TTP-244 Pro Barcode',
+    'Generic 50x30mm Sticker Printer',
     'Default System Printer',
     'Microsoft Print to PDF',
   ]);
@@ -338,6 +344,7 @@ export const POSProvider = ({ children }) => {
         if (Array.isArray(sysPrinters) && sysPrinters.length > 0) return sysPrinters;
       } catch (_) {}
     }
+    // Try relative /api/printers
     try {
       const res = await fetch('/api/printers');
       if (res.ok) {
@@ -345,6 +352,18 @@ export const POSProvider = ({ children }) => {
         if (Array.isArray(sysPrinters) && sysPrinters.length > 0) return sysPrinters;
       }
     } catch (_) {}
+
+    // Probe local POS workstation hardware bridge (127.0.0.1:3000) when deployed on Vercel
+    if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      try {
+        const res = await fetch('http://127.0.0.1:3000/api/printers', { mode: 'cors' });
+        if (res.ok) {
+          const sysPrinters = await res.json();
+          if (Array.isArray(sysPrinters) && sysPrinters.length > 0) return sysPrinters;
+        }
+      } catch (_) {}
+    }
+
     return [];
   };
 
@@ -353,11 +372,11 @@ export const POSProvider = ({ children }) => {
       const sysPrinters = await fetchSystemPrinters();
       if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
         const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
-        setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
+        setAvailablePrinters(prev => Array.from(new Set([...prev, ...names])));
 
         const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
-        const bixolonMatch = names.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n));
-        const zebraMatch = names.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n));
+        const bixolonMatch = names.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n) && !LABEL_PRINTER_KEYWORD_REGEX.test(n));
+        const zebraMatch = names.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n) && !RECEIPT_PRINTER_KEYWORD_REGEX.test(n));
         const targetReceipt = bixolonMatch || (detectedReceipt && !LABEL_PRINTER_KEYWORD_REGEX.test(detectedReceipt) ? detectedReceipt : 'BIXOLON SRP-Q302');
         const targetLabel = zebraMatch || (detectedLabel && !RECEIPT_PRINTER_KEYWORD_REGEX.test(detectedLabel) ? detectedLabel : 'ZDesigner iMZ220 (ZPL)');
 
@@ -377,18 +396,18 @@ export const POSProvider = ({ children }) => {
     } catch (err) {
       console.warn('Could not fetch hardware printers:', err);
     }
-    showToast('Hardware printer list refreshed', 'info');
+    showToast('Hardware printer scan completed', 'info');
   };
 
   useEffect(() => {
     fetchSystemPrinters().then(sysPrinters => {
       if (Array.isArray(sysPrinters) && sysPrinters.length > 0) {
         const names = sysPrinters.map(p => p.name || p.displayName).filter(Boolean);
-        setAvailablePrinters(['BIXOLON SRP-Q302', 'ZDesigner iMZ220 (ZPL)', 'Default System Printer', ...new Set(names)]);
+        setAvailablePrinters(prev => Array.from(new Set([...prev, ...names])));
 
         const { detectedReceipt, detectedLabel } = autoDetectPrinters(sysPrinters);
-        const bixolonMatch = names.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n));
-        const zebraMatch = names.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n));
+        const bixolonMatch = names.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n) && !LABEL_PRINTER_KEYWORD_REGEX.test(n));
+        const zebraMatch = names.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n) && !RECEIPT_PRINTER_KEYWORD_REGEX.test(n));
         const targetReceipt = bixolonMatch || (detectedReceipt && !LABEL_PRINTER_KEYWORD_REGEX.test(detectedReceipt) ? detectedReceipt : 'BIXOLON SRP-Q302');
         const targetLabel = zebraMatch || (detectedLabel && !RECEIPT_PRINTER_KEYWORD_REGEX.test(detectedLabel) ? detectedLabel : 'ZDesigner iMZ220 (ZPL)');
 

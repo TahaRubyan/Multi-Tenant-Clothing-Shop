@@ -143,8 +143,8 @@ async function resolvePrinterName(requestedName, type = 'any') {
       return type === 'label' ? 'ZDesigner iMZ220 (ZPL)' : 'BIXOLON SRP-Q302';
     }
 
-    const labelRegex = /zdesigner|imz|zpl|epl|zebra|gk888|gc420|2844|2824|label|sticker|barcode|xp-?3/i;
-    const receiptRegex = /bixolon|srp|receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|sam4s|58|xp-?58|pos-?58/i;
+    const labelRegex = /zdesigner|imz|zpl|epl|zebra|gk888|gc420|2844|2824|label|sticker|barcode|xp-?3|tsc|ttp|gprinter|gp-?3|4barcode|xprinter.*3|honeywell|godex|argox|citizen.*cl/i;
+    const receiptRegex = /bixolon|srp|receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|sam4s|58|xp-?58|pos-?58|hprt|rongta|senor|black.*copper/i;
     const physicalPrinters = sysPrinters.filter(p => !/pdf|onenote|xps|fax/i.test(p.name));
 
     // STRICT TYPE ENFORCEMENT: Never allow label type to resolve to receipt printer, and vice versa
@@ -153,7 +153,7 @@ async function resolvePrinterName(requestedName, type = 'any') {
         const match = sysPrinters.find(p => p.name.toLowerCase() === requestedName.toLowerCase());
         if (match) return match.name;
       }
-      const labelMatch = physicalPrinters.find(p => labelRegex.test(p.name));
+      const labelMatch = physicalPrinters.find(p => labelRegex.test(p.name) && !receiptRegex.test(p.name)) || physicalPrinters.find(p => labelRegex.test(p.name));
       if (labelMatch) return labelMatch.name;
       return 'ZDesigner iMZ220 (ZPL)';
     }
@@ -163,7 +163,7 @@ async function resolvePrinterName(requestedName, type = 'any') {
         const match = sysPrinters.find(p => p.name.toLowerCase() === requestedName.toLowerCase());
         if (match) return match.name;
       }
-      const receiptMatch = physicalPrinters.find(p => receiptRegex.test(p.name));
+      const receiptMatch = physicalPrinters.find(p => receiptRegex.test(p.name) && !labelRegex.test(p.name)) || physicalPrinters.find(p => receiptRegex.test(p.name));
       if (receiptMatch) return receiptMatch.name;
       return 'BIXOLON SRP-Q302';
     }
@@ -185,6 +185,15 @@ function hardwarePrintBridge() {
     configureServer(server) {
       // 1. GET /api/printers
       server.middlewares.use('/api/printers', async (req, res, next) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204;
+          return res.end();
+        }
+
         if (req.method === 'GET') {
           try {
             const printers = await getWindowsPrinters();
@@ -200,6 +209,15 @@ function hardwarePrintBridge() {
 
       // 2. POST /api/print-direct
       server.middlewares.use('/api/print-direct', (req, res, next) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204;
+          return res.end();
+        }
+
         if (req.method === 'POST') {
           let body = '';
           req.on('data', chunk => { body += chunk; });

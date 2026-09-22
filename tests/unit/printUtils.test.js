@@ -310,6 +310,34 @@ describe('Print Utilities Unit Tests', () => {
       expect(detected.detectedReceipt).toBe('BIXOLON SRP-Q302');
       expect(detected.detectedLabel).toBe('ZDesigner iMZ220 (ZPL)');
     });
+
+    it('detects common Pakistani market printers like Zebra GK888t and POS-80 without confusion', async () => {
+      const { autoDetectPrinters } = await import('../../src/utils/printUtils');
+
+      const mockPrinters = [
+        'Zebra GK888t',
+        'POS-80 Series',
+        'Microsoft XPS Document Writer',
+      ];
+
+      const detected = autoDetectPrinters(mockPrinters);
+      expect(detected.detectedReceipt).toBe('POS-80 Series');
+      expect(detected.detectedLabel).toBe('Zebra GK888t');
+    });
+
+    it('detects Xprinter XP-365B as label printer and XP-80C as receipt printer', async () => {
+      const { autoDetectPrinters } = await import('../../src/utils/printUtils');
+
+      const mockPrinters = [
+        'Xprinter XP-365B',
+        'Xprinter XP-80C',
+        'Fax',
+      ];
+
+      const detected = autoDetectPrinters(mockPrinters);
+      expect(detected.detectedReceipt).toBe('Xprinter XP-80C');
+      expect(detected.detectedLabel).toBe('Xprinter XP-365B');
+    });
   });
 });
 

@@ -67,7 +67,7 @@ export function generateBarcodeSvg(code = '000000000000', options = {}) {
       const w = parseInt(pattern[p], 10) * moduleWidth;
       const isBar = p % 2 === 0;
       if (isBar) {
-        rects.push(`<rect x="${currentX}" y="0" width="${w}" height="${height}" fill="#000000" />`);
+        rects.push(`<rect x="${currentX}" y="0" width="${w}" height="${height}" fill="#000000" shape-rendering="crispEdges" />`);
       }
       currentX += w;
     }
@@ -75,14 +75,14 @@ export function generateBarcodeSvg(code = '000000000000', options = {}) {
 
   const totalWidth = currentX + (quietZoneModules * moduleWidth);
 
-  return `<svg viewBox="0 0 ${totalWidth} ${height}" preserveAspectRatio="none" style="width: 100%; height: 100%; display: block;">
-    <rect x="0" y="0" width="${totalWidth}" height="${height}" fill="#ffffff" />
+  return `<svg viewBox="0 0 ${totalWidth} ${height}" preserveAspectRatio="none" shape-rendering="crispEdges" style="width: 100%; height: 100%; display: block; shape-rendering: crispEdges;">
+    <rect x="0" y="0" width="${totalWidth}" height="${height}" fill="#ffffff" shape-rendering="crispEdges" />
     ${rects.join('')}
   </svg>`;
 }
 
-export const LABEL_PRINTER_KEYWORD_REGEX = /zdesigner|imz|zpl|epl|zebra|gk888|gc420|2844|2824|label|sticker|barcode|xp-?3/i;
-export const RECEIPT_PRINTER_KEYWORD_REGEX = /bixolon|srp|receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|sam4s|58|xp-?58|pos-?58/i;
+export const LABEL_PRINTER_KEYWORD_REGEX = /zdesigner|imz|zpl|epl|zebra|gk888|gc420|2844|2824|label|sticker|barcode|xp-?3|tsc|ttp|gprinter|gp-?3|4barcode|xprinter.*3|honeywell|godex|argox|citizen.*cl/i;
+export const RECEIPT_PRINTER_KEYWORD_REGEX = /bixolon|srp|receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|sam4s|58|xp-?58|pos-?58|hprt|rongta|senor|black.*copper/i;
 
 /**
  * Automatically identify connected receipt printer and label printer without user pop-ups.
@@ -98,6 +98,16 @@ export function autoDetectPrinters(printers = []) {
 
   // 1. Keyword search with strict partition
   for (const name of validPrinters) {
+    if (!detectedLabel && LABEL_PRINTER_KEYWORD_REGEX.test(name) && !RECEIPT_PRINTER_KEYWORD_REGEX.test(name)) {
+      detectedLabel = name;
+    }
+    if (!detectedReceipt && RECEIPT_PRINTER_KEYWORD_REGEX.test(name) && !LABEL_PRINTER_KEYWORD_REGEX.test(name)) {
+      detectedReceipt = name;
+    }
+  }
+
+  // 2. Secondary pass if still missing
+  for (const name of validPrinters) {
     if (!detectedLabel && LABEL_PRINTER_KEYWORD_REGEX.test(name)) {
       detectedLabel = name;
     }
@@ -106,7 +116,7 @@ export function autoDetectPrinters(printers = []) {
     }
   }
 
-  // 2. Disallow crossed assignment
+  // 3. Disallow crossed assignment
   if (detectedReceipt && LABEL_PRINTER_KEYWORD_REGEX.test(detectedReceipt)) {
     detectedReceipt = null;
   }
@@ -114,7 +124,7 @@ export function autoDetectPrinters(printers = []) {
     detectedLabel = null;
   }
 
-  // 3. Fallback heuristic for 2 physical devices (ignoring virtual PDF/Fax/OneNote)
+  // 4. Fallback heuristic for physical devices (ignoring virtual PDF/Fax/OneNote)
   const physicalPrinters = validPrinters.filter(
     n => !/pdf|onenote|xps|fax|default/i.test(n)
   );
@@ -126,16 +136,16 @@ export function autoDetectPrinters(printers = []) {
       detectedLabel = physicalPrinters.find(p => p !== detectedReceipt && !RECEIPT_PRINTER_KEYWORD_REGEX.test(p)) || 'ZDesigner iMZ220 (ZPL)';
     } else if (!detectedReceipt && !detectedLabel) {
       detectedReceipt = physicalPrinters.find(p => RECEIPT_PRINTER_KEYWORD_REGEX.test(p)) || physicalPrinters[0];
-      detectedLabel = physicalPrinters.find(p => LABEL_PRINTER_KEYWORD_REGEX.test(p)) || physicalPrinters[1];
+      detectedLabel = physicalPrinters.find(p => p !== detectedReceipt && LABEL_PRINTER_KEYWORD_REGEX.test(p)) || physicalPrinters[1];
     }
   }
 
   // Final guarantees
   if (!detectedReceipt || LABEL_PRINTER_KEYWORD_REGEX.test(detectedReceipt)) {
-    detectedReceipt = validPrinters.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n)) || 'BIXOLON SRP-Q302';
+    detectedReceipt = validPrinters.find(n => RECEIPT_PRINTER_KEYWORD_REGEX.test(n) && !LABEL_PRINTER_KEYWORD_REGEX.test(n)) || 'BIXOLON SRP-Q302';
   }
   if (!detectedLabel || RECEIPT_PRINTER_KEYWORD_REGEX.test(detectedLabel)) {
-    detectedLabel = validPrinters.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n)) || 'ZDesigner iMZ220 (ZPL)';
+    detectedLabel = validPrinters.find(n => LABEL_PRINTER_KEYWORD_REGEX.test(n) && !RECEIPT_PRINTER_KEYWORD_REGEX.test(n)) || 'ZDesigner iMZ220 (ZPL)';
   }
 
   return { detectedReceipt, detectedLabel };
@@ -151,15 +161,16 @@ function fallbackIframePrint(htmlContent, shouldTriggerPrint = true) {
 
   const iframe = document.createElement('iframe');
   iframe.id = 'pos-clean-print-frame';
+  // Use off-screen rendering with real viewport dimensions so layout engines evaluate CSS properly
   iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0px';
-  iframe.style.height = '0px';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '-9999px';
+  iframe.style.width = '400px';
+  iframe.style.height = '400px';
   iframe.style.border = 'none';
   iframe.style.opacity = '0';
   iframe.style.pointerEvents = 'none';
-  iframe.style.zIndex = '-9999';
+  iframe.style.zIndex = '-99999';
 
   document.body.appendChild(iframe);
 
@@ -375,36 +386,69 @@ function executePrint(htmlContent, options = {}) {
   const isSilentReceiptJob = options?.type === 'receipt' && options?.silent !== false;
   const isBridgeJob = (isLabelJob || isSilentReceiptJob);
 
-  // In HTTP browser environment with bridge available, silent jobs are handled with zero popups
-  const shouldTriggerBrowserPrint = !(isHttpEnv && isBridgeJob);
+  // Pop-up occurs ONLY if the user explicitly requested interactive/non-silent browser print
+  const shouldTriggerBrowserPrint = Boolean(options?.forceBrowserPrint || options?.silent === false);
 
   // Render isolated frame (guarantees DOM presence, unit tests, and layout)
   fallbackIframePrint(htmlContent, shouldTriggerBrowserPrint);
 
-  // 2. Hardware Bridge via Vite Dev Server API (for Browser / Chrome)
+  // 2. Hardware Bridge via Localhost / Dev Server API
   if (isHttpEnv && isBridgeJob && typeof fetch === 'function') {
-    fetch('/api/print-direct', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        html: htmlContent,
-        zpl: options.zpl,
-        epl: options.epl,
-        escpos: options.escpos,
-        deviceName: options.deviceName,
-        type: options.type || (isLabelJob ? 'label' : 'receipt'),
-        silent: options.silent !== false,
-        pageSize: options.pageSize,
-      }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log(`[Hardware Print Bridge] Direct ${options.type || 'hardware'} print job sent:`, data);
-      })
-      .catch(err => {
-        console.warn('Hardware print bridge fetch error, triggering browser fallback:', err);
+    const payload = JSON.stringify({
+      html: htmlContent,
+      zpl: options.zpl,
+      epl: options.epl,
+      escpos: options.escpos,
+      deviceName: options.deviceName,
+      type: options.type || (isLabelJob ? 'label' : 'receipt'),
+      silent: options.silent !== false,
+      pageSize: options.pageSize,
+    });
+
+    const sendBridgeJob = async () => {
+      // First try relative endpoint (/api/print-direct)
+      try {
+        const res = await fetch('/api/print-direct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          console.log(`[Hardware Print Bridge] Direct ${options.type || 'hardware'} print job sent:`, data);
+          return;
+        }
+      } catch (_) {}
+
+      // If relative failed (e.g. running on Vercel deployment), probe local POS workstation bridge
+      if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        try {
+          const res = await fetch('http://127.0.0.1:3000/api/print-direct', {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+          });
+          if (res.ok) {
+            const data = await res.json();
+            console.log(`[Local Workstation Bridge] Print job routed to physical printer:`, data);
+            return;
+          }
+        } catch (_) {}
+      }
+
+      // If both bridges unavailable:
+      // If user specifically requested non-silent print dialog, trigger iframe print
+      if (shouldTriggerBrowserPrint) {
         fallbackIframePrint(htmlContent, true);
-      });
+      } else {
+        console.info(`[POS Print Router] Hardware bridge unreachable for silent print. Document prepared in print frame.`);
+      }
+    };
+
+    sendBridgeJob().catch(err => {
+      console.warn('Hardware print dispatch warning:', err);
+    });
   }
 }
 
@@ -707,7 +751,7 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
   const rawDevice = options?.deviceName || shopSettings?.receiptPrinter || savedPrinterSettings?.receiptPrinter;
   // STRICT GUARD: Receipt must NEVER be sent to a label printer or blank default
   const isLabelTarget = rawDevice && LABEL_PRINTER_KEYWORD_REGEX.test(rawDevice);
-  const deviceName = (!rawDevice || rawDevice.includes('Default') || rawDevice.includes('XP-80C') || isLabelTarget)
+  const deviceName = (!rawDevice || rawDevice === 'Default System Printer' || isLabelTarget)
     ? 'BIXOLON SRP-Q302'
     : rawDevice;
   const silent = options?.silent !== undefined
@@ -745,6 +789,7 @@ export function generateZplLabel(product, shopSettings = {}, count = 1) {
   return `^XA
 ${mediaTypeCmd}
 ~SD25
+^MD25
 ^PR2
 ^PW384
 ^LL240
@@ -845,7 +890,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   const rawDevice = options?.deviceName || shopSettings?.labelPrinter || savedPrinterSettings?.labelPrinter;
   // STRICT GUARD: Label printer must NEVER be a receipt printer or blank default
   const isReceiptTarget = rawDevice && RECEIPT_PRINTER_KEYWORD_REGEX.test(rawDevice);
-  const deviceName = (!rawDevice || rawDevice.includes('Default') || rawDevice.includes('XP-365B') || isReceiptTarget)
+  const deviceName = (!rawDevice || rawDevice === 'Default System Printer' || isReceiptTarget)
     ? 'ZDesigner iMZ220 (ZPL)'
     : rawDevice;
   const silent = options?.silent !== undefined
@@ -894,7 +939,41 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   <style>
     @page {
       size: 50mm 30mm;
-      margin: 0;
+      margin: 0mm !important;
+    }
+    @media print {
+      @page {
+        size: 50mm 30mm;
+        margin: 0mm !important;
+      }
+      *, *:before, *:after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      html, body {
+        width: 50mm !important;
+        height: 30mm !important;
+        max-width: 50mm !important;
+        max-height: 30mm !important;
+        margin: 0mm !important;
+        padding: 0mm !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .sticker-label {
+        width: 50mm !important;
+        height: 30mm !important;
+        max-width: 50mm !important;
+        max-height: 30mm !important;
+        margin: 0mm !important;
+        box-sizing: border-box !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
     }
     * {
       box-sizing: border-box;
@@ -902,6 +981,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       padding: 0;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
     html, body {
       width: 50mm;
@@ -972,6 +1052,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     .lbl-barcode-box {
       width: 96%;
       height: 11mm;
+      min-height: 11mm;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -982,6 +1063,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       width: 100%;
       height: 100%;
       display: block;
+      shape-rendering: crispEdges !important;
+    }
+    .lbl-barcode-box rect {
+      shape-rendering: crispEdges !important;
     }
     .lbl-item-code {
       font-family: 'Courier New', Courier, monospace;

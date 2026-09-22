@@ -101,13 +101,20 @@ export const SettingsView = () => {
 
   const allReceiptPrinters = Array.from(new Set([
     'BIXOLON SRP-Q302',
-    !LABEL_PRINTER_KEYWORD_REGEX.test(receiptPrinter) ? receiptPrinter : 'BIXOLON SRP-Q302',
+    'POS-80 / XP-80C Thermal Receipt',
+    'Epson TM-T20 / TM-T82 Receipt',
+    'Generic ESC/POS Receipt Printer',
+    (!LABEL_PRINTER_KEYWORD_REGEX.test(receiptPrinter) && receiptPrinter !== 'Default System Printer') ? receiptPrinter : 'BIXOLON SRP-Q302',
     ...availablePrinters.filter(p => !LABEL_PRINTER_KEYWORD_REGEX.test(p)),
   ])).filter(p => Boolean(p) && !LABEL_PRINTER_KEYWORD_REGEX.test(p));
 
   const allLabelPrinters = Array.from(new Set([
     'ZDesigner iMZ220 (ZPL)',
-    !RECEIPT_PRINTER_KEYWORD_REGEX.test(labelPrinter) ? labelPrinter : 'ZDesigner iMZ220 (ZPL)',
+    'Zebra GK888t (EPL / ZPL)',
+    'Xprinter XP-365B (50x30mm Label)',
+    'TSC TTP-244 Pro Barcode',
+    'Generic 50x30mm Sticker Printer',
+    (!RECEIPT_PRINTER_KEYWORD_REGEX.test(labelPrinter) && labelPrinter !== 'Default System Printer') ? labelPrinter : 'ZDesigner iMZ220 (ZPL)',
     ...availablePrinters.filter(p => !RECEIPT_PRINTER_KEYWORD_REGEX.test(p)),
   ])).filter(p => Boolean(p) && !RECEIPT_PRINTER_KEYWORD_REGEX.test(p));
 
@@ -889,12 +896,13 @@ export const SettingsView = () => {
                         type="button"
                         className="btn btn-secondary btn-sm flex-align-center justify-center gap-1 width-full"
                         style={{ height: '36px' }}
-                        onClick={() =>
+                        onClick={() => {
                           testPrintThermalReceipt(
                             { ...shopSettings, receiptPrinter, receiptPaperWidth },
-                            { deviceName: receiptPrinter, silent: silentPrinting }
-                          )
-                        }
+                            { deviceName: receiptPrinter, silent: silentPrinting, forceBrowserPrint: !silentPrinting }
+                          );
+                          showToast(`Test receipt dispatched to ${receiptPrinter}`, 'success');
+                        }}
                         title="Dispatch a clean 75mm test receipt to the selected printer"
                       >
                         <Printer size={13} className="text-primary" /> Test Print 75mm Receipt
@@ -978,12 +986,13 @@ export const SettingsView = () => {
                         type="button"
                         className="btn btn-secondary btn-sm flex-align-center justify-center gap-1 width-full"
                         style={{ height: '36px' }}
-                        onClick={() =>
+                        onClick={() => {
                           testPrintBarcodeLabel(
                             { ...shopSettings, labelPrinter, labelSize, printMethod },
-                            { deviceName: labelPrinter, silent: silentPrinting }
-                          )
-                        }
+                            { deviceName: labelPrinter, silent: silentPrinting, forceBrowserPrint: !silentPrinting }
+                          );
+                          showToast(`Test barcode tag dispatched to ${labelPrinter}`, 'success');
+                        }}
                         title="Dispatch a clean 50x30mm barcode sticker label to the selected printer"
                       >
                         <Tag size={13} className="text-primary" /> Test Print Barcode Tag

@@ -94,14 +94,14 @@ const rawPrintZpl = rawPrint;
 
 let cachedIsEpl = null;
 function detectEplHardware(deviceName) {
-  if (deviceName && /epl|gk888|gc420|2844|2824/i.test(deviceName)) {
+  if (deviceName && /epl|gk888|gc420|2844|2824|xp-?3|tsc|ttp|gprinter|gp-?3|4barcode/i.test(deviceName)) {
     return true;
   }
   if (cachedIsEpl !== null) return cachedIsEpl;
   try {
     const { execSync } = require('child_process');
     const out = execSync('powershell -NoProfile -Command "(Get-ItemProperty -Path \'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\USBPRINT\\*\\*\' -ErrorAction SilentlyContinue).FriendlyName"', { encoding: 'utf8', timeout: 2000 });
-    cachedIsEpl = /gk888|epl|2844|gc420/i.test(out);
+    cachedIsEpl = /gk888|epl|2844|gc420|2824/i.test(out);
   } catch (_) {
     cachedIsEpl = false;
   }
@@ -128,8 +128,8 @@ async function resolvePrinterName(requestedName, type = 'any') {
       if (partial) return partial.name;
     }
 
-    const labelRegex = /zdesigner|imz|zpl|epl|zebra|gk888|gc420|2844|2824|label|sticker|barcode|xp-?3/i;
-    const receiptRegex = /bixolon|srp|receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|sam4s|58|xp-?58|pos-?58/i;
+    const labelRegex = /zdesigner|imz|zpl|epl|zebra|gk888|gc420|2844|2824|label|sticker|barcode|xp-?3|tsc|ttp|gprinter|gp-?3|4barcode|xprinter.*3|honeywell|godex|argox|citizen.*cl/i;
+    const receiptRegex = /bixolon|srp|receipt|pos-?80|xp-?80|tm-?t|thermal.*80|rp80|xprinter.*8|epson|star.*tsp|citizen|sam4s|58|xp-?58|pos-?58|hprt|rongta|senor|black.*copper/i;
     const physicalPrinters = sysPrinters.filter(p => !/pdf|onenote|xps|fax/i.test(p.name));
 
     // STRICT TYPE ENFORCEMENT: Never allow label type to resolve to receipt printer, and vice versa
@@ -138,7 +138,7 @@ async function resolvePrinterName(requestedName, type = 'any') {
         const match = sysPrinters.find(p => (p.name || '').toLowerCase() === requestedName.toLowerCase());
         if (match) return match.name;
       }
-      const labelMatch = physicalPrinters.find(p => labelRegex.test(p.name));
+      const labelMatch = physicalPrinters.find(p => labelRegex.test(p.name) && !receiptRegex.test(p.name)) || physicalPrinters.find(p => labelRegex.test(p.name));
       if (labelMatch) return labelMatch.name;
       return 'ZDesigner iMZ220 (ZPL)';
     }
@@ -148,14 +148,14 @@ async function resolvePrinterName(requestedName, type = 'any') {
         const match = sysPrinters.find(p => (p.name || '').toLowerCase() === requestedName.toLowerCase());
         if (match) return match.name;
       }
-      const receiptMatch = physicalPrinters.find(p => receiptRegex.test(p.name));
+      const receiptMatch = physicalPrinters.find(p => receiptRegex.test(p.name) && !labelRegex.test(p.name)) || physicalPrinters.find(p => receiptRegex.test(p.name));
       if (receiptMatch) return receiptMatch.name;
       return 'BIXOLON SRP-Q302';
     }
 
     // Exact match fallback
-    const exact = sysPrinters.find(p => p.name === requestedName || p.displayName === requestedName);
-    if (exact) return exact.name;
+    const fallbackExact = sysPrinters.find(p => p.name === requestedName || p.displayName === requestedName);
+    if (fallbackExact) return fallbackExact.name;
 
     const def = sysPrinters.find(p => p.isDefault) || physicalPrinters[0] || sysPrinters[0];
     return def ? def.name : (requestedName || 'BIXOLON SRP-Q302');
