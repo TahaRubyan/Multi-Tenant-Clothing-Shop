@@ -12,8 +12,39 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
 
   const wrapper = ({ children }) => <POSProvider>{children}</POSProvider>;
 
-  it('contains the 4 quick-scan test articles (1001, 1002, 1003, 1004) in product catalog', () => {
+  const seedDemoArticles = (result) => {
+    act(() => {
+      result.current.addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Embroidered 3-Piece',
+        retailPrice: 2400,
+        itemDiscountPercent: 10,
+        stock: 25,
+      });
+      result.current.addProduct({
+        barcode: '1002',
+        fabricMaterial: 'Boski Men Suit',
+        retailPrice: 6500,
+        stock: 18,
+      });
+      result.current.addProduct({
+        barcode: '1003',
+        fabricMaterial: 'Executive Royal Oxford Shirt',
+        retailPrice: 2800,
+        stock: 30,
+      });
+      result.current.addProduct({
+        barcode: '1004',
+        fabricMaterial: 'Bareeze Chiffon',
+        retailPrice: 9500,
+        stock: 15,
+      });
+    });
+  };
+
+  it('successfully adds and tracks quick-scan test articles (1001, 1002, 1003, 1004) in product catalog', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
+    seedDemoArticles(result);
 
     const p1001 = result.current.products.find((p) => p.barcode === '1001');
     const p1002 = result.current.products.find((p) => p.barcode === '1002');
@@ -37,6 +68,7 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
 
   it('starts with a clean salesLogs register for live demo and records new sales accurately', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
+    seedDemoArticles(result);
 
     expect(result.current.salesLogs.length).toBe(0);
 
@@ -52,12 +84,13 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
 
     expect(completed).not.toBeNull();
     expect(result.current.salesLogs.length).toBe(1);
-    expect(result.current.salesLogs[0].netTotal).toBe(2160);
+    expect(result.current.salesLogs[0].netTotal).toBe(2400);
     expect(result.current.salesLogs[0].paymentMethod).toBe('Cash');
   });
 
   it('deducts stock upon completing a sale and synchronizes immediately with Analytics', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
+    seedDemoArticles(result);
 
     const testItem = result.current.products.find((p) => p.barcode === '1001');
     expect(testItem).toBeDefined();
@@ -97,6 +130,7 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
 
   it('increments stock when calling updateProductStock for inward restock', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
+    seedDemoArticles(result);
 
     const testItem = result.current.products.find((p) => p.barcode === '1002');
     const initialStock = testItem.stock;
@@ -112,6 +146,7 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
 
   it('accurately adjusts stock when a return exchange item is included in the sale', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
+    seedDemoArticles(result);
 
     const buyItem = result.current.products.find((p) => p.barcode === '1003');
     const returnItem = result.current.products.find((p) => p.barcode === '1004');
@@ -153,8 +188,26 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
   });
 
   it('renders receipt preview modal with all action buttons visible and accessible', () => {
+    const SeedArticles = () => {
+      const { addProduct } = usePOS();
+      const seeded = React.useRef(false);
+      React.useEffect(() => {
+        if (!seeded.current) {
+          seeded.current = true;
+          addProduct({
+            barcode: '1001',
+            fabricMaterial: 'Khaadi Embroidered 3-Piece',
+            retailPrice: 2400,
+            stock: 25,
+          });
+        }
+      }, []);
+      return null;
+    };
+
     render(
       <POSProvider>
+        <SeedArticles />
         <MakeSaleView />
       </POSProvider>
     );

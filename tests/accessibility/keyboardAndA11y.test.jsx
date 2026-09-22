@@ -1,14 +1,32 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { POSProvider } from '../../src/context/POSContext';
+import { POSProvider, usePOS } from '../../src/context/POSContext';
 import { MakeSaleView } from '../../src/views/MakeSaleView';
 import { SettingsView } from '../../src/views/SettingsView';
+
+const SeedHelper = () => {
+  const { addProduct } = usePOS();
+  const seeded = React.useRef(false);
+  React.useEffect(() => {
+    if (!seeded.current) {
+      seeded.current = true;
+      addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+      });
+    }
+  }, []);
+  return null;
+};
 
 describe('Accessibility & Keyboard Navigation Tests', () => {
   it('closes POS search dropdown when Escape key is pressed', () => {
     render(
       <POSProvider>
+        <SeedHelper />
         <MakeSaleView />
       </POSProvider>
     );

@@ -394,11 +394,13 @@ export const MakeSaleView = () => {
 
     const saleResult = completeSale(paymentMethod, amountRecNum);
     if (saleResult) {
-      confetti({
-        particleCount: 90,
-        spread: 75,
-        origin: { y: 0.6 },
-      });
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 75,
+          origin: { y: 0.6 },
+        });
+      } catch (_) {}
 
       showToast(`Sale #${saleResult.receiptNumber} recorded! Invoice saved to Analytics.`, 'success');
       setAmountReceived('');

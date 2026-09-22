@@ -22,7 +22,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v8.4_clean_logs';
+const POS_DATA_VERSION = 'v8.5_clean_all_mock_data';
 
 // Clean one-time migration for legacy localStorage cache
 try {
@@ -269,7 +269,7 @@ export const POSProvider = ({ children }) => {
     setAllDamageLog(MOCK_DAMAGED_ITEMS);
     setIsCashSettled(true);
     clearCart();
-    showToast('Loaded full Pakistani textile catalog (40+ items, vendors & logs)!', 'success');
+    showToast('System reset to clean fresh state with shop settings preserved!', 'success');
   };
 
   // Add Custom Apparel Category
@@ -773,14 +773,14 @@ export const POSProvider = ({ children }) => {
   const addProduct = (productData) => {
     const isApparel = productData.productType === 'apparel';
     const unitType = isApparel ? 'Piece' : (productData.unitType || 'Suit');
-    const initStockVal = parseFloat(productData.initialStock) || 0;
+    const initStockVal = parseFloat(productData.initialStock) || parseFloat(productData.stock) || 0;
     const reorderVal = parseFloat(productData.reorderLimit) || 0;
     const wholesaleVal = parseFloat(productData.wholesalePrice) || 0;
 
     const newProduct = {
       ...productData,
-      id: `prod-${Date.now()}`,
-      tenantId: currentTenantId,
+      id: productData.id || `prod-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      tenantId: productData.tenantId || currentTenantId,
       productType: productData.productType || 'unstitched',
       unitType,
       wholesalePrice: wholesaleVal,

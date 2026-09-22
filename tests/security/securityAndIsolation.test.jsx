@@ -63,9 +63,18 @@ describe('Security, Authorization & Multi-Tenant Isolation Tests', () => {
     // Active tenant is tenant-nova-101
     expect(result.current.currentTenant.id).toBe('tenant-nova-101');
 
+    act(() => {
+      result.current.addProduct({
+        barcode: 'NOVA-101',
+        fabricMaterial: 'NOVA Lawn',
+        retailPrice: 2000,
+        stock: 10,
+      });
+    });
+
     // All active products belong to tenant-nova-101
     const novaProducts = result.current.products.filter(p => p.tenantId === 'tenant-nova-101');
-    expect(novaProducts.length).toBe(4);
+    expect(novaProducts.length).toBe(1);
     novaProducts.forEach(p => {
       expect(p.tenantId).toBe('tenant-nova-101');
     });

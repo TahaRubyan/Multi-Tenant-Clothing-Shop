@@ -14,20 +14,32 @@ describe('Regression & System-Wide 4-Item Catalog Sync Tests', () => {
 
   const wrapper = ({ children }) => <POSProvider>{children}</POSProvider>;
 
-  it('verifies system-wide product catalog has exactly 4 items with unique barcodes 1001-1004', () => {
+  it('verifies product catalog starts clean with 0 mock items and adds items with unique barcodes properly', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    expect(result.current.products.length).toBe(4);
-    expect(INITIAL_PRODUCTS.length).toBe(4);
+    expect(result.current.products.length).toBe(0);
+    expect(INITIAL_PRODUCTS.length).toBe(0);
 
+    act(() => {
+      result.current.addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+      });
+      result.current.addProduct({
+        barcode: '1002',
+        fabricMaterial: 'Pasha Premium Silk',
+        retailPrice: 6500,
+        stock: 18,
+      });
+    });
+
+    expect(result.current.products.length).toBe(2);
     const barcodes = result.current.products.map(p => p.barcode);
-    expect(barcodes).toEqual(['1001', '1002', '1003', '1004']);
+    expect(barcodes).toContain('1001');
+    expect(barcodes).toContain('1002');
 
-    // Ensure no duplicate barcodes or items exist
-    const uniqueBarcodes = new Set(barcodes);
-    expect(uniqueBarcodes.size).toBe(4);
-
-    // Verify 1 entry per item details
     const p1 = result.current.products.find(p => p.barcode === '1001');
     expect(p1.fabricMaterial).toContain('Khaadi');
     expect(p1.retailPrice).toBe(2400);
@@ -35,14 +47,6 @@ describe('Regression & System-Wide 4-Item Catalog Sync Tests', () => {
     const p2 = result.current.products.find(p => p.barcode === '1002');
     expect(p2.fabricMaterial).toContain('Pasha');
     expect(p2.retailPrice).toBe(6500);
-
-    const p3 = result.current.products.find(p => p.barcode === '1003');
-    expect(p3.fabricMaterial).toContain('Executive Royal Oxford Shirt');
-    expect(p3.retailPrice).toBe(2800);
-
-    const p4 = result.current.products.find(p => p.barcode === '1004');
-    expect(p4.fabricMaterial).toContain('Bareeze');
-    expect(p4.retailPrice).toBe(9500);
   });
 
   it('verifies thermal receipt print HTML strictly matches 1:1 with photo media_1790081070820.png', () => {
@@ -128,6 +132,15 @@ describe('Regression & System-Wide 4-Item Catalog Sync Tests', () => {
 
     // Starts with clean salesLogs register for live demo
     expect(result.current.salesLogs.length).toBe(0);
+
+    act(() => {
+      result.current.addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+      });
+    });
 
     const initialP1Stock = result.current.products.find(p => p.barcode === '1001').stock;
 

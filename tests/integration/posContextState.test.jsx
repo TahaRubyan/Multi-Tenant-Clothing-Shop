@@ -10,20 +10,28 @@ describe('POS Context Integration State Tests', () => {
 
   const wrapper = ({ children }) => <POSProvider>{children}</POSProvider>;
 
-  it('initializes with complete Pakistani textile dataset and shop settings', () => {
+  it('initializes with clean inventory and authentic shop settings', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
     expect(result.current.shopSettings.shopName).toBe('NOVA MEN AND WOMEN');
     expect(result.current.shopSettings.shopLocation).toContain('Jalal Pur Jattan');
-    expect(result.current.products.length).toBeGreaterThan(0);
-    expect(result.current.vendors.length).toBeGreaterThan(0);
+    expect(result.current.products.length).toBe(0);
+    expect(result.current.vendors.length).toBe(0);
     expect(result.current.users.length).toBeGreaterThan(0);
   });
 
   it('handles cart additions, quantity increments, and item removal properly', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    const sampleProduct = result.current.products[0];
+    let sampleProduct;
+    act(() => {
+      sampleProduct = result.current.addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+      });
+    });
 
     act(() => {
       result.current.addToCart(sampleProduct);
@@ -50,9 +58,15 @@ describe('POS Context Integration State Tests', () => {
 
   it('updates stock count upon completeSale checkout', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
-    const product = result.current.products.find(p => p.unitType !== 'Meter' && p.stock > 5);
-
-    if (!product) return;
+    let product;
+    act(() => {
+      product = result.current.addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+      });
+    });
 
     const initialStock = product.stock;
 
@@ -70,7 +84,15 @@ describe('POS Context Integration State Tests', () => {
 
   it('handles stock additions via updateProductStock', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
-    const product = result.current.products[0];
+    let product;
+    act(() => {
+      product = result.current.addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+      });
+    });
     const initialStock = product.stock;
 
     act(() => {
@@ -83,8 +105,15 @@ describe('POS Context Integration State Tests', () => {
 
   it('increments stock count upon processing exchange return in completeSale', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
-    const product = result.current.products.find(p => p.stock > 0);
-    if (!product) return;
+    let product;
+    act(() => {
+      product = result.current.addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+      });
+    });
 
     const initialStock = product.stock;
 
@@ -111,8 +140,20 @@ describe('POS Context Integration State Tests', () => {
 
   it('updates variant stock when restocking by variant SKU', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
-    const productWithVariants = result.current.products.find(p => p.variants && p.variants.length > 0);
-    if (!productWithVariants) return;
+    let productWithVariants;
+    act(() => {
+      productWithVariants = result.current.addProduct({
+        barcode: 'APP-100',
+        fabricMaterial: 'Designer Kurta',
+        productType: 'apparel',
+        stock: 10,
+        retailPrice: 3000,
+        variants: [
+          { sku: 'APP-100-M', size: 'M', stock: 5 },
+          { sku: 'APP-100-L', size: 'L', stock: 5 },
+        ],
+      });
+    });
 
     const targetVariant = productWithVariants.variants[0];
     const initialMasterStock = productWithVariants.stock;

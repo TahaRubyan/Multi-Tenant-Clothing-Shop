@@ -168,14 +168,17 @@ export const ProductSetupView = () => {
       vendorId: selectedVendorId,
     });
 
-    confetti({
-      particleCount: 100,
-      spread: 75,
-      origin: { y: 0.6 },
-    });
+    try {
+      confetti({
+        particleCount: 100,
+        spread: 75,
+        origin: { y: 0.6 },
+      });
+    } catch (_) {}
 
     setCreatedProductResult({
       ...newProd,
+      product: newProd,
       printCount: parseInt(stickerPrintCount, 10) || stockNum || 1,
     });
 
@@ -675,52 +678,55 @@ export const ProductSetupView = () => {
           {/* ========================================================
               PHASE 4: CELEBRATORY CONFIRMATION & STICKER PRINT
               ======================================================== */}
-          {currentStep === 4 && createdProductResult && (
-            <div className="wizard-step-container text-center py-4">
-              <div className="brand-icon-badge mx-auto mb-2">
-                <CheckCircle2 size={46} className="text-success mx-auto" />
-              </div>
-              <h3 className="text-main font-weight-800 mb-1">Product Added to Inventory!</h3>
-              <p className="text-muted text-xs mb-3">
-                <strong>{createdProductResult.fabricMaterial}</strong> ({createdProductResult.barcode}) is ready for sales counter.
-              </p>
+          {currentStep === 4 && createdProductResult && (() => {
+            const productObj = createdProductResult.product || createdProductResult;
+            return (
+              <div className="wizard-step-container text-center py-4">
+                <div className="brand-icon-badge mx-auto mb-2">
+                  <CheckCircle2 size={46} className="text-success mx-auto" />
+                </div>
+                <h3 className="text-main font-weight-800 mb-1">Product Added to Inventory!</h3>
+                <p className="text-muted text-xs mb-3">
+                  <strong>{productObj.fabricMaterial}</strong> ({productObj.barcode}) is ready for sales counter.
+                </p>
 
-              <div className="my-3 mx-auto" style={{ maxWidth: '280px' }}>
-                <BarcodeLabelPreview
-                  shopName={shopSettings.shopName}
-                  itemName={createdProductResult.product.fabricMaterial}
-                  color={createdProductResult.product.fabricColor}
-                  clothType={createdProductResult.product.fabricType || createdProductResult.product.category}
-                  barcode={createdProductResult.product.barcode}
-                  price={createdProductResult.product.retailPrice}
-                />
-              </div>
+                <div className="my-3 mx-auto" style={{ maxWidth: '280px' }}>
+                  <BarcodeLabelPreview
+                    shopName={shopSettings?.shopName}
+                    itemName={productObj.fabricMaterial}
+                    color={productObj.fabricColor}
+                    clothType={productObj.fabricType || productObj.apparelCategory || productObj.category}
+                    barcode={productObj.barcode}
+                    price={productObj.retailPrice}
+                  />
+                </div>
 
-              <div className="flex-align-center justify-center gap-3 mt-4">
-                <button
-                  type="button"
-                  className="btn btn-primary flex-align-center gap-2"
-                  onClick={() => printBarcodeLabels(createdProductResult.product, createdProductResult.printCount, shopSettings)}
-                >
-                  <Printer size={16} /> Print {createdProductResult.printCount} Barcode Stickers (1.8" × 0.9")
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleResetForNextProduct}
-                >
-                  + Add Another Product
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setActiveTab('check-stock')}
-                >
-                  View in Inventory
-                </button>
+                <div className="flex-align-center justify-center gap-3 mt-4">
+                  <button
+                    type="button"
+                    className="btn btn-primary flex-align-center gap-2"
+                    onClick={() => printBarcodeLabels(productObj, createdProductResult.printCount, shopSettings)}
+                  >
+                    <Printer size={16} /> Print {createdProductResult.printCount} Barcode Stickers (1.8" × 0.9")
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleResetForNextProduct}
+                  >
+                    + Add Another Product
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setActiveTab('check-stock')}
+                  >
+                    View in Inventory
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* RIGHT COLUMN: Live 1.8" x 0.9" Thermal Barcode Sticker Preview */}

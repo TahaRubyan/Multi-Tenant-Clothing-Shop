@@ -16,6 +16,8 @@ import { DiscountsView } from './views/DiscountsView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { SettingsView } from './views/SettingsView';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 import './index.css';
 import './layout.css';
 import './views.css';
@@ -61,7 +63,9 @@ const POSAppContent = () => {
         <Navbar />
         <main className="content-body">
           <div key={activeTab} className="view-transition-container">
-            {renderActiveView()}
+            <ErrorBoundary key={activeTab}>
+              {renderActiveView()}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

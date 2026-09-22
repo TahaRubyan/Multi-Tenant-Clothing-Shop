@@ -1,18 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { INITIAL_PRODUCTS } from '../../src/mockData';
 
 describe('Performance & Benchmark Tests', () => {
   it('benchmarks catalog search filtering across 500+ items to execute quickly', () => {
-    // Generate synthetic large dataset by cloning mock products
+    // Generate synthetic large dataset for benchmark
+    const sampleFabrics = ['Khaadi Pure Lawn Suit', 'Boski Silk Kurta', 'Pasha Cotton Kameez', 'Bareeze Embroidered'];
     const largeCatalog = [];
-    for (let i = 0; i < 60; i++) {
-      INITIAL_PRODUCTS.forEach((p, idx) => {
-        largeCatalog.push({
-          ...p,
-          id: `synth-${i}-${idx}`,
-          fabricMaterial: `${p.fabricMaterial} Batch #${i}`,
-          barcode: `SYN-${i}-${idx}-${p.barcode}`,
-        });
+    for (let i = 0; i < 500; i++) {
+      largeCatalog.push({
+        id: `synth-${i}`,
+        fabricMaterial: `${sampleFabrics[i % sampleFabrics.length]} Batch #${i}`,
+        fabricType: 'Lawn',
+        barcode: `SYN-${1000 + i}`,
       });
     }
 
@@ -62,9 +60,15 @@ describe('Performance & Benchmark Tests', () => {
 
   it('instant barcode map lookup executes in under 5ms', () => {
     const barcodeMap = new Map();
-    INITIAL_PRODUCTS.forEach(p => barcodeMap.set(p.barcode, p));
+    for (let i = 0; i < 500; i++) {
+      barcodeMap.set(`BAR-${1000 + i}`, {
+        barcode: `BAR-${1000 + i}`,
+        fabricMaterial: `Article ${i}`,
+        retailPrice: 2500,
+      });
+    }
 
-    const sampleBarcode = INITIAL_PRODUCTS[0].barcode;
+    const sampleBarcode = 'BAR-1250';
     const start = performance.now();
     const found = barcodeMap.get(sampleBarcode);
     const duration = performance.now() - start;

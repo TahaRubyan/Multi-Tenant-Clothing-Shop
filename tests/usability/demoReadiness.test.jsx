@@ -15,23 +15,20 @@ describe('Usability & Demo Readiness Validation', () => {
     expect(result.current.shopSettings.receiptFooterNote).toContain('NOVA MEN AND WOMEN');
   });
 
-  it('verifies Pakistani textile sample dataset contains authentic fabric types and articles', () => {
-    const fabricMaterials = INITIAL_PRODUCTS.map(p => p.fabricMaterial);
+  it('verifies product catalog starts clean with 0 mock items and authentic apparel categories are pre-configured in settings', () => {
+    expect(INITIAL_PRODUCTS.length).toBe(0);
 
-    expect(fabricMaterials.some(m => m.includes('Khaadi') || m.includes('Pasha') || m.includes('Bareeze'))).toBe(true);
-    expect(fabricMaterials.some(m => m.includes('Kurti') || m.includes('Suit') || m.includes('Shirt'))).toBe(true);
-
-    const fabricTypes = INITIAL_PRODUCTS.map(p => p.fabricType);
-    expect(fabricTypes).toContain('Lawn');
-    expect(fabricTypes).toContain('Silk');
-    expect(fabricTypes).toContain('Boski');
+    const { result } = renderHook(() => usePOS(), { wrapper });
+    expect(result.current.products.length).toBe(0);
+    expect(result.current.productTemplates.length).toBeGreaterThanOrEqual(4);
+    expect(result.current.productTemplates.some(t => t.name.includes('Shirt'))).toBe(true);
   });
 
-  it('validates vendor directory is pre-seeded with Pakistani mills and contact details', () => {
-    expect(INITIAL_VENDORS.length).toBeGreaterThanOrEqual(3);
+  it('validates vendor directory starts clean with 0 mock records ready for live partner registration', () => {
+    expect(INITIAL_VENDORS.length).toBe(0);
 
-    const vendorNames = INITIAL_VENDORS.map(v => v.vendorName);
-    expect(vendorNames.some(n => n.includes('Gul Ahmed') || n.includes('Pasha') || n.includes('Sitara'))).toBe(true);
+    const { result } = renderHook(() => usePOS(), { wrapper });
+    expect(result.current.vendors.length).toBe(0);
   });
 
   it('validates demo staff logins and authority permissions are ready for presentation', () => {

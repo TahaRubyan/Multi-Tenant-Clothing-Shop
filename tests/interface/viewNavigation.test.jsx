@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { POSProvider } from '../../src/context/POSContext';
+import { POSProvider, usePOS } from '../../src/context/POSContext';
 import { MakeSaleView } from '../../src/views/MakeSaleView';
 import { SettingsView } from '../../src/views/SettingsView';
 import { VendorLedgerView } from '../../src/views/VendorLedgerView';
@@ -9,6 +9,24 @@ import { DiscountsView } from '../../src/views/DiscountsView';
 import { CheckStockView } from '../../src/views/CheckStockView';
 import { DashboardView } from '../../src/views/DashboardView';
 import { ProductSetupView } from '../../src/views/ProductSetupView';
+
+const SeedProduct = () => {
+  const { addProduct } = usePOS();
+  const seeded = React.useRef(false);
+  React.useEffect(() => {
+    if (!seeded.current) {
+      seeded.current = true;
+      addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+        department: 'Women Unstitched',
+      });
+    }
+  }, []);
+  return null;
+};
 
 describe('Interface & Component View Tests', () => {
   it('MakeSaleView renders POS checkout workspace with search bar and payment methods', () => {
@@ -28,6 +46,7 @@ describe('Interface & Component View Tests', () => {
   it('MakeSaleView search dropdown triggers when search bar is clicked or focused', () => {
     render(
       <POSProvider>
+        <SeedProduct />
         <MakeSaleView />
       </POSProvider>
     );
@@ -105,7 +124,7 @@ describe('Interface & Component View Tests', () => {
     expect(screen.getByText(/Barcode & Sticker Label Printer/i)).toBeInTheDocument();
   });
 
-  it('VendorLedgerView renders Pakistani textile vendor directory', () => {
+  it('VendorLedgerView renders clean Pakistani textile vendor directory', () => {
     render(
       <POSProvider>
         <VendorLedgerView />
@@ -113,7 +132,8 @@ describe('Interface & Component View Tests', () => {
     );
 
     expect(screen.getByText(/Vendor Directory & Accounts Payable Ledger/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Gul Ahmed Textiles/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/No vendor partners found./i)).toBeInTheDocument();
+    expect(screen.getByText(/0 Partners/i)).toBeInTheDocument();
   });
 
   it('DiscountsView renders promotional campaign wizard', () => {

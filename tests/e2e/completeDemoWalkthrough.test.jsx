@@ -1,13 +1,32 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { POSProvider } from '../../src/context/POSContext';
+import { POSProvider, usePOS } from '../../src/context/POSContext';
 import { MakeSaleView } from '../../src/views/MakeSaleView';
+
+const SeedProduct = () => {
+  const { addProduct } = usePOS();
+  const seeded = React.useRef(false);
+  React.useEffect(() => {
+    if (!seeded.current) {
+      seeded.current = true;
+      addProduct({
+        barcode: '1001',
+        fabricMaterial: 'Khaadi Pure Lawn Suit',
+        retailPrice: 2400,
+        stock: 25,
+        department: 'Women Unstitched',
+      });
+    }
+  }, []);
+  return null;
+};
 
 describe('End-to-End (E2E) Complete Demo Workflow Test', () => {
   it('executes full retail sales cycle from search -> cart -> digital checkout -> thermal receipt print', async () => {
     const { container } = render(
       <POSProvider>
+        <SeedProduct />
         <MakeSaleView />
       </POSProvider>
     );
