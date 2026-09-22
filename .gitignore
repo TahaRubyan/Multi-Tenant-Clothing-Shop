@@ -25,3 +25,13 @@ dist-ssr
 
 # Testing artifacts / videos
 # testing videos
+
+# Environment & Sensitive Keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+credentials.json
+.vercel

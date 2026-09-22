@@ -191,15 +191,34 @@ function fallbackIframePrint(htmlContent, shouldTriggerPrint = true) {
   }
 }
 
+function wrapReceiptText(text, maxLen = 44) {
+  if (!text) return [];
+  const words = String(text).trim().split(/\s+/);
+  const result = [];
+  let cur = '';
+  for (const w of words) {
+    if (!cur) {
+      cur = w;
+    } else if ((cur + ' ' + w).length <= maxLen) {
+      cur += ' ' + w;
+    } else {
+      result.push(cur);
+      cur = w;
+    }
+  }
+  if (cur) result.push(cur);
+  return result;
+}
+
 /**
  * Generates authentic ESC/POS commands for thermal receipt printers (BIXOLON SRP-Q302).
  */
 export function generateEscPosReceipt(saleData, shopSettings = {}) {
   if (!saleData) return '';
-  const shopName = (shopSettings?.shopName || 'NOVA MEN AND WOMEN').slice(0, 42);
-  const shopLocation = (shopSettings?.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat').slice(0, 42);
-  const shopPhone = (shopSettings?.shopPhone || '+92 300 1234567').slice(0, 32);
-  const footerNote = (shopSettings?.receiptFooterNote || 'Thank you for shopping with us! Please visit again.').slice(0, 48);
+  const shopName = (shopSettings?.shopName || 'NOVA MEN AND WOMEN').trim();
+  const shopLocation = (shopSettings?.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan').trim();
+  const shopPhone = (shopSettings?.shopPhone || '+92 300 1234567').trim();
+  const footerNote = (shopSettings?.receiptFooterNote || 'Thank you for shopping at NOVA MEN AND WOMEN. Exchanges accepted within 14 days with original receipt.').trim();
 
   const items = saleData.items || [];
   const subtotal = (saleData.subtotal || 0).toLocaleString();
@@ -218,62 +237,93 @@ export function generateEscPosReceipt(saleData, shopSettings = {}) {
   const lines = [];
   lines.push('\x1b@'); // Initialize printer
   lines.push('\x1ba\x01'); // Center align
-  lines.push('\x1bE\x01' + shopName + '\n' + '\x1bE\x00'); // Shop Name Bold
-  lines.push(shopLocation + '\n');
+  lines.push('\x1bE\x01' + shopName + '\n\x1bE\x00'); // Shop Name Bold
+
+  // Address wrapped cleanly across lines without truncation
+  const locationLines = wrapReceiptText(shopLocation, 44);
+  locationLines.forEach(l => lines.push(l + '\n'));
   lines.push('Tel: ' + shopPhone + '\n');
-  lines.push('================================================\n');
+  lines.push('------------------------------------------------\n');
 
   lines.push('\x1ba\x00'); // Left align
-  lines.push(`Cashier: ${cashier.padEnd(14)} Payment: ${paymentMethod}\n`);
-  lines.push(`Date:    ${dateTime}\n`);
-  lines.push(`Invoice: ${receiptNumber}\n`);
-  lines.push('------------------------------------------------\n');
-  lines.push('Article                            Qty     Total\n');
-  lines.push('------------------------------------------------\n');
-
+  lines.push(`Cashier: ${cashier}\n`);
   const formatRow = (col1, col2) => {
-    const c1 = String(col1 || '').slice(0, 30);
+    const c1 = String(col1 || '').slice(0, 24);
     const c2 = String(col2 || '');
     const spaces = Math.max(1, 48 - c1.length - c2.length);
     return `${c1}${' '.repeat(spaces)}${c2}\n`;
   };
 
+  lines.push(formatRow(`Payment: ${paymentMethod}`, `Invoice: ${receiptNumber}`));
+  lines.push(`Date:    ${dateTime}\n`);
+  lines.push('------------------------------------------------\n');
+  lines.push('ARTICLE          QTY     PRICE    DISC     TOTAL\n');
+  lines.push('------------------------------------------------\n');
+
+  let itemDiscountsTotal = 0;
+  let rawSubtotal = 0;
+
   for (const it of items) {
     const variantTag = it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece';
-    const name = `[${variantTag}] ${it.fabric || it.name || 'Garment'}${it.isReturn ? ' (RET)' : ''}`;
-    const qty = String(it.qty || 1);
-    const total = `Rs. ${(it.total || 0).toLocaleString()}`;
-    
-    lines.push(name.slice(0, 48) + '\n');
-    lines.push(formatRow(`  Qty: ${qty}`, total));
+    const conciseName = formatConciseArticle(it);
+    const fullName = `[${variantTag}] ${conciseName}${it.isReturn ? ' (RET)' : ''}`;
+    const nameChunks = wrapReceiptText(fullName, 16);
+
+    const qStr = String(it.qty || 1).padStart(3);
+    const pStr = (it.unitPrice || 0).toLocaleString().padStart(8);
+    const itemDiscPercent = it.itemDiscountPercent || 0;
+    const itemDiscAmt = it.itemDiscount || 0;
+    itemDiscountsTotal += itemDiscAmt;
+    rawSubtotal += ((it.unitPrice || 0) * (it.qty || 1));
+    const lineTotal = it.total !== undefined ? it.total : ((it.unitPrice || 0) * (it.qty || 1)) - itemDiscAmt;
+    const tStr = lineTotal.toLocaleString().padStart(9);
+    const dStr = itemDiscPercent > 0 ? `${itemDiscPercent}%`.padStart(6) : '-'.padStart(6);
+
+    const firstChunk = (nameChunks[0] || '').padEnd(16);
+    lines.push(`${firstChunk} ${qStr} ${pStr} ${dStr}  ${tStr}\n`);
+
+    for (let c = 1; c < nameChunks.length; c++) {
+      lines.push(`${nameChunks[c]}\n`);
+    }
+  }
+
+  const grossSubtotal = rawSubtotal > 0 ? rawSubtotal : (saleData.subtotal || 0) + itemDiscountsTotal;
+  const totalOverallBillDiscount = storewideDiscount + wholeSaleDiscount;
+  const allDiscountsTotal = itemDiscountsTotal + totalOverallBillDiscount;
+
+  lines.push('------------------------------------------------\n');
+  lines.push(formatRow('Gross Total:', `Rs. ${grossSubtotal.toLocaleString()}`));
+  if (itemDiscountsTotal > 0) {
+    lines.push(formatRow('Item Discount:', `-Rs. ${itemDiscountsTotal.toLocaleString()}`));
+  }
+  if (totalOverallBillDiscount > 0) {
+    lines.push(formatRow(`Discount on Whole Bill:`, `-Rs. ${totalOverallBillDiscount.toLocaleString()}`));
+  }
+  if (allDiscountsTotal > 0 && itemDiscountsTotal > 0 && totalOverallBillDiscount > 0) {
+    lines.push(formatRow('Total Discount:', `-Rs. ${allDiscountsTotal.toLocaleString()}`));
   }
 
   lines.push('------------------------------------------------\n');
-  lines.push(formatRow('Subtotal:', `Rs. ${subtotal}`));
-  if (storewideDiscount > 0) {
-    lines.push(formatRow('Promo Discount:', `-Rs. ${storewideDiscount.toLocaleString()}`));
-  }
-  if (wholeSaleDiscount > 0) {
-    lines.push(formatRow(`Wholesale Disc (${wholeSaleDiscountPercent}%):`, `-Rs. ${wholeSaleDiscount.toLocaleString()}`));
-  }
-  if (totalDiscount > 0 && storewideDiscount === 0 && wholeSaleDiscount === 0) {
-    lines.push(formatRow('Total Discount:', `-Rs. ${totalDiscount.toLocaleString()}`));
-  }
-
   lines.push('\x1bE\x01'); // Bold Net Total
   lines.push(formatRow('NET TOTAL:', `Rs. ${netTotal}`));
   lines.push('\x1bE\x00');
-  lines.push(formatRow('Amount Received:', `Rs. ${amountReceived}`));
+  lines.push('------------------------------------------------\n');
+
+  lines.push(formatRow('Amount Tendered:', `Rs. ${amountReceived}`));
   if (paymentMethod === 'Cash' || parseFloat(saleData.changeReturned) > 0) {
-    lines.push(formatRow('Change Returned:', `Rs. ${changeReturned}`));
+    lines.push(formatRow('Cash Returned:', `Rs. ${changeReturned}`));
   }
 
-  lines.push('================================================\n');
+  lines.push('------------------------------------------------\n');
   lines.push('\x1ba\x01'); // Center align
-  lines.push(footerNote + '\n');
+  const footerLines = wrapReceiptText(footerNote, 44);
+  footerLines.forEach(fl => lines.push(fl + '\n'));
   lines.push(`* ${receiptNumber} *\n`);
-  lines.push('Scan barcode for rapid exchange & returns\n\n\n\n');
-  lines.push('\x1dV\x00'); // Paper cut
+
+  // Extra line feeds ensure the paper travels fully past the print head and cutting blade
+  lines.push('\n\n\n\n\n\n\n');
+  lines.push('\x1dV\x41\x03'); // GS V 65 3 (feed paper & cut)
+  lines.push('\x1dV\x00');     // GS V 0 (cut paper fallback)
 
   return lines.join('');
 }
@@ -359,6 +409,286 @@ function executePrint(htmlContent, options = {}) {
 }
 
 /**
+ * Formats product/article name cleanly and concisely for 80mm thermal receipts.
+ * Removes redundant category prefixes while preserving authentic product titles and variants.
+ */
+export function formatConciseArticle(it) {
+  if (!it) return 'Garment Item';
+  let raw = String(it.fabric || it.name || 'Garment Item').trim();
+  // Strip duplicate category prefixes like "Formal - Executive Royal Oxford Shirt - Formal"
+  raw = raw.replace(/^(Formal|Pret|Casual|Festive|Bridal|Silk|Cotton)\s*-\s*/gi, '');
+  raw = raw.replace(/\s*-\s*(Formal|Pret|Casual|Festive|Bridal|Silk|Cotton)$/gi, '');
+  // Clean double parens like (Sky Blue (L (42))) -> (Sky Blue, L-42)
+  raw = raw.replace(/\(\s*(.*?)\s*\(\s*([A-Za-z0-9]+)\s*\(\s*(\d+)\s*\)\s*\)\s*\)/g, '($1, $2-$3)');
+  raw = raw.replace(/\(\s*(.*?)\s*\(\s*(.*?)\s*\)\s*\)/g, '($1, $2)');
+  return raw;
+}
+
+/**
+ * Generates the clean standalone 80mm Thermal POS Receipt HTML matching the physical receipt 1:1.
+ */
+export function generateThermalReceiptHtml(saleData, shopSettings = {}) {
+  if (!saleData) return '';
+
+  const shopName = shopSettings?.shopName || 'NOVA MEN AND WOMEN';
+  const shopLocation = shopSettings?.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan';
+  const shopPhone = shopSettings?.shopPhone || '+92 300 1234567';
+  const footerNote = shopSettings?.receiptFooterNote || 'Thank you for shopping at NOVA MEN AND WOMEN. Exchanges accepted within 14 days with original receipt.';
+
+  const items = saleData.items || [];
+  const itemsRows = items.map((it) => {
+    const variantTag = it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece';
+    const conciseName = formatConciseArticle(it);
+    const isReturn = !!it.isReturn;
+    const qty = it.qty || 1;
+    const unitPrice = (it.unitPrice || 0).toLocaleString();
+    const itemDiscPercent = it.itemDiscountPercent || 0;
+    const itemDiscAmt = it.itemDiscount || 0;
+    const lineTotal = (it.total !== undefined ? it.total : (it.unitPrice * qty) - itemDiscAmt).toLocaleString();
+
+    return `
+      <tr>
+        <td style="padding: 4px 2px; border-bottom: 1px dotted #ccc; font-size: 10.5px; font-weight: 700; line-height: 1.35; vertical-align: top; text-align: left; word-break: break-word;">
+          [${escapeHtml(variantTag)}] ${escapeHtml(conciseName)}
+          ${isReturn ? '<br/><strong style="color: #b91c1c; font-size: 9px;">(RETURN)</strong>' : ''}
+        </td>
+        <td style="padding: 4px 1px; border-bottom: 1px dotted #ccc; font-size: 10.5px; text-align: center; vertical-align: top; white-space: nowrap;">
+          ${qty}
+        </td>
+        <td style="padding: 4px 1px; border-bottom: 1px dotted #ccc; font-size: 10.5px; text-align: right; vertical-align: top; white-space: nowrap;">
+          Rs. ${unitPrice}
+        </td>
+        <td style="padding: 4px 1px; border-bottom: 1px dotted #ccc; font-size: 10px; text-align: right; vertical-align: top; white-space: nowrap;">
+          ${itemDiscPercent > 0 ? `${itemDiscPercent}%` : '-'}
+        </td>
+        <td style="padding: 4px 1px; border-bottom: 1px dotted #ccc; font-size: 10.5px; text-align: right; vertical-align: top; font-weight: bold; white-space: nowrap;">
+          Rs. ${lineTotal}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const itemDiscountsTotal = items.reduce((acc, it) => acc + (it.itemDiscount || 0), 0);
+  const rawSubtotal = items.reduce((acc, it) => acc + ((it.unitPrice || 0) * (it.qty || 1)), 0);
+  const grossSubtotal = rawSubtotal > 0 ? rawSubtotal : (saleData.subtotal || 0) + itemDiscountsTotal;
+  const storewideDiscount = saleData.storewideDiscount || 0;
+  const wholeSaleDiscount = saleData.wholeSaleDiscount || 0;
+  const wholeSaleDiscountPercent = saleData.wholeSaleDiscountPercent || 0;
+  const totalOverallBillDiscount = storewideDiscount + wholeSaleDiscount;
+  const allDiscountsTotal = itemDiscountsTotal + totalOverallBillDiscount;
+  const netTotal = (saleData.netTotal || 0).toLocaleString();
+  const amountReceived = (saleData.amountReceived || saleData.netTotal || 0).toLocaleString();
+  const changeReturned = (saleData.changeReturned || 0).toLocaleString();
+  const paymentMethod = saleData.paymentMethod || 'Cash';
+  const cashier = saleData.salesman || 'Cashier';
+  const dateTime = saleData.dateTime || new Date().toLocaleString();
+  const receiptNumber = saleData.receiptNumber || `INV-${Date.now().toString().slice(-6)}`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Receipt - ${escapeHtml(receiptNumber)}</title>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      background: #ffffff !important;
+      color: #000000 !important;
+      font-family: 'Courier New', Courier, monospace, -apple-system, sans-serif;
+      width: 80mm;
+      max-width: 80mm;
+      margin: 0 auto;
+      padding: 6px 5px;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .text-left { text-align: left; }
+    .bold { font-weight: bold; }
+    .divider {
+      text-align: center;
+      font-size: 10px;
+      margin: 5px 0;
+      letter-spacing: 1px;
+      line-height: 1.4;
+    }
+    .header-title {
+      font-size: 15px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+      letter-spacing: 0.6px;
+      line-height: 1.35;
+    }
+    .subtext {
+      font-size: 10px;
+      color: #111111;
+      line-height: 1.55;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px 6px;
+      font-size: 10px;
+      line-height: 1.5;
+      margin: 6px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 5px 0;
+    }
+    th {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 1px;
+      border-top: 1px dashed #000;
+      border-bottom: 1px dashed #000;
+      line-height: 1.4;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin: 3px 0;
+      font-size: 10.5px;
+      line-height: 1.45;
+    }
+    .net-total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 800;
+      padding: 5px 0;
+      border-top: 1px dashed #000;
+      border-bottom: 1px dashed #000;
+      margin: 4px 0;
+      line-height: 1.4;
+    }
+    .footer-section {
+      text-align: center;
+      font-size: 10px;
+      margin-top: 6px;
+      line-height: 1.6;
+    }
+    .footer-policy {
+      font-size: 9.5px;
+      color: #222222;
+      line-height: 1.55;
+      margin-top: 2px;
+    }
+    .barcode-code {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-align: center;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div class="text-center">
+    <div class="header-title">${escapeHtml(shopName)}</div>
+    <div class="subtext">${escapeHtml(shopLocation)}</div>
+    <div class="subtext">Tel: ${escapeHtml(shopPhone)}</div>
+    <div class="divider">--------------------------------</div>
+  </div>
+
+  <!-- BODY: Cashier, Payment, Date, Invoice -->
+  <div class="meta-grid">
+    <div>Cashier: <strong>${escapeHtml(cashier)}</strong></div>
+    <div>Payment: <strong>${escapeHtml(paymentMethod)}</strong></div>
+    <div>Date: ${escapeHtml(dateTime)}</div>
+    <div>Invoice: <strong>${escapeHtml(receiptNumber)}</strong></div>
+  </div>
+
+  <div class="divider">--------------------------------</div>
+
+  <!-- TABLE: Article, Qty, Price, Discount, Total -->
+  <table style="width: 100%; border-collapse: collapse; margin: 4px 0; table-layout: fixed;">
+    <thead>
+      <tr>
+        <th style="text-align: left; width: 36%; font-size: 10px; font-weight: bold; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 3px 1px;">Article</th>
+        <th style="text-align: center; width: 10%; font-size: 10px; font-weight: bold; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 3px 1px;">Qty</th>
+        <th style="text-align: right; width: 18%; font-size: 10px; font-weight: bold; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 3px 1px; white-space: nowrap;">Price</th>
+        <th style="text-align: right; width: 16%; font-size: 10px; font-weight: bold; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 3px 1px; white-space: nowrap;">Discount</th>
+        <th style="text-align: right; width: 20%; font-size: 10px; font-weight: bold; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 3px 1px; white-space: nowrap;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemsRows}
+    </tbody>
+  </table>
+
+  <div class="divider">--------------------------------</div>
+
+  <!-- TOTALS: Gross Total, Discount on Whole Bill, Net Total, Amount Tendered, Cash Returned -->
+  <div class="row">
+    <span>Gross Total:</span>
+    <span>Rs. ${grossSubtotal.toLocaleString()}</span>
+  </div>
+  ${itemDiscountsTotal > 0 ? `
+  <div class="row" style="color: #047857;">
+    <span>Item Discount:</span>
+    <span>-Rs. ${itemDiscountsTotal.toLocaleString()}</span>
+  </div>` : ''}
+  ${totalOverallBillDiscount > 0 ? `
+  <div class="row" style="color: #047857;">
+    <span>Discount on Whole Bill${wholeSaleDiscountPercent > 0 ? ` (${wholeSaleDiscountPercent}%)` : ''}:</span>
+    <span>-Rs. ${totalOverallBillDiscount.toLocaleString()}</span>
+  </div>` : ''}
+  ${allDiscountsTotal > 0 && itemDiscountsTotal > 0 && totalOverallBillDiscount > 0 ? `
+  <div class="row" style="font-weight: 700;">
+    <span>Total Discount:</span>
+    <span>-Rs. ${allDiscountsTotal.toLocaleString()}</span>
+  </div>` : ''}
+
+  <div class="divider">--------------------------------</div>
+
+  <div class="net-total-row">
+    <span>NET TOTAL:</span>
+    <span>Rs. ${netTotal}</span>
+  </div>
+
+  <div class="divider">--------------------------------</div>
+
+  <div class="row">
+    <span>Amount Tendered:</span>
+    <span>Rs. ${amountReceived}</span>
+  </div>
+  ${paymentMethod === 'Cash' || parseFloat(saleData.changeReturned) > 0 ? `
+  <div class="row">
+    <span>Cash Returned:</span>
+    <span>Rs. ${changeReturned}</span>
+  </div>` : ''}
+
+  <div class="divider">--------------------------------</div>
+
+  <!-- FOOTER: Thank you note, Exchange Policy, Invoice # -->
+  <div class="footer-section">
+    <div>Thank you for shopping at ${escapeHtml(shopName)}.</div>
+    <div class="footer-policy">${escapeHtml(footerNote.includes('Exchanges') ? footerNote : 'Exchanges accepted within 14 days with original receipt.')}</div>
+    <div class="barcode-code">* ${escapeHtml(receiptNumber)} *</div>
+  </div>
+</body>
+</html>`;
+}
+
+/**
  * Print 75mm Thermal POS Receipt.
  * Formatted precisely for 75mm continuous roll receipt printers.
  * Height dynamically expands based on items and transactions.
@@ -384,226 +714,7 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
     ? options.silent
     : (shopSettings?.silentPrinting !== undefined ? shopSettings.silentPrinting : (savedPrinterSettings?.silentPrinting !== false));
 
-  const shopName = shopSettings?.shopName || 'NOVA MEN AND WOMEN';
-  const shopLocation = shopSettings?.shopLocation || 'Main Bazar, Jalal Pur Jattan, Gujrat';
-  const shopPhone = shopSettings?.shopPhone || '+92 300 1234567';
-  const footerNote = shopSettings?.receiptFooterNote || 'Thank you for shopping with us! Please visit again.';
-
-  const items = saleData.items || [];
-  const itemsRows = items.map((it) => {
-    const variantTag = it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece';
-    const name = it.fabric || it.name || 'Garment Item';
-    const isReturn = !!it.isReturn;
-    const qty = it.qty || 1;
-    const unitPrice = (it.unitPrice || 0).toLocaleString();
-    const total = (it.total || 0).toLocaleString();
-
-    return `
-      <tr>
-        <td style="padding: 3px 2px; border-bottom: 1px dotted #ccc; font-size: 11px; text-align: left; vertical-align: top;">
-          [${escapeHtml(variantTag)}] ${escapeHtml(name)}
-          ${isReturn ? '<strong style="color: #b91c1c;"> (RETURN)</strong>' : ''}
-        </td>
-        <td style="padding: 3px 2px; border-bottom: 1px dotted #ccc; font-size: 11px; text-align: center; vertical-align: top;">${qty}</td>
-        <td style="padding: 3px 2px; border-bottom: 1px dotted #ccc; font-size: 11px; text-align: right; vertical-align: top;">Rs. ${unitPrice}</td>
-        <td style="padding: 3px 2px; border-bottom: 1px dotted #ccc; font-size: 11px; text-align: right; vertical-align: top; font-weight: bold;">Rs. ${total}</td>
-      </tr>
-    `;
-  }).join('');
-
-  const subtotal = (saleData.subtotal || 0).toLocaleString();
-  const netTotal = (saleData.netTotal || 0).toLocaleString();
-  const storewideDiscount = saleData.storewideDiscount || 0;
-  const wholeSaleDiscount = saleData.wholeSaleDiscount || 0;
-  const wholeSaleDiscountPercent = saleData.wholeSaleDiscountPercent || 0;
-  const totalDiscount = (storewideDiscount + wholeSaleDiscount);
-  const amountReceived = (saleData.amountReceived || saleData.netTotal || 0).toLocaleString();
-  const changeReturned = (saleData.changeReturned || 0).toLocaleString();
-  const paymentMethod = saleData.paymentMethod || 'Cash';
-  const cashier = saleData.salesman || 'Cashier';
-  const dateTime = saleData.dateTime || new Date().toLocaleString();
-  const receiptNumber = saleData.receiptNumber || `INV-${Date.now().toString().slice(-6)}`;
-  const barcodeSvg = generateBarcodeSvg(receiptNumber.replace(/[^0-9a-zA-Z]/g, ''));
-
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Receipt - ${escapeHtml(receiptNumber)}</title>
-  <style>
-    @page {
-      size: 75mm auto;
-      margin: 0;
-    }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    body {
-      background: #ffffff !important;
-      color: #000000 !important;
-      font-family: 'Courier New', Courier, monospace, -apple-system, sans-serif;
-      width: 75mm;
-      max-width: 75mm;
-      margin: 0 auto;
-      padding: 6px 4px;
-      font-size: 11px;
-      line-height: 1.35;
-    }
-    .text-center { text-align: center; }
-    .text-right { text-align: right; }
-    .bold { font-weight: bold; }
-    .divider {
-      text-align: center;
-      font-size: 10px;
-      margin: 4px 0;
-      letter-spacing: 1px;
-    }
-    .header-title {
-      font-size: 14px;
-      font-weight: 800;
-      text-transform: uppercase;
-      margin-bottom: 2px;
-      letter-spacing: 0.5px;
-    }
-    .subtext {
-      font-size: 9.5px;
-      color: #222;
-      line-height: 1.25;
-    }
-    .meta-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2px 4px;
-      font-size: 10px;
-      margin: 4px 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 4px 0;
-    }
-    th {
-      font-size: 10px;
-      text-transform: uppercase;
-      border-bottom: 1px dashed #000;
-      padding: 3px 2px;
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      padding: 2px 0;
-      font-size: 11px;
-    }
-    .net-total-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-      font-weight: 800;
-      border-top: 1px dashed #000;
-      border-bottom: 1px dashed #000;
-      padding: 4px 0;
-      margin: 4px 0;
-    }
-    .barcode-wrap {
-      text-align: center;
-      margin-top: 6px;
-    }
-    .barcode-code {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      margin: 3px 0;
-    }
-  </style>
-</head>
-<body>
-  <!-- HEADER -->
-  <div class="text-center">
-    <div class="header-title">${escapeHtml(shopName)}</div>
-    <div class="subtext">${escapeHtml(shopLocation)}</div>
-    <div class="subtext">Tel: ${escapeHtml(shopPhone)}</div>
-    <div class="divider">================================</div>
-  </div>
-
-  <!-- BODY: Cashier, Payment, Date, Invoice -->
-  <div class="meta-grid">
-    <div>Cashier: <strong>${escapeHtml(cashier)}</strong></div>
-    <div>Payment: <strong>${escapeHtml(paymentMethod)}</strong></div>
-    <div>Date: ${escapeHtml(dateTime)}</div>
-    <div>Invoice: <strong>${escapeHtml(receiptNumber)}</strong></div>
-  </div>
-
-  <div class="divider">--------------------------------</div>
-
-  <!-- TABLE: Article, Qty, Price, Total after discount -->
-  <table>
-    <thead>
-      <tr>
-        <th style="text-align: left;">Article</th>
-        <th style="text-align: center;">Qty</th>
-        <th style="text-align: right;">Price</th>
-        <th style="text-align: right;">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${itemsRows}
-    </tbody>
-  </table>
-
-  <div class="divider">--------------------------------</div>
-
-  <!-- TOTALS: Subtotal, Overall Discount, Net Total, Amount Received, Change Returned -->
-  <div class="row">
-    <span>Subtotal:</span>
-    <span>Rs. ${subtotal}</span>
-  </div>
-  ${storewideDiscount > 0 ? `
-  <div class="row">
-    <span>Storewide Promo:</span>
-    <span>-Rs. ${storewideDiscount.toLocaleString()}</span>
-  </div>` : ''}
-  ${wholeSaleDiscount > 0 ? `
-  <div class="row">
-    <span>Wholesale Discount (${wholeSaleDiscountPercent}%):</span>
-    <span>-Rs. ${wholeSaleDiscount.toLocaleString()}</span>
-  </div>` : ''}
-  ${totalDiscount > 0 && storewideDiscount === 0 && wholeSaleDiscount === 0 ? `
-  <div class="row">
-    <span>Overall Discount:</span>
-    <span>-Rs. ${totalDiscount.toLocaleString()}</span>
-  </div>` : ''}
-
-  <div class="net-total-row">
-    <span>NET TOTAL:</span>
-    <span>Rs. ${netTotal}</span>
-  </div>
-
-  <div class="row">
-    <span>Amount Received:</span>
-    <span>Rs. ${amountReceived}</span>
-  </div>
-  ${paymentMethod === 'Cash' || parseFloat(saleData.changeReturned) > 0 ? `
-  <div class="row">
-    <span>Change Returned:</span>
-    <span>Rs. ${changeReturned}</span>
-  </div>` : ''}
-
-  <div class="divider">================================</div>
-
-  <!-- FOOTER: Thank you note, Invoice #, Scannable Barcode -->
-  <div class="barcode-wrap">
-    <div style="font-size: 10px; margin-bottom: 3px;">${escapeHtml(footerNote)}</div>
-    <div class="barcode-code">* ${escapeHtml(receiptNumber)} *</div>
-    <div style="margin: 3px auto; max-width: 200px;">${barcodeSvg}</div>
-    <div style="font-size: 8.5px; color: #555;">Scan barcode above for rapid returns &amp; exchanges</div>
-  </div>
-</body>
-</html>`;
-
+  const html = generateThermalReceiptHtml(saleData, shopSettings);
   const escpos = generateEscPosReceipt(saleData, shopSettings);
   executePrint(html, { deviceName, silent, type: 'receipt', escpos });
 }

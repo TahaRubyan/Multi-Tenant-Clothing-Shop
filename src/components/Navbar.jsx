@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePOS } from '../context/POSContext';
+import { PwaInstallButton } from './PwaInstallButton';
 import {
   Scissors,
   LogOut,
@@ -10,6 +11,7 @@ import {
   Sparkles,
   Menu,
   Banknote,
+  CheckCircle2,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -24,6 +26,8 @@ export const Navbar = () => {
     setShowDaySettlementModal,
     isSidebarCollapsed,
     toggleSidebar,
+    isCashSettled,
+    salesLogs = [],
   } = usePOS();
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
@@ -98,16 +102,20 @@ export const Navbar = () => {
       </div>
 
       {/* RIGHT: Active User Profile Card & Day Settlement Action */}
-      <div className="nav-right">
-        {currentUser?.role === 'Admin' && !isMasterAdmin && (
+      <div className="nav-right flex-align-center gap-2">
+        {/* PWA Install Button */}
+        <PwaInstallButton />
+
+        {/* Day Settlement Button with Live Status Indicator */}
+        {!isMasterAdmin && currentUser && (
           <button
             type="button"
-            className="btn-settle-day-header"
+            className={`btn-settle-day-header ${!isCashSettled && salesLogs.length > 0 ? 'unsettled-pulse' : 'settled-clean'}`}
             onClick={() => setShowDaySettlementModal(true)}
             title="End Day Cash Register Settlement & Drawer Reconciliation"
           >
-            <Banknote size={15} className="text-primary" />
-            <span>Close Day / Settle Cash</span>
+            <Banknote size={15} className={!isCashSettled && salesLogs.length > 0 ? 'text-amber' : 'text-success'} />
+            <span>{!isCashSettled && salesLogs.length > 0 ? 'Settle Cash (Unsettled)' : 'Cash Settled ✓'}</span>
           </button>
         )}
 
@@ -120,7 +128,7 @@ export const Navbar = () => {
                 <ShieldCheck size={12} /> {currentUser.role}
               </span>
             </div>
-            <button className="logout-btn" onClick={logout} title="Sign Out">
+            <button className="logout-btn" onClick={() => logout()} title="Sign Out">
               <LogOut size={16} />
             </button>
           </div>

@@ -31,8 +31,8 @@ export const DaySettlementModal = () => {
   const [reasonNote, setReasonNote] = useState('');
   const [lastClosedReport, setLastClosedReport] = useState(null);
 
-  // Admin PIN Protection check
-  const isAdmin = currentUser?.role === 'Admin' || currentUser?.isSuperAdmin;
+  // Cash Register Authorization check (Admins, Managers & Active Terminal Cashiers)
+  const canSettleDrawer = currentUser?.role === 'Admin' || currentUser?.isSuperAdmin || currentUser?.role === 'Cashier' || currentUser?.role === 'Manager';
   const [isAdminPinAuthorized, setIsAdminPinAuthorized] = useState(false);
   const [adminPinInput, setAdminPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -143,7 +143,7 @@ export const DaySettlementModal = () => {
         {/* Modal Body */}
         {activeTab === 'settle' && (
           <div className="modal-body p-4 scrollable-modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
-            {!isAdmin && !isAdminPinAuthorized ? (
+            {!canSettleDrawer && !isAdminPinAuthorized ? (
               <div className="admin-auth-card p-4 text-center glass-card max-width-md mx-auto my-3">
                 <div className="brand-icon-badge mx-auto mb-3" style={{ width: '48px', height: '48px' }}>
                   <ShieldCheck size={28} className="text-primary" />

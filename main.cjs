@@ -171,7 +171,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 720,
-    title: 'SHAAN Multi-Tenant Clothing & Garments POS',
+    title: 'NOVA MEN AND WOMEN - Smart POS Terminal',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,

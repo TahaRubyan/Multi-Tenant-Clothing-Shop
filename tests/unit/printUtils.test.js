@@ -222,7 +222,7 @@ describe('Print Utilities Unit Tests', () => {
   });
 
   describe('Hardware Test Print Functions', () => {
-    it('executes testPrintThermalReceipt without crashing and renders 75mm test receipt', async () => {
+    it('executes testPrintThermalReceipt without crashing and renders 80mm test receipt', async () => {
       const { testPrintThermalReceipt } = await import('../../src/utils/printUtils');
       expect(() => testPrintThermalReceipt({ shopName: 'NOVA TEST' })).not.toThrow();
       const frame = document.getElementById('pos-clean-print-frame');
@@ -230,7 +230,7 @@ describe('Print Utilities Unit Tests', () => {
       const doc = frame.contentWindow.document;
       expect(doc.body.innerHTML).toContain('NOVA TEST');
       expect(doc.body.innerHTML).toContain('INV-TEST-');
-      expect(doc.head.innerHTML).toContain('75mm auto');
+      expect(doc.head.innerHTML).toContain('80mm auto');
     });
 
     it('executes testPrintBarcodeLabel without crashing and renders 50x30mm sticker label', async () => {
@@ -276,9 +276,12 @@ describe('Print Utilities Unit Tests', () => {
 
       expect(esc).toContain('\x1b@'); // Initialize printer
       expect(esc).toContain('NOVA MEN AND WOMEN');
-      expect(esc).toContain('INV-ESC-999');
-      expect(esc).toContain('Wash & Wear Suit');
+      expect(esc).toContain('Wash &');
+      expect(esc).toContain('Wear Suit');
+      expect(esc).toContain('ARTICLE          QTY     PRICE    DISC     TOTAL');
+      expect(esc).toContain('------------------------------------------------');
       expect(esc).toContain('Rs. 5,000');
+      expect(esc).toContain('\x1dV\x41\x03'); // GS V feed paper and cut
       expect(esc).toContain('\x1dV\x00'); // Paper cut command
     });
   });

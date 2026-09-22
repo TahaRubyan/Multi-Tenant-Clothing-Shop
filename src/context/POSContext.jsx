@@ -22,7 +22,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v8.2_clean_five_items';
+const POS_DATA_VERSION = 'v8.3_four_items_clean';
 
 // Clean one-time migration for legacy localStorage cache
 try {
@@ -118,6 +118,14 @@ export const POSProvider = ({ children }) => {
     };
   });
 
+  // Dynamically synchronize window & document tab title with shop settings
+  useEffect(() => {
+    const titleName = shopSettings?.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN';
+    if (typeof document !== 'undefined') {
+      document.title = `${titleName} - POS Terminal`;
+    }
+  }, [shopSettings?.shopName, currentTenant?.name]);
+
   // Product Templates & Custom Attribute Sets
   const [productTemplates, setProductTemplates] = useState(() =>
     getStoredOrDefault('pos_product_templates', INITIAL_PRODUCT_TEMPLATES)
@@ -128,6 +136,11 @@ export const POSProvider = ({ children }) => {
     getStoredOrDefault('pos_day_settlements', INITIAL_DAY_SETTLEMENTS)
   );
   const [showDaySettlementModal, setShowDaySettlementModal] = useState(false);
+  const [isCashSettled, setIsCashSettled] = useState(() => {
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('pos_is_cash_settled') : null;
+    if (saved !== null) return saved === 'true';
+    return true;
+  });
 
   // Printer & POS Hardware Configuration
   const [printerSettings, setPrinterSettings] = useState(() => {
@@ -195,6 +208,28 @@ export const POSProvider = ({ children }) => {
   useEffect(() => { localStorage.setItem('pos_salesLogs', JSON.stringify(allSalesLogs)); }, [allSalesLogs]);
   useEffect(() => { localStorage.setItem('pos_stockLog', JSON.stringify(allStockLog)); }, [allStockLog]);
   useEffect(() => { localStorage.setItem('pos_damageLog', JSON.stringify(allDamageLog)); }, [allDamageLog]);
+  useEffect(() => { localStorage.setItem('pos_day_settlements', JSON.stringify(daySettlements)); }, [daySettlements]);
+  useEffect(() => { localStorage.setItem('pos_is_cash_settled', String(isCashSettled)); }, [isCashSettled]);
+
+  // Prevent closing the tab/window if cash register is unsettled
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      const isMaster = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin';
+      if (!isMaster && !isCashSettled && allSalesLogs.length > 0) {
+        e.preventDefault();
+        e.returnValue = 'Action Blocked: Cash register is unsettled! Please settle cash before leaving.';
+        return e.returnValue;
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      }
+    };
+  }, [isCashSettled, allSalesLogs.length, currentUser]);
 
   // Sync shopSettings when currentTenant changes
   useEffect(() => {
@@ -226,6 +261,7 @@ export const POSProvider = ({ children }) => {
     setAllSalesLogs(MOCK_SALES_LOG);
     setAllStockLog(MOCK_STOCK_UPDATES);
     setAllDamageLog(MOCK_DAMAGED_ITEMS);
+    setIsCashSettled(true);
     clearCart();
     showToast('Loaded full Pakistani textile catalog (40+ items, vendors & logs)!', 'success');
   };
@@ -282,6 +318,7 @@ export const POSProvider = ({ children }) => {
       ...settlementData,
     };
     setDaySettlements(prev => [newEntry, ...prev]);
+    setIsCashSettled(true);
     showToast('Day-end cash settlement recorded and register closed for today', 'success');
     return newEntry;
   };
@@ -447,8 +484,15 @@ export const POSProvider = ({ children }) => {
     return { success: false, message: 'Invalid username or password. Please check your credentials.' };
   };
 
-  const logout = () => {
+  const logout = (force = false) => {
+    const isMaster = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin';
+    if (!force && !isMaster && !isCashSettled && allSalesLogs.length > 0) {
+      showToast('Action Blocked: Cash register is unsettled! Please settle cash before signing out.', 'danger');
+      setShowDaySettlementModal(true);
+      return false;
+    }
     setCurrentUser(null);
+    return true;
   };
 
   const switchTenant = (tenantId) => {
@@ -571,6 +615,13 @@ export const POSProvider = ({ children }) => {
     }
 
     showToast('Shop profile updated & header title synchronized!', 'success');
+  };
+
+  // Validate Supervisor / Manager Discount Authorization PIN
+  const validateDiscountPin = (pin) => {
+    const cleanPin = String(pin || '').trim();
+    const targetPin = String(shopSettings?.discountPin || '1234').trim();
+    return cleanPin.length > 0 && cleanPin === targetPin;
   };
 
   // Vendor Management & Ledgers
@@ -1155,6 +1206,7 @@ export const POSProvider = ({ children }) => {
     );
 
     setAllSalesLogs(prev => [newSale, ...prev]);
+    setIsCashSettled(false);
     clearCart();
     return newSale;
   };
@@ -1242,6 +1294,7 @@ export const POSProvider = ({ children }) => {
         setActiveTab,
         shopSettings,
         updateShopSettings,
+        validateDiscountPin,
         resetToDemoData,
         apparelCategories,
         addApparelCategory,
@@ -1293,6 +1346,8 @@ export const POSProvider = ({ children }) => {
         resetUserPassword,
         daySettlements,
         recordDaySettlement,
+        isCashSettled,
+        setIsCashSettled,
         showDaySettlementModal,
         setShowDaySettlementModal,
         printerSettings,

@@ -213,7 +213,7 @@ export const DashboardView = () => {
         </div>
       </div>
 
-      {/* Main Top 3 KPI Cards - Rectangular with Generous White Space */}
+      {/* Main Top KPI Cards - Revenue, Cash, Credit, Invoices & Alerts */}
       <div className="dashboard-kpi-grid mb-4">
         {/* 1. Today's Total Revenue */}
         <div
@@ -235,7 +235,47 @@ export const DashboardView = () => {
           </div>
         </div>
 
-        {/* 2. Total Invoices Processed */}
+        {/* 2. Today's Cash In Hand */}
+        <div
+          className="dashboard-kpi-card glass-card kpi-interactive-card"
+          onClick={() => setActiveTab('analytics')}
+          title="Click to view Cash Register Analytics"
+        >
+          <div className="kpi-icon icon-blue">
+            <Banknote size={24} />
+          </div>
+          <div className="kpi-info">
+            <span className="kpi-label">Cash In Hand</span>
+            <h3 className="kpi-value font-mono">
+              {shopSettings.currencySymbol} {todaysCashSales.toLocaleString()}
+            </h3>
+            <span className="kpi-sub positive flex-align-center gap-1">
+              <CheckCircle2 size={13} /> Counter cash drawer
+            </span>
+          </div>
+        </div>
+
+        {/* 3. Card & Digital Credit */}
+        <div
+          className="dashboard-kpi-card glass-card kpi-interactive-card"
+          onClick={() => setActiveTab('analytics')}
+          title="Click to view Digital & Credit Settlements"
+        >
+          <div className="kpi-icon icon-cyan">
+            <CreditCard size={24} />
+          </div>
+          <div className="kpi-info">
+            <span className="kpi-label">Digital / Card Credit</span>
+            <h3 className="kpi-value font-mono">
+              {shopSettings.currencySymbol} {todaysDigitalSales.toLocaleString()}
+            </h3>
+            <span className="kpi-sub positive flex-align-center gap-1">
+              <TrendingUp size={13} /> Bank &amp; terminal credit
+            </span>
+          </div>
+        </div>
+
+        {/* 4. Total Invoices Processed */}
         <div
           className="dashboard-kpi-card glass-card kpi-interactive-card"
           onClick={() => setActiveTab('analytics')}
@@ -253,7 +293,7 @@ export const DashboardView = () => {
           </div>
         </div>
 
-        {/* 3. Low Stock Items */}
+        {/* 5. Low Stock Items */}
         <div
           className={`dashboard-kpi-card glass-card kpi-interactive-card ${
             lowStockProducts.length > 0 ? 'warning-kpi-card' : ''

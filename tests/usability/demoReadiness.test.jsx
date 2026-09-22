@@ -18,12 +18,13 @@ describe('Usability & Demo Readiness Validation', () => {
   it('verifies Pakistani textile sample dataset contains authentic fabric types and articles', () => {
     const fabricMaterials = INITIAL_PRODUCTS.map(p => p.fabricMaterial);
 
-    expect(fabricMaterials.some(m => m.includes('Gul Ahmed'))).toBe(true);
-    expect(fabricMaterials.some(m => m.includes('Lawn') || m.includes('Cotton') || m.includes('Latha'))).toBe(true);
+    expect(fabricMaterials.some(m => m.includes('Khaadi') || m.includes('Pasha') || m.includes('Bareeze'))).toBe(true);
+    expect(fabricMaterials.some(m => m.includes('Kurti') || m.includes('Suit') || m.includes('Shirt'))).toBe(true);
 
     const fabricTypes = INITIAL_PRODUCTS.map(p => p.fabricType);
     expect(fabricTypes).toContain('Lawn');
-    expect(fabricTypes).toContain('Cotton');
+    expect(fabricTypes).toContain('Silk');
+    expect(fabricTypes).toContain('Boski');
   });
 
   it('validates vendor directory is pre-seeded with Pakistani mills and contact details', () => {

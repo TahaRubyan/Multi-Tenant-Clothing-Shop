@@ -32,7 +32,7 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
     expect(p1003.stock).toBe(30);
 
     expect(p1004).toBeDefined();
-    expect(p1004.stock).toBe(40);
+    expect(p1004.stock).toBe(15);
   });
 
   it('contains the 4 live demo test sales dated for today in salesLogs', () => {
@@ -44,17 +44,17 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
     const inv4 = result.current.salesLogs.find((s) => s.receiptNumber === 'INV-2026-9204');
 
     expect(inv1).toBeDefined();
-    expect(inv1.dateTime).toContain('21-09-2026');
+    expect(inv1.dateTime).toContain('22-09-2026');
     expect(inv1.netTotal).toBe(2400);
 
     expect(inv2).toBeDefined();
     expect(inv2.netTotal).toBe(6500);
 
     expect(inv3).toBeDefined();
-    expect(inv3.netTotal).toBe(4600);
+    expect(inv3.netTotal).toBe(2800);
 
     expect(inv4).toBeDefined();
-    expect(inv4.netTotal).toBe(5500);
+    expect(inv4.netTotal).toBe(9500);
   });
 
   it('deducts stock upon completing a sale and synchronizes immediately with Analytics', () => {
@@ -173,7 +173,7 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
     fireEvent.click(checkoutBtn);
 
     // Receipt Modal should now be open
-    const modalTitle = screen.getByText(/Order Saved & Printed • 75mm Thermal Receipt/i);
+    const modalTitle = screen.getByText(/Order Saved & Printed • .*80mm Thermal Receipt/i);
     expect(modalTitle).toBeInTheDocument();
 
     // Action buttons MUST be rendered and visible
@@ -189,6 +189,6 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
     fireEvent.click(doneBtn);
 
     // Modal should close
-    expect(screen.queryByText(/Order Saved & Printed • 75mm Thermal Receipt/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Order Saved & Printed • .*80mm Thermal Receipt/i)).not.toBeInTheDocument();
   });
 });
