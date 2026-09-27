@@ -24,7 +24,11 @@ dist-ssr
 *.sw?
 
 # Testing artifacts / videos
-# testing videos
+testing videos/
+*.mp4
+*.mov
+*.avi
+*.webm
 
 # Environment & Sensitive Keys
 .env
