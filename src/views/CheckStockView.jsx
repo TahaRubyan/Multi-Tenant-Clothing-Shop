@@ -57,15 +57,41 @@ export const CheckStockView = () => {
   const healthyStockCount = totalSKUs - lowStockCount;
 
   const filteredProducts = products.filter((p) => {
+    if (!searchQuery.trim()) {
+      const matchesType = selectedTypeFilter === 'All' || p.fabricType === selectedTypeFilter || p.apparelCategory === selectedTypeFilter;
+      let matchesStatus = true;
+      if (statusFilter === 'LowStock') matchesStatus = (p.stock || 0) <= (p.reorderLimit || 0);
+      if (statusFilter === 'InStock') matchesStatus = (p.stock || 0) > (p.reorderLimit || 0);
+      return matchesType && matchesStatus;
+    }
+
+    const q = searchQuery.trim().toLowerCase();
     const matStr = (p.fabricMaterial || p.itemName || '').toLowerCase();
     const colorStr = (p.fabricColor || '').toLowerCase();
     const barcodeStr = (p.barcode || '').toLowerCase();
-    const q = searchQuery.toLowerCase();
+    const deptStr = (p.department || '').toLowerCase();
+    const catStr = (p.apparelCategory || p.fabricType || '').toLowerCase();
+    const tagStr = (p.tagLabel || '').toLowerCase();
+    const kwStr = (p.barcodeKeywords || '').toLowerCase();
+    const unitStr = (p.unitType || '').toLowerCase();
+
+    const variantMatches = (p.variants || []).some(
+      (v) =>
+        (v.sku || '').toLowerCase().includes(q) ||
+        (v.size || '').toLowerCase().includes(q) ||
+        (v.color || '').toLowerCase().includes(q)
+    );
 
     const matchesQuery =
       matStr.includes(q) ||
       colorStr.includes(q) ||
-      barcodeStr.includes(q);
+      barcodeStr.includes(q) ||
+      deptStr.includes(q) ||
+      catStr.includes(q) ||
+      tagStr.includes(q) ||
+      kwStr.includes(q) ||
+      unitStr.includes(q) ||
+      variantMatches;
 
     const matchesType = selectedTypeFilter === 'All' || p.fabricType === selectedTypeFilter || p.apparelCategory === selectedTypeFilter;
 

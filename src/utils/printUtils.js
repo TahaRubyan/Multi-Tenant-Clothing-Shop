@@ -854,9 +854,9 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   const shopName = shopSettings?.shopName || 'NOVA MEN AND WOMEN';
   const labelCount = Math.max(1, parseInt(count, 10) || 1);
 
-  // Line 2: item name with color
-  const baseItemName = product.fabricMaterial || product.name || 'Garment Item';
-  const color = product.fabricColor || product.color || '';
+  // Line 2: item name with color (using dedicated tagLabel if specified)
+  const baseItemName = product.tagLabel || product.fabricMaterial || product.name || product.itemName || 'Garment Item';
+  const color = product.tagSubtitle || product.fabricColor || product.color || '';
   const itemNameWithColor = color ? `${baseItemName} - ${color}` : baseItemName;
 
   // Line 3: cloth type

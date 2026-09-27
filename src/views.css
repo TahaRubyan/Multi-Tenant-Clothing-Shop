@@ -1500,13 +1500,25 @@
 
 /* POS DISCOUNT PIN AUTHORIZATION MODAL - Smooth, non-distorting entrance */
 .pos-pin-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.36);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 250;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
   animation: posPinFadeIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: opacity;
 }
@@ -1790,6 +1802,24 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+}
+
+.btn-preset-chip {
+  padding: 0.2rem 0.55rem;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-preset-chip:hover {
+  background: var(--brand-surface, #eff6ff);
+  border-color: var(--brand-primary, #2563eb);
+  color: var(--brand-primary, #2563eb);
 }
 
 .gap-25 {
@@ -3893,16 +3923,25 @@
 .receipt-dialog-overlay,
 .receipt-modal-overlay {
   position: fixed !important;
-  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  outline: none !important;
+  box-sizing: border-box !important;
   backdrop-filter: blur(5px) !important;
   -webkit-backdrop-filter: blur(5px) !important;
   background: rgba(15, 23, 42, 0.75) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 8px !important;
   overflow: hidden !important;
-  z-index: 1050 !important;
+  z-index: 9999 !important;
 }
 
 .receipt-dialog-card,
@@ -4668,6 +4707,43 @@
   padding: 1.5rem 1.65rem;
   box-shadow: var(--shadow-sm);
   box-sizing: border-box;
+}
+
+.hardware-status-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.hardware-status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: var(--radius-card, 12px);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: all 0.2s ease;
+}
+
+.hardware-status-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px -4px rgba(37, 99, 235, 0.1);
+  border-color: var(--brand-primary, #2563eb);
+}
+
+@media (max-width: 960px) {
+  .hardware-status-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .hardware-status-strip {
+    grid-template-columns: 1fr;
+  }
 }
 
 .settings-card-header {

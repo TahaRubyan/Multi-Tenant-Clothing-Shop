@@ -68,6 +68,9 @@ export const ProductSetupView = () => {
   const [wholesalePrice, setWholesalePrice] = useState('1400');
   const [retailPrice, setRetailPrice] = useState('3200');
   const [barcode, setBarcode] = useState('');
+  const [tagLabel, setTagLabel] = useState('');
+  const [tagSubtitle, setTagSubtitle] = useState('');
+  const [barcodeKeywords, setBarcodeKeywords] = useState('');
   const [stickerPrintCount, setStickerPrintCount] = useState('20');
 
   // STEP 4: Saved Product Data
@@ -156,6 +159,9 @@ export const ProductSetupView = () => {
       department,
       unitType: 'Piece',
       barcode: activeBarcode,
+      tagLabel: tagLabel.trim() || productName.trim(),
+      tagSubtitle: tagSubtitle.trim() || `${color.trim()} (${size.trim()})`,
+      barcodeKeywords: barcodeKeywords.trim(),
       apparelCategory: category,
       fabricType: effectiveType,
       fabricMaterial: `${productName.trim()} - ${effectiveType}`,
@@ -189,6 +195,9 @@ export const ProductSetupView = () => {
   const handleResetForNextProduct = () => {
     setProductName('');
     setColor('Standard');
+    setTagLabel('');
+    setTagSubtitle('');
+    setBarcodeKeywords('');
     setInitialStock('15');
     setWholesalePrice('');
     setRetailPrice('');
@@ -359,11 +368,16 @@ export const ProductSetupView = () => {
                       <span className="text-xs text-muted">-- Direct Wholesale / Cash Purchase (No Ledger) --</span>
                     </div>
                     {vendors
-                      .filter((v) =>
-                        !vendorSearch ||
-                        v.vendorName.toLowerCase().includes(vendorSearch.toLowerCase()) ||
-                        v.city?.toLowerCase().includes(vendorSearch.toLowerCase())
-                      )
+                      .filter((v) => {
+                        if (!vendorSearch.trim()) return true;
+                        const q = vendorSearch.toLowerCase();
+                        return (
+                          (v.vendorName && v.vendorName.toLowerCase().includes(q)) ||
+                          (v.city && v.city.toLowerCase().includes(q)) ||
+                          (v.contactPerson && v.contactPerson.toLowerCase().includes(q)) ||
+                          (v.phone && v.phone.includes(q))
+                        );
+                      })
                       .map((v) => (
                         <div
                           key={v.id}
@@ -608,10 +622,22 @@ export const ProductSetupView = () => {
                     value={wholesalePrice}
                     onChange={(e) => setWholesalePrice(e.target.value)}
                   />
+                  <small className="text-muted text-xxs mt-0.5 block">
+                    Your acquisition cost from vendor/mill.
+                  </small>
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Customer Retail Price (Rs.) *</label>
+                  <div className="flex-between mb-0.5">
+                    <label className="form-label mb-0">Customer Retail Price (Rs.) *</label>
+                    {wholesalePrice > 0 && retailPrice > 0 && (
+                      <span className={`text-xxs font-weight-700 ${parseFloat(retailPrice) > parseFloat(wholesalePrice) ? 'text-success' : 'text-danger'}`}>
+                        {parseFloat(retailPrice) > parseFloat(wholesalePrice)
+                          ? `Margin: Rs. ${(parseFloat(retailPrice) - parseFloat(wholesalePrice)).toLocaleString()} (${Math.round(((parseFloat(retailPrice) - parseFloat(wholesalePrice)) / parseFloat(retailPrice)) * 100)}%)`
+                          : 'Must exceed cost price'}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="number"
                     min="1"
@@ -622,42 +648,112 @@ export const ProductSetupView = () => {
                     autoFocus
                     required
                   />
+                  <small className="text-muted text-xxs mt-0.5 block">
+                    Selling price printed on barcode tag & charged at POS.
+                  </small>
                 </div>
               </div>
 
-              <div className="form-group mb-3">
-                <div className="flex-between mb-1">
-                  <label className="form-label mb-0">Product Barcode (Auto-Generated / Scannable) *</label>
-                  <button
-                    type="button"
-                    className="btn-text-link flex-align-center gap-1"
-                    onClick={() => setBarcode(generateNewBarcode())}
-                  >
-                    <RefreshCw size={12} /> Regenerate
-                  </button>
+              {/* Dedicated Barcode & Thermal Sticker Setup Section */}
+              <div className="border-top pt-3 mt-3">
+                <div className="flex-between mb-2">
+                  <div className="flex-align-center gap-1.5">
+                    <Barcode size={16} className="text-primary" />
+                    <span className="font-weight-700 text-sm text-main">Barcode Tag &amp; Scanning Configuration</span>
+                  </div>
+                  <span className="badge badge-neutral text-xxs font-mono">50mm × 30mm Thermal Tag</span>
                 </div>
-                <div className="input-with-icon">
-                  <Barcode size={18} className="input-icon" />
+                <p className="text-xxs text-muted mb-3">
+                  Set up dedicated tag display title, subtitle, and search keywords for POS scanning & thermal stickers.
+                </p>
+
+                <div className="form-group mb-3">
+                  <div className="flex-between mb-1">
+                    <label className="form-label mb-0">Product Barcode (Scannable / Auto-Generated) *</label>
+                    <button
+                      type="button"
+                      className="btn-text-link flex-align-center gap-1"
+                      onClick={() => setBarcode(generateNewBarcode())}
+                    >
+                      <RefreshCw size={12} /> Regenerate
+                    </button>
+                  </div>
+                  <div className="input-with-icon">
+                    <Barcode size={18} className="input-icon" />
+                    <input
+                      type="text"
+                      className="form-input font-mono font-weight-700"
+                      value={barcode}
+                      onChange={(e) => setBarcode(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-grid-2col mb-3">
+                  <div className="form-group mb-0">
+                    <label className="form-label">
+                      Sticker Tag Display Title <span className="text-muted text-xxs font-weight-normal">(Compact 50×30mm)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input font-weight-600"
+                      placeholder={productName || 'e.g. Royal Oxford Shirt'}
+                      value={tagLabel}
+                      onChange={(e) => setTagLabel(e.target.value)}
+                    />
+                    <small className="text-muted text-xxs mt-0.5 block">
+                      Leave blank to auto-use Product Name ({productName || 'Standard'}).
+                    </small>
+                  </div>
+
+                  <div className="form-group mb-0">
+                    <label className="form-label">
+                      Tag Subtitle / Variant Line <span className="text-muted text-xxs font-weight-normal">(Sticker Line 2)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder={`${color || 'Standard'} (${size || 'M'})`}
+                      value={tagSubtitle}
+                      onChange={(e) => setTagSubtitle(e.target.value)}
+                    />
+                    <small className="text-muted text-xxs mt-0.5 block">
+                      Secondary line on tag (defaults to "{color || 'Standard'} ({size || 'M'})").
+                    </small>
+                  </div>
+                </div>
+
+                <div className="form-group mb-3">
+                  <label className="form-label">
+                    Barcode Search &amp; Tag Keywords <span className="text-muted text-xxs font-weight-normal">(Comma-Separated)</span>
+                  </label>
                   <input
                     type="text"
+                    className="form-input font-mono text-xs"
+                    placeholder="e.g. lawn, formal, executive, summer2026, cotton, eid"
+                    value={barcodeKeywords}
+                    onChange={(e) => setBarcodeKeywords(e.target.value)}
+                  />
+                  <small className="text-muted text-xxs mt-0.5 block">
+                    Cashiers can quickly search these custom keywords in POS Make Sale and Inventory Ledger.
+                  </small>
+                </div>
+
+                <div className="form-group mb-4">
+                  <div className="flex-between mb-1">
+                    <label className="form-label mb-0">Thermal Stickers to Print Count</label>
+                    <span className="text-xxs text-muted">Initial stock: {initialStock || 0} units</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
                     className="form-input font-mono font-weight-700"
-                    value={barcode}
-                    onChange={(e) => setBarcode(e.target.value)}
-                    required
+                    value={stickerPrintCount}
+                    onChange={(e) => setStickerPrintCount(e.target.value)}
+                    placeholder={initialStock || '1'}
                   />
                 </div>
-              </div>
-
-              <div className="form-group mb-4">
-                <label className="form-label">Thermal Stickers to Print Count</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="form-input font-mono font-weight-700"
-                  value={stickerPrintCount}
-                  onChange={(e) => setStickerPrintCount(e.target.value)}
-                  placeholder={initialStock || '1'}
-                />
               </div>
 
               <div className="modal-actions flex-between pt-2">
@@ -669,7 +765,7 @@ export const ProductSetupView = () => {
                   <ArrowLeft size={16} /> Back
                 </button>
                 <button type="submit" className="btn btn-primary btn-lg flex-align-center gap-2">
-                  <CheckCircle2 size={18} /> Save & Generate Barcode Tag
+                  <CheckCircle2 size={18} /> Save &amp; Generate Barcode Tag
                 </button>
               </div>
             </form>
@@ -680,49 +776,205 @@ export const ProductSetupView = () => {
               ======================================================== */}
           {currentStep === 4 && createdProductResult && (() => {
             const productObj = createdProductResult.product || createdProductResult;
+            const grossProfit = (productObj.retailPrice || 0) - (productObj.wholesalePrice || 0);
+            const marginPercent = productObj.retailPrice > 0 ? Math.round((grossProfit / productObj.retailPrice) * 100) : 0;
             return (
-              <div className="wizard-step-container text-center py-4">
-                <div className="brand-icon-badge mx-auto mb-2">
-                  <CheckCircle2 size={46} className="text-success mx-auto" />
-                </div>
-                <h3 className="text-main font-weight-800 mb-1">Product Added to Inventory!</h3>
-                <p className="text-muted text-xs mb-3">
-                  <strong>{productObj.fabricMaterial}</strong> ({productObj.barcode}) is ready for sales counter.
-                </p>
-
-                <div className="my-3 mx-auto" style={{ maxWidth: '280px' }}>
-                  <BarcodeLabelPreview
-                    shopName={shopSettings?.shopName}
-                    itemName={productObj.fabricMaterial}
-                    color={productObj.fabricColor}
-                    clothType={productObj.fabricType || productObj.apparelCategory || productObj.category}
-                    barcode={productObj.barcode}
-                    price={productObj.retailPrice}
-                  />
+              <div className="wizard-step-container">
+                {/* Celebratory Banner */}
+                <div className="text-center pb-3 mb-3 border-bottom">
+                  <div className="brand-icon-badge mx-auto mb-2" style={{ width: '48px', height: '48px' }}>
+                    <CheckCircle2 size={32} className="text-success mx-auto" />
+                  </div>
+                  <div className="flex-align-center justify-center gap-2 mb-1">
+                    <h3 className="text-main font-weight-800 mb-0">Product Enrolled in System</h3>
+                    <span className="badge badge-success flex-align-center gap-1">
+                      <Check size={12} /> Active in Inventory
+                    </span>
+                  </div>
+                  <p className="text-muted text-xs mb-0">
+                    <strong>{productObj.fabricMaterial}</strong> is ready for sales counter and thermal tag dispatch.
+                  </p>
                 </div>
 
-                <div className="flex-align-center justify-center gap-3 mt-4">
+                {/* 2-Column Visual Hierarchy: Financials & Stock vs Thermal Tag */}
+                <div className="form-grid-2col mb-3 align-start">
+                  {/* Left Column: Inventory & Metrics Record */}
+                  <div className="p-3 bg-subtle rounded border">
+                    <div className="flex-align-center gap-2 mb-2 pb-1 border-bottom">
+                      <PackageCheck size={16} className="text-primary" />
+                      <strong className="text-xs text-main">Inventory &amp; Financial Record</strong>
+                    </div>
+
+                    <div className="text-xs">
+                      <div className="flex-between py-1 border-bottom">
+                        <span className="text-muted">Tag Title:</span>
+                        <strong className="text-primary font-weight-700">{productObj.tagLabel || productObj.fabricMaterial}</strong>
+                      </div>
+                      <div className="flex-between py-1 border-bottom">
+                        <span className="text-muted">Color &amp; Size:</span>
+                        <span className="font-weight-600 text-main">{productObj.fabricColor || 'Standard'}</span>
+                      </div>
+                      <div className="flex-between py-1 border-bottom">
+                        <span className="text-muted">Scannable Barcode:</span>
+                        <span className="font-mono font-weight-800 text-primary">{productObj.barcode}</span>
+                      </div>
+                      {productObj.barcodeKeywords && (
+                        <div className="flex-between py-1 border-bottom">
+                          <span className="text-muted">Keywords:</span>
+                          <span className="text-xxs text-muted font-mono">{productObj.barcodeKeywords}</span>
+                        </div>
+                      )}
+                      <div className="flex-between py-1 border-bottom">
+                        <span className="text-muted">Initial Stock:</span>
+                        <span className="badge badge-success font-weight-800">{productObj.stock} Pieces</span>
+                      </div>
+                      <div className="flex-between py-1 border-bottom">
+                        <span className="text-muted">Low Stock Alert:</span>
+                        <span className="text-xxs text-muted">&lt;= {productObj.reorderLimit || 5} units</span>
+                      </div>
+                      <div className="flex-between py-1 border-bottom">
+                        <span className="text-muted">Wholesale Cost:</span>
+                        <span className="font-mono text-muted">Rs. {Number(productObj.wholesalePrice || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex-between py-1">
+                        <span className="font-weight-700 text-main">Customer Price:</span>
+                        <span className="font-mono font-weight-800 text-success">Rs. {Number(productObj.retailPrice || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {productObj.wholesalePrice > 0 && grossProfit > 0 && (
+                      <div className="flex-between pt-2 border-top mt-2 text-xs">
+                        <span className="text-success font-weight-600">Gross Margin:</span>
+                        <span className="badge badge-success font-mono font-weight-800">
+                          +Rs. {grossProfit.toLocaleString()} ({marginPercent}%)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: Thermal Tag & Print Controls */}
+                  <div className="p-3 bg-subtle rounded border flex-column flex-between">
+                    <div>
+                      <div className="flex-between mb-2 pb-1 border-bottom">
+                        <div className="flex-align-center gap-1.5">
+                          <Printer size={16} className="text-primary" />
+                          <strong className="text-xs text-main">50×30mm Thermal Tag</strong>
+                        </div>
+                        <span className="badge badge-neutral text-xxs font-mono">1.8" × 0.9"</span>
+                      </div>
+
+                      <div className="my-2 mx-auto" style={{ maxWidth: '260px' }}>
+                        <BarcodeLabelPreview
+                          shopName={shopSettings?.shopName}
+                          itemName={productObj.fabricMaterial}
+                          tagLabel={productObj.tagLabel}
+                          tagSubtitle={productObj.tagSubtitle}
+                          color={productObj.fabricColor}
+                          clothType={productObj.fabricType || productObj.apparelCategory || productObj.category}
+                          barcode={productObj.barcode}
+                          price={productObj.retailPrice}
+                        />
+                      </div>
+
+                      {/* Quantity Stepper & Quick Presets */}
+                      <div className="mt-2 p-2 bg-surface rounded border">
+                        <div className="flex-between mb-1">
+                          <span className="text-xxs font-weight-700 text-muted">STICKERS TO PRINT:</span>
+                          <span className="text-xs font-mono font-weight-700 text-primary">{stickerPrintCount} Labels</span>
+                        </div>
+                        <div className="flex-align-center gap-2 mb-2">
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-xs px-2"
+                            onClick={() => setStickerPrintCount(prev => Math.max(1, (parseInt(prev, 10) || 1) - 1))}
+                          >
+                            -1
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            className="form-input text-center font-mono font-weight-800 text-xs py-0.5"
+                            value={stickerPrintCount}
+                            onChange={(e) => setStickerPrintCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-xs px-2"
+                            onClick={() => setStickerPrintCount(prev => (parseInt(prev, 10) || 0) + 1)}
+                          >
+                            +1
+                          </button>
+                        </div>
+                        <div className="quick-presets flex-align-center gap-1 justify-center">
+                          <button
+                            type="button"
+                            className="btn-preset-chip"
+                            onClick={() => setStickerPrintCount('1')}
+                          >
+                            1 pc
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-preset-chip"
+                            onClick={() => setStickerPrintCount('5')}
+                          >
+                            5 pcs
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-preset-chip"
+                            onClick={() => setStickerPrintCount('10')}
+                          >
+                            10 pcs
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-preset-chip"
+                            onClick={() => setStickerPrintCount(String(productObj.stock || '20'))}
+                          >
+                            All ({productObj.stock})
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-block flex-align-center justify-center gap-2"
+                        onClick={() => printBarcodeLabels(productObj, parseInt(stickerPrintCount, 10) || 1, shopSettings)}
+                      >
+                        <Printer size={16} /> Print {stickerPrintCount} Barcode Stickers
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Action Buttons */}
+                <div className="modal-actions flex-between pt-3 border-top mt-2">
                   <button
                     type="button"
-                    className="btn btn-primary flex-align-center gap-2"
-                    onClick={() => printBarcodeLabels(productObj, createdProductResult.printCount, shopSettings)}
-                  >
-                    <Printer size={16} /> Print {createdProductResult.printCount} Barcode Stickers (1.8" × 0.9")
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-secondary flex-align-center gap-1"
                     onClick={handleResetForNextProduct}
                   >
-                    + Add Another Product
+                    <Plus size={15} /> + Add Another Product
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setActiveTab('check-stock')}
-                  >
-                    View in Inventory
-                  </button>
+                  <div className="flex-align-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-secondary flex-align-center gap-1"
+                      onClick={() => setActiveTab('check-stock')}
+                    >
+                      <Boxes size={15} /> View in Inventory
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary flex-align-center gap-1"
+                      onClick={() => setActiveTab('make-sale')}
+                    >
+                      <Tag size={15} /> Open in POS Counter <ArrowRight size={15} />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -743,7 +995,9 @@ export const ProductSetupView = () => {
           <div className="my-3 mx-auto" style={{ maxWidth: '270px' }}>
             <BarcodeLabelPreview
               shopName={shopSettings.shopName}
-              itemName={productName || 'Garment Item'}
+              itemName={tagLabel || productName || 'Garment Item'}
+              tagLabel={tagLabel}
+              tagSubtitle={tagSubtitle || `${color || 'Standard'} (${size || 'M'})`}
               color={color || 'Standard'}
               clothType={category || fabricMaterial || 'Cotton Fabric'}
               barcode={barcode || 'PAK-SHT-882049'}

@@ -45,11 +45,21 @@ export const DiscountsView = () => {
   const filteredSearchProducts = products.filter((p) => {
     if (!articleSearchQuery.trim()) return true;
     const q = articleSearchQuery.toLowerCase();
+    const variantMatches = (p.variants || []).some(
+      (v) =>
+        (v.sku || '').toLowerCase().includes(q) ||
+        (v.size || '').toLowerCase().includes(q) ||
+        (v.color || '').toLowerCase().includes(q)
+    );
     return (
-      p.barcode.toLowerCase().includes(q) ||
-      p.fabricMaterial.toLowerCase().includes(q) ||
-      p.fabricType.toLowerCase().includes(q) ||
-      (p.fabricColor && p.fabricColor.toLowerCase().includes(q))
+      (p.barcode && p.barcode.toLowerCase().includes(q)) ||
+      (p.fabricMaterial && p.fabricMaterial.toLowerCase().includes(q)) ||
+      (p.tagLabel && p.tagLabel.toLowerCase().includes(q)) ||
+      (p.barcodeKeywords && p.barcodeKeywords.toLowerCase().includes(q)) ||
+      (p.fabricType && p.fabricType.toLowerCase().includes(q)) ||
+      (p.department && p.department.toLowerCase().includes(q)) ||
+      (p.fabricColor && p.fabricColor.toLowerCase().includes(q)) ||
+      variantMatches
     );
   });
 

@@ -60,13 +60,27 @@ export const StockUpdationView = () => {
     const colorStr = (p.fabricColor || '').toLowerCase();
     const barcodeStr = (p.barcode || '').toLowerCase();
     const catStr = (p.apparelCategory || '').toLowerCase();
+    const deptStr = (p.department || '').toLowerCase();
+    const tagStr = (p.tagLabel || '').toLowerCase();
+    const kwStr = (p.barcodeKeywords || '').toLowerCase();
+
+    const variantMatches = (p.variants || []).some(
+      (v) =>
+        (v.sku || '').toLowerCase().includes(q) ||
+        (v.size || '').toLowerCase().includes(q) ||
+        (v.color || '').toLowerCase().includes(q)
+    );
 
     return (
       matStr.includes(q) ||
       typeStr.includes(q) ||
       colorStr.includes(q) ||
       barcodeStr.includes(q) ||
-      catStr.includes(q)
+      catStr.includes(q) ||
+      deptStr.includes(q) ||
+      tagStr.includes(q) ||
+      kwStr.includes(q) ||
+      variantMatches
     );
   });
 
@@ -75,13 +89,31 @@ export const StockUpdationView = () => {
     if (!damageSearchQuery.trim()) return true;
     const q = damageSearchQuery.toLowerCase();
     const matStr = (p.fabricMaterial || p.itemName || '').toLowerCase();
+    const typeStr = (p.fabricType || '').toLowerCase();
     const colorStr = (p.fabricColor || '').toLowerCase();
     const barcodeStr = (p.barcode || '').toLowerCase();
+    const catStr = (p.apparelCategory || '').toLowerCase();
+    const deptStr = (p.department || '').toLowerCase();
+    const tagStr = (p.tagLabel || '').toLowerCase();
+    const kwStr = (p.barcodeKeywords || '').toLowerCase();
+
+    const variantMatches = (p.variants || []).some(
+      (v) =>
+        (v.sku || '').toLowerCase().includes(q) ||
+        (v.size || '').toLowerCase().includes(q) ||
+        (v.color || '').toLowerCase().includes(q)
+    );
 
     return (
       matStr.includes(q) ||
+      typeStr.includes(q) ||
       colorStr.includes(q) ||
-      barcodeStr.includes(q)
+      barcodeStr.includes(q) ||
+      catStr.includes(q) ||
+      deptStr.includes(q) ||
+      tagStr.includes(q) ||
+      kwStr.includes(q) ||
+      variantMatches
     );
   });
 

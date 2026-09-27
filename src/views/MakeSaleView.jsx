@@ -94,6 +94,9 @@ export const MakeSaleView = () => {
           barcode: v.sku,
           masterBarcode: p.barcode,
           fabricMaterial: p.fabricMaterial,
+          tagLabel: p.tagLabel || '',
+          barcodeKeywords: p.barcodeKeywords || '',
+          apparelCategory: p.apparelCategory || '',
           fabricType: p.fabricType || 'Garments',
           fabricColor: `${v.color} • Size ${v.size}`,
           retailPrice: v.retailPrice,
@@ -112,6 +115,9 @@ export const MakeSaleView = () => {
         barcode: p.barcode,
         masterBarcode: p.barcode,
         fabricMaterial: p.fabricMaterial,
+        tagLabel: p.tagLabel || '',
+        barcodeKeywords: p.barcodeKeywords || '',
+        apparelCategory: p.apparelCategory || '',
         fabricType: p.fabricType || 'Garments',
         fabricColor: p.fabricColor,
         retailPrice: p.retailPrice,
@@ -122,7 +128,7 @@ export const MakeSaleView = () => {
     }
   });
 
-  // Filter by search query (barcode, SKU, product name, color, department)
+  // Filter by search query (barcode, SKU, product name, color, department, tag label, keywords)
   const searchResults = isSearchFocused
     ? searchQuery.trim()
       ? flattenedSearchItems.filter((item) => {
@@ -131,9 +137,12 @@ export const MakeSaleView = () => {
             item.barcode.toLowerCase().includes(q) ||
             item.masterBarcode.toLowerCase().includes(q) ||
             item.fabricMaterial.toLowerCase().includes(q) ||
+            (item.tagLabel && item.tagLabel.toLowerCase().includes(q)) ||
+            (item.barcodeKeywords && item.barcodeKeywords.toLowerCase().includes(q)) ||
             item.fabricType.toLowerCase().includes(q) ||
             item.fabricColor.toLowerCase().includes(q) ||
-            item.department.toLowerCase().includes(q)
+            item.department.toLowerCase().includes(q) ||
+            (item.apparelCategory && item.apparelCategory.toLowerCase().includes(q))
           );
         })
       : flattenedSearchItems

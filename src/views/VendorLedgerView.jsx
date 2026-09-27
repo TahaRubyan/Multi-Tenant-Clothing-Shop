@@ -68,19 +68,29 @@ export const VendorLedgerView = () => {
   const selectedVendor = vendors.find((v) => v.id === selectedVendorId) || vendors[0];
   const wizardSelectedVendor = vendors.find((v) => v.id === wizardSelectedVendorId) || selectedVendor;
 
-  const filteredVendors = vendors.filter(
-    (v) =>
-      v.vendorName.toLowerCase().includes(searchVendorQuery.toLowerCase()) ||
-      v.contactPerson.toLowerCase().includes(searchVendorQuery.toLowerCase()) ||
-      v.city.toLowerCase().includes(searchVendorQuery.toLowerCase())
-  );
+  const filteredVendors = vendors.filter((v) => {
+    if (!searchVendorQuery.trim()) return true;
+    const q = searchVendorQuery.toLowerCase();
+    return (
+      (v.vendorName && v.vendorName.toLowerCase().includes(q)) ||
+      (v.contactPerson && v.contactPerson.toLowerCase().includes(q)) ||
+      (v.city && v.city.toLowerCase().includes(q)) ||
+      (v.phone && v.phone.toLowerCase().includes(q)) ||
+      (v.taxId && v.taxId.toLowerCase().includes(q))
+    );
+  });
 
-  const wizardFilteredVendors = vendors.filter(
-    (v) =>
-      v.vendorName.toLowerCase().includes(wizardSearchQuery.toLowerCase()) ||
-      v.contactPerson.toLowerCase().includes(wizardSearchQuery.toLowerCase()) ||
-      v.city.toLowerCase().includes(wizardSearchQuery.toLowerCase())
-  );
+  const wizardFilteredVendors = vendors.filter((v) => {
+    if (!wizardSearchQuery.trim()) return true;
+    const q = wizardSearchQuery.toLowerCase();
+    return (
+      (v.vendorName && v.vendorName.toLowerCase().includes(q)) ||
+      (v.contactPerson && v.contactPerson.toLowerCase().includes(q)) ||
+      (v.city && v.city.toLowerCase().includes(q)) ||
+      (v.phone && v.phone.toLowerCase().includes(q)) ||
+      (v.taxId && v.taxId.toLowerCase().includes(q))
+    );
+  });
 
   // Consolidated Payment Logs across all vendors
   const allVendorLogs = vendors

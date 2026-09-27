@@ -14,6 +14,8 @@ import { generateBarcodeSvg } from '../utils/printUtils';
 export default function BarcodeLabelPreview({
   shopName = 'NOVA MEN AND WOMEN',
   itemName = 'Executive Cotton Kurta',
+  tagLabel = '',
+  tagSubtitle = '',
   color = 'Navy Blue',
   clothType = 'Wash & Wear Fabric',
   barcode = 'PAK-KRT-99201',
@@ -21,8 +23,9 @@ export default function BarcodeLabelPreview({
   className = '',
 }) {
   const displayShopName = (shopName || 'NOVA MEN AND WOMEN').toUpperCase();
-  const baseName = itemName || 'Garment Item';
-  const itemNameWithColor = color ? `${baseName} - ${color}` : baseName;
+  const baseName = tagLabel || itemName || 'Garment Item';
+  const effectiveSubtitle = tagSubtitle || color || '';
+  const itemNameWithColor = effectiveSubtitle ? `${baseName} - ${effectiveSubtitle}` : baseName;
   const displayClothType = (clothType || 'Apparel & Fabric').toUpperCase();
   const cleanBarcode = String(barcode || '000000000000').trim();
   const formattedPrice = (parseFloat(price) || 0).toLocaleString();

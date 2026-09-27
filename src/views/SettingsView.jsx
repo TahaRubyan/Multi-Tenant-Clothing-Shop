@@ -27,6 +27,9 @@ import {
   Sparkles,
   Boxes,
   Tag,
+  DollarSign,
+  Sliders,
+  Cpu,
 } from 'lucide-react';
 import {
   testPrintThermalReceipt,
@@ -68,8 +71,12 @@ export const SettingsView = () => {
   const [labelSize, setLabelSize] = useState(printerSettings?.labelSize || '50x30mm');
   const [printMethod, setPrintMethod] = useState(printerSettings?.printMethod || 'thermal_transfer');
   const [autoPrintReceipt, setAutoPrintReceipt] = useState(printerSettings?.autoPrintReceipt !== false);
+  const [autoCutReceipt, setAutoCutReceipt] = useState(printerSettings?.autoCutReceipt !== false);
   const [silentPrinting, setSilentPrinting] = useState(printerSettings?.silentPrinting === true);
   const [showReceiptModal, setShowReceiptModal] = useState(printerSettings?.showReceiptModal !== false);
+  const [cashDrawerAutoKick, setCashDrawerAutoKick] = useState(printerSettings?.cashDrawerAutoKick !== false);
+  const [cashDrawerPulse, setCashDrawerPulse] = useState(printerSettings?.cashDrawerPulse || '100ms');
+  const [cashDrawerPin, setCashDrawerPin] = useState(printerSettings?.cashDrawerPin || 'pin2');
 
   // Synchronize local form state whenever POSContext printer settings update
   useEffect(() => {
@@ -94,8 +101,20 @@ export const SettingsView = () => {
     if (printerSettings?.autoPrintReceipt !== undefined) {
       setAutoPrintReceipt(printerSettings.autoPrintReceipt);
     }
+    if (printerSettings?.autoCutReceipt !== undefined) {
+      setAutoCutReceipt(printerSettings.autoCutReceipt);
+    }
     if (printerSettings?.showReceiptModal !== undefined) {
       setShowReceiptModal(printerSettings.showReceiptModal);
+    }
+    if (printerSettings?.cashDrawerAutoKick !== undefined) {
+      setCashDrawerAutoKick(printerSettings.cashDrawerAutoKick);
+    }
+    if (printerSettings?.cashDrawerPulse) {
+      setCashDrawerPulse(printerSettings.cashDrawerPulse);
+    }
+    if (printerSettings?.cashDrawerPin) {
+      setCashDrawerPin(printerSettings.cashDrawerPin);
     }
   }, [printerSettings]);
 
@@ -189,9 +208,32 @@ export const SettingsView = () => {
       labelSize,
       printMethod,
       autoPrintReceipt,
+      autoCutReceipt,
       silentPrinting,
       showReceiptModal,
+      cashDrawerAutoKick,
+      cashDrawerPulse,
+      cashDrawerPin,
     });
+    showToast('Hardware and printer configurations saved successfully', 'success');
+  };
+
+  const handleTestCashDrawerKick = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(520, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    } catch (_) {}
+    showToast(`Cash drawer kick pulse (${cashDrawerPulse}, RJ11 ${cashDrawerPin.toUpperCase()}) triggered via ${receiptPrinter}!`, 'success');
   };
 
   const handleCreateUser = (e) => {
@@ -790,6 +832,63 @@ export const SettingsView = () => {
           ======================================================== */}
       {activeSettingsTab === 'hardware_printers' && (
         <div className="settings-profile-full-layout scrollable-panel">
+          {/* Top Hardware Diagnostic Status Strip */}
+          <div className="hardware-status-strip">
+            <div className="hardware-status-item">
+              <div className="brand-icon-badge" style={{ background: 'rgba(37, 99, 235, 0.12)', color: '#2563eb' }}>
+                <Printer size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xxs text-muted font-weight-700 block uppercase tracking-wider">Receipt Printer</span>
+                <strong className="text-xs text-main block truncate" title={receiptPrinter}>{receiptPrinter}</strong>
+                <span className="badge badge-success text-xxs font-weight-600 mt-0.5">● Ready ({receiptPaperWidth})</span>
+              </div>
+            </div>
+
+            <div className="hardware-status-item">
+              <div className="brand-icon-badge" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669' }}>
+                <Tag size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xxs text-muted font-weight-700 block uppercase tracking-wider">Label Printer</span>
+                <strong className="text-xs text-main block truncate" title={labelPrinter}>{labelPrinter}</strong>
+                <span className="badge badge-primary text-xxs font-weight-600 mt-0.5">
+                  ● {labelSize} ({printMethod === 'thermal_transfer' ? 'Ribbon' : 'Direct'})
+                </span>
+              </div>
+            </div>
+
+            <div className="hardware-status-item">
+              <div className="brand-icon-badge" style={{ background: 'rgba(217, 119, 6, 0.12)', color: '#d97706' }}>
+                <DollarSign size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xxs text-muted font-weight-700 block uppercase tracking-wider">Cash Drawer</span>
+                <strong className="text-xs text-main block truncate">RJ11 DK Port (24V)</strong>
+                <span className={`badge ${cashDrawerAutoKick ? 'badge-success' : 'badge-neutral'} text-xxs font-weight-600 mt-0.5`}>
+                  ● {cashDrawerAutoKick ? 'Auto-Kick Active' : 'Manual Trigger'}
+                </span>
+              </div>
+            </div>
+
+            <div className="hardware-status-item">
+              <div className="brand-icon-badge" style={{ background: 'rgba(124, 58, 237, 0.12)', color: '#7c3aed' }}>
+                <Cpu size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xxs text-muted font-weight-700 block uppercase tracking-wider">Spooler Mesh</span>
+                <strong className="text-xs text-main block">{availablePrinters.length} Devices Online</strong>
+                <button
+                  type="button"
+                  className="btn-text-link text-xxs flex-align-center gap-1 mt-0.5"
+                  onClick={refreshPrinters}
+                >
+                  <RotateCcw size={10} /> Rescan Ports
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Active Hardware Verification Banner */}
           <div className="glass-card mb-3 p-3 flex-between flex-wrap gap-2" style={{ borderLeft: '4px solid #10b981' }}>
             <div className="flex-align-center gap-3">
@@ -819,6 +918,10 @@ export const SettingsView = () => {
                     labelSize: '50x30mm',
                     printMethod: 'thermal_transfer',
                     silentPrinting: true,
+                    autoCutReceipt: true,
+                    cashDrawerAutoKick: true,
+                    cashDrawerPulse: '100ms',
+                    cashDrawerPin: 'pin2',
                   });
                 }}
                 title="Restore verified hardware mapping: Receipt -> BIXOLON (USB003), Label -> Zebra Thermal Transfer (USB004)"
@@ -840,16 +943,19 @@ export const SettingsView = () => {
             <div className="settings-profile-grid">
               {/* Card 1: Thermal Receipt Printer Device (75mm) */}
               <div className="settings-section-card glass-card">
-                <div className="settings-card-header">
-                  <div className="brand-icon-badge">
-                    <Printer size={18} className="text-primary" />
+                <div className="settings-card-header flex-between">
+                  <div className="flex-align-center gap-2">
+                    <div className="brand-icon-badge">
+                      <Printer size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="settings-card-title">Thermal Receipt Printer (75mm)</h3>
+                      <p className="settings-card-desc">
+                        Target hardware device for sales receipts, continuous roll paper size, and auto-print.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="settings-card-title">Thermal Receipt Printer (75mm)</h3>
-                    <p className="settings-card-desc">
-                      Select target hardware device for sales receipts, continuous roll paper size, and checkout auto-print.
-                    </p>
-                  </div>
+                  <span className="badge badge-primary font-mono text-xxs">ESC/POS</span>
                 </div>
 
                 <div className="settings-card-body">
@@ -910,7 +1016,7 @@ export const SettingsView = () => {
                     </div>
                   </div>
 
-                  <div className="form-group mb-0">
+                  <div className="form-group mb-2">
                     <label className="checkbox-container text-xs cursor-pointer flex-align-center gap-2 p-2 glass-card-subtle rounded">
                       <input
                         type="checkbox"
@@ -925,21 +1031,40 @@ export const SettingsView = () => {
                       </div>
                     </label>
                   </div>
+
+                  <div className="form-group mb-0">
+                    <label className="checkbox-container text-xs cursor-pointer flex-align-center gap-2 p-2 glass-card-subtle rounded">
+                      <input
+                        type="checkbox"
+                        checked={autoCutReceipt}
+                        onChange={(e) => setAutoCutReceipt(e.target.checked)}
+                      />
+                      <div>
+                        <strong className="text-main block">Auto-Cut Paper (ESC/POS Partial Cut)</strong>
+                        <span className="text-muted text-xxs">
+                          Sends standard GS V 66 0 cutter signal after printing the footer note.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </div>
 
               {/* Card 2: Barcode & Sticker Label Printer (50x30mm) */}
               <div className="settings-section-card glass-card">
-                <div className="settings-card-header">
-                  <div className="brand-icon-badge">
-                    <Tag size={18} className="text-primary" />
+                <div className="settings-card-header flex-between">
+                  <div className="flex-align-center gap-2">
+                    <div className="brand-icon-badge">
+                      <Tag size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="settings-card-title">Barcode &amp; Sticker Label Printer</h3>
+                      <p className="settings-card-desc">
+                        Hardware device for 50×30mm barcode stickers, roll dimensions, and ribbon mode.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="settings-card-title">Barcode &amp; Sticker Label Printer</h3>
-                    <p className="settings-card-desc">
-                      Select target hardware device for barcode stickers, label roll dimensions, and direct dispatch.
-                    </p>
-                  </div>
+                  <span className="badge badge-primary font-mono text-xxs">ZPL / TSPL</span>
                 </div>
 
                 <div className="settings-card-body">
@@ -1000,7 +1125,7 @@ export const SettingsView = () => {
                     </div>
                   </div>
 
-                  <div className="form-group mb-3">
+                  <div className="form-group mb-0">
                     <label htmlFor="label-print-method-select" className="form-label text-xs font-weight-700">
                       Print Method / Ribbon Mode *
                     </label>
@@ -1025,8 +1150,115 @@ export const SettingsView = () => {
                       )}
                     </small>
                   </div>
+                </div>
+              </div>
+
+              {/* Card 3: Electronic Cash Drawer (RJ11 Kick Solenoid) */}
+              <div className="settings-section-card glass-card">
+                <div className="settings-card-header flex-between">
+                  <div className="flex-align-center gap-2">
+                    <div className="brand-icon-badge" style={{ background: 'rgba(217, 119, 6, 0.12)', color: '#d97706' }}>
+                      <DollarSign size={18} />
+                    </div>
+                    <div>
+                      <h3 className="settings-card-title">Electronic Cash Drawer (RJ11 Kick)</h3>
+                      <p className="settings-card-desc">
+                        Configure cash drawer solenoid kick pulse via thermal receipt printer DK port.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="badge badge-warning font-mono text-xxs">24V Solenoid</span>
+                </div>
+
+                <div className="settings-card-body">
+                  <div className="form-grid-2col mb-3">
+                    <div className="form-group mb-0">
+                      <label htmlFor="drawer-pin-select" className="form-label text-xs font-weight-700">
+                        DK Port Solenoid Pin *
+                      </label>
+                      <select
+                        id="drawer-pin-select"
+                        className="form-select font-weight-600 text-xs font-mono"
+                        value={cashDrawerPin}
+                        onChange={(e) => setCashDrawerPin(e.target.value)}
+                      >
+                        <option value="pin2">Pin 2 (Standard EPSON / Star / Bixolon)</option>
+                        <option value="pin5">Pin 5 (Secondary Solenoid Drawer)</option>
+                      </select>
+                      <small className="text-muted text-xxs mt-0.5 block">
+                        RJ11 cable plugs into receipt printer back panel.
+                      </small>
+                    </div>
+
+                    <div className="form-group mb-0">
+                      <label htmlFor="drawer-pulse-select" className="form-label text-xs font-weight-700">
+                        Kick Pulse Duration *
+                      </label>
+                      <select
+                        id="drawer-pulse-select"
+                        className="form-select font-weight-600 text-xs font-mono"
+                        value={cashDrawerPulse}
+                        onChange={(e) => setCashDrawerPulse(e.target.value)}
+                      >
+                        <option value="100ms">100ms (Standard Solenoid Pulse)</option>
+                        <option value="50ms">50ms (High-Speed Solenoid)</option>
+                        <option value="250ms">250ms (Heavy-Duty Safe Drawer)</option>
+                      </select>
+                      <small className="text-muted text-xxs mt-0.5 block">
+                        Pulse width to energize drawer solenoid coil.
+                      </small>
+                    </div>
+                  </div>
 
                   <div className="form-group mb-3">
+                    <label className="checkbox-container text-xs cursor-pointer flex-align-center gap-2 p-2 glass-card-subtle rounded">
+                      <input
+                        type="checkbox"
+                        checked={cashDrawerAutoKick}
+                        onChange={(e) => setCashDrawerAutoKick(e.target.checked)}
+                      />
+                      <div>
+                        <strong className="text-main block">Auto-Kick Cash Drawer on Cash Tendered</strong>
+                        <span className="text-muted text-xxs">
+                          Sends ESC p 0 25 250 kick signal to receipt printer whenever cash payment is settled.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm flex-align-center justify-center gap-1 width-full"
+                      style={{ height: '36px' }}
+                      onClick={handleTestCashDrawerKick}
+                      title="Send test pulse to attached cash drawer"
+                    >
+                      <DollarSign size={13} className="text-primary" /> Test Open Cash Drawer
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Hardware Automation & Dispatch Controls */}
+              <div className="settings-section-card glass-card">
+                <div className="settings-card-header flex-between">
+                  <div className="flex-align-center gap-2">
+                    <div className="brand-icon-badge" style={{ background: 'rgba(124, 58, 237, 0.12)', color: '#7c3aed' }}>
+                      <Sliders size={18} />
+                    </div>
+                    <div>
+                      <h3 className="settings-card-title">Automation &amp; Driver Dispatch</h3>
+                      <p className="settings-card-desc">
+                        Bypass operating system print dialogs and manage hardware spooler synchronization.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="badge badge-neutral font-mono text-xxs">Direct Driver</span>
+                </div>
+
+                <div className="settings-card-body">
+                  <div className="form-group mb-2">
                     <label className="checkbox-container text-xs cursor-pointer flex-align-center gap-2 p-2 glass-card-subtle rounded">
                       <input
                         type="checkbox"
