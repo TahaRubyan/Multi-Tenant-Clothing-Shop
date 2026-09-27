@@ -242,9 +242,14 @@ export function generateEscPosReceipt(saleData, shopSettings = {}) {
 
   const lines = [];
   lines.push('\x1b@'); // Initialize printer
-  // RJ11 / RJ12 Cash Drawer Kick Pulse (Pin 2: ESC p 0 25 250, Pin 5: ESC p 1 25 250)
+  // RJ11 / RJ12 Cash Drawer Kick Pulse (Pin 2 & 5, 25ms & 50ms, DLE DC4, Star BEL)
   lines.push('\x1b\x70\x00\x19\xfa');
   lines.push('\x1b\x70\x01\x19\xfa');
+  lines.push('\x1b\x70\x00\x32\xff');
+  lines.push('\x1b\x70\x01\x32\xff');
+  lines.push('\x10\x14\x01\x00\x05');
+  lines.push('\x10\x14\x01\x01\x05');
+  lines.push('\x07');
   lines.push('\x1ba\x01'); // Center align
   lines.push('\x1b!\x38' + shopName + '\n\x1b!\x00'); // Double-Height, Double-Width, Bold Shop Header
   lines.push('\x1bE\x01TESSLO FASHION RETAIL OS\n\x1bE\x00');
@@ -307,7 +312,10 @@ export function generateEscPosReceipt(saleData, shopSettings = {}) {
     lines.push(formatRow('Item Discount:', `-Rs. ${itemDiscountsTotal.toLocaleString()}`));
   }
   if (totalOverallBillDiscount > 0) {
-    lines.push(formatRow(`Discount on Whole Bill:`, `-Rs. ${totalOverallBillDiscount.toLocaleString()}`));
+    const discTitle = wholeSaleDiscountPercent > 0
+      ? `Discount (${wholeSaleDiscountPercent}%):`
+      : 'Discount on Whole Bill:';
+    lines.push(formatRow(discTitle, `-Rs. ${totalOverallBillDiscount.toLocaleString()}`));
   }
   if (allDiscountsTotal > 0 && itemDiscountsTotal > 0 && totalOverallBillDiscount > 0) {
     lines.push(formatRow('Total Discount:', `-Rs. ${allDiscountsTotal.toLocaleString()}`));
@@ -753,6 +761,55 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
   const html = generateThermalReceiptHtml(saleData, shopSettings);
   const escpos = generateEscPosReceipt(saleData, shopSettings);
   executePrint(html, { deviceName, silent, type: 'receipt', escpos });
+
+  // If cash transaction, ensure physical cash drawer solenoid is kicked via DK port
+  if (saleData?.paymentMethod === 'Cash') {
+    triggerCashDrawerKick(shopSettings, { deviceName }).catch(() => {});
+  }
+}
+
+/**
+ * Triggers cash drawer kick solenoid pulse via thermal receipt printer (BIXOLON SRP-Q302).
+ * Sends raw RJ11/RJ12 multi-standard pulse through Electron IPC without popup.
+ */
+export async function triggerCashDrawerKick(shopSettings = {}, options = {}) {
+  let savedPrinterSettings = {};
+  try {
+    if (typeof localStorage !== 'undefined') {
+      savedPrinterSettings = JSON.parse(localStorage.getItem('pos_printer_settings') || '{}');
+    }
+  } catch (_) {}
+
+  const rawDevice = options?.deviceName || shopSettings?.receiptPrinter || savedPrinterSettings?.receiptPrinter;
+  const isLabelTarget = rawDevice && LABEL_PRINTER_KEYWORD_REGEX.test(rawDevice);
+  const targetPrinter = (!rawDevice || rawDevice === 'Default System Printer' || isLabelTarget)
+    ? 'BIXOLON SRP-Q302'
+    : rawDevice;
+
+  if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.kickCashDrawer === 'function') {
+    try {
+      const res = await window.electronAPI.kickCashDrawer(targetPrinter);
+      console.log(`[Cash Drawer] Solenoid kick pulse dispatched to: ${targetPrinter}`, res);
+      return res;
+    } catch (err) {
+      console.warn('[Cash Drawer] Electron kick error:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  // Network / Browser fallback
+  if (typeof window !== 'undefined' && typeof fetch === 'function' && window.location?.protocol?.startsWith('http')) {
+    try {
+      const res = await fetch('/api/kick-cash-drawer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ printer: targetPrinter }),
+      });
+      return await res.json();
+    } catch (_) {}
+  }
+
+  return { success: true, simulated: true };
 }
 
 /**

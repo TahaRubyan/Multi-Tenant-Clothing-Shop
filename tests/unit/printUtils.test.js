@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { generateBarcodeSvg, printThermalReceipt, printBarcodeLabels, generateEplLabel, generateZplLabel } from '../../src/utils/printUtils';
+import { generateBarcodeSvg, printThermalReceipt, printBarcodeLabels, generateEplLabel, generateZplLabel, triggerCashDrawerKick } from '../../src/utils/printUtils';
 
 describe('Print Utilities Unit Tests', () => {
   beforeEach(() => {
@@ -367,6 +367,24 @@ describe('Print Utilities Unit Tests', () => {
       const detected = autoDetectPrinters(mockPrinters);
       expect(detected.detectedReceipt).toBe('Xprinter XP-80C');
       expect(detected.detectedLabel).toBe('Xprinter XP-365B');
+    });
+  });
+
+  describe('triggerCashDrawerKick', () => {
+    it('triggers electron kick if electronAPI is present', async () => {
+      window.electronAPI = {
+        kickCashDrawer: vi.fn().mockResolvedValue({ success: true, printer: 'BIXOLON SRP-Q302' }),
+      };
+      const res = await triggerCashDrawerKick({ receiptPrinter: 'BIXOLON SRP-Q302' });
+      expect(window.electronAPI.kickCashDrawer).toHaveBeenCalledWith('BIXOLON SRP-Q302');
+      expect(res.success).toBe(true);
+      delete window.electronAPI;
+    });
+
+    it('returns simulated success in web environment without error', async () => {
+      const res = await triggerCashDrawerKick();
+      expect(res.success).toBe(true);
+      expect(res.simulated).toBe(true);
     });
   });
 });

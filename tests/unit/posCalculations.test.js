@@ -157,4 +157,36 @@ describe('POS Unit Calculations', () => {
       expect(date.getDate()).toBe(20);
     });
   });
+
+  describe('Dual Discount Engine (% and Flat Rs.)', () => {
+    it('applies flat Rs. discount correctly on cart total', () => {
+      const subtotal = 4500;
+      const flatDiscount = 300;
+      const net = Math.max(0, subtotal - flatDiscount);
+      expect(net).toBe(4200);
+      const effectivePct = parseFloat(((flatDiscount / subtotal) * 100).toFixed(1));
+      expect(effectivePct).toBe(6.7);
+    });
+
+    it('clamps flat Rs. discount so net total cannot go below zero', () => {
+      const subtotal = 1000;
+      const flatDiscount = 1500;
+      const applied = Math.min(subtotal, flatDiscount);
+      const net = Math.max(0, subtotal - applied);
+      expect(net).toBe(0);
+    });
+
+    it('accurately toggles between percent mode and rupees mode', () => {
+      const subtotal = 10000;
+      // Percent mode: 10%
+      const pctDiscAmt = Math.round(subtotal * (10 / 100));
+      expect(pctDiscAmt).toBe(1000);
+      expect(subtotal - pctDiscAmt).toBe(9000);
+
+      // Rupees mode: Rs. 500 off
+      const rsDiscAmt = Math.min(subtotal, 500);
+      expect(rsDiscAmt).toBe(500);
+      expect(subtotal - rsDiscAmt).toBe(9500);
+    });
+  });
 });

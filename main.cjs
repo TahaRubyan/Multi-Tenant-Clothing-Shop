@@ -217,10 +217,27 @@ ipcMain.handle('close-app', () => {
 ipcMain.handle('kick-cash-drawer', async (event, printerName) => {
   try {
     const targetPrinter = await resolvePrinterName(printerName, 'receipt');
-    // Standard ESC/POS drawer kick pulses for RJ11/RJ12 drawer connected to printer:
-    // ESC p 0 25 250 (Pin 2 pulse) and ESC p 1 25 250 (Pin 5 pulse)
-    const kickBytes = Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa, 0x1b, 0x70, 0x01, 0x19, 0xfa]);
-    console.log(`[Cash Drawer Bridge] Sending drawer kick pulse to receipt printer: ${targetPrinter}`);
+    // Multi-Standard Universal Cash Drawer Solenoid Kick Pulses:
+    // 1. ESC p 0 25 250 (Pin 2 standard 25ms pulse)
+    // 2. ESC p 1 25 250 (Pin 5 standard 25ms pulse)
+    // 3. ESC p 0 50 255 (Pin 2 extended 24V 50ms pulse for heavy-duty drawers)
+    // 4. ESC p 1 50 255 (Pin 5 extended 24V 50ms pulse for heavy-duty drawers)
+    // 5. ESC p '0' 25 250 / ESC p '1' 25 250 (ASCII pin representation)
+    // 6. DLE DC4 real-time kick commands (immediate solenoid pulse for BIXOLON SRP-Q302 / Epson TM)
+    // 7. Star Line Mode / Citizen BEL drawer pulse (0x07, ESC BEL)
+    const kickBytes = Buffer.from([
+      0x1b, 0x70, 0x00, 0x19, 0xfa,
+      0x1b, 0x70, 0x01, 0x19, 0xfa,
+      0x1b, 0x70, 0x00, 0x32, 0xff,
+      0x1b, 0x70, 0x01, 0x32, 0xff,
+      0x1b, 0x70, 0x30, 0x19, 0xfa,
+      0x1b, 0x70, 0x31, 0x19, 0xfa,
+      0x10, 0x14, 0x01, 0x00, 0x05,
+      0x10, 0x14, 0x01, 0x01, 0x05,
+      0x07,
+      0x1b, 0x07, 0x0b, 0x37,
+    ]);
+    console.log(`[Cash Drawer Bridge] Sending universal drawer kick pulse to receipt printer: ${targetPrinter}`);
     const res = await rawPrint(targetPrinter, kickBytes, 'Open Cash Drawer');
     return { success: res.success, printer: targetPrinter };
   } catch (err) {

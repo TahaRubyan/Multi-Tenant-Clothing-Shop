@@ -70,6 +70,8 @@ export const ProductSetupView = () => {
   const [wholesalePrice, setWholesalePrice] = useState('1400');
   const [retailPrice, setRetailPrice] = useState('3200');
   const [priceDiscountPercent, setPriceDiscountPercent] = useState('0');
+  const [priceDiscountRs, setPriceDiscountRs] = useState('0');
+  const [priceDiscountMode, setPriceDiscountMode] = useState('percent'); // 'percent' | 'rupees'
   const [barcode, setBarcode] = useState('');
   const [tagLabel, setTagLabel] = useState('');
   const [tagSubtitle, setTagSubtitle] = useState('');
@@ -137,10 +139,21 @@ export const ProductSetupView = () => {
   const handleSaveProductFinal = (e) => {
     e.preventDefault();
     const baseRetail = parseFloat(retailPrice) || 0;
-    const discountPct = parseFloat(priceDiscountPercent) || 0;
-    const effectiveRetail = discountPct > 0
-      ? Math.round(baseRetail * (1 - discountPct / 100))
-      : baseRetail;
+    let discountPct = 0;
+    let effectiveRetail = baseRetail;
+
+    if (priceDiscountMode === 'rupees') {
+      const flatRs = parseFloat(priceDiscountRs) || 0;
+      if (flatRs > 0 && baseRetail > 0) {
+        effectiveRetail = Math.max(0, baseRetail - flatRs);
+        discountPct = parseFloat(((flatRs / baseRetail) * 100).toFixed(1));
+      }
+    } else {
+      discountPct = parseFloat(priceDiscountPercent) || 0;
+      effectiveRetail = discountPct > 0
+        ? Math.round(baseRetail * (1 - discountPct / 100))
+        : baseRetail;
+    }
     const retailNum = effectiveRetail;
     const wholesaleNum = parseFloat(wholesalePrice) || 0;
     const stockNum = parseFloat(initialStock) || 0;
@@ -872,34 +885,95 @@ export const ProductSetupView = () => {
                 </div>
               </div>
 
-              {/* Price Discount Option with % Selection */}
+              {/* Price Discount Option with % and Rs Selection */}
               <div className="whole-discount-box mt-3 mb-1">
-                <div className="flex-between w-100">
+                <div className="flex-between w-100 mb-1.5">
                   <div className="flex-align-center gap-1">
-                    <Percent size={13} className="text-primary" />
-                    <span className="font-weight-700 text-xs text-main">Promotional Price Discount (% Option)</span>
+                    <Tag size={13} className="text-primary" />
+                    <span className="font-weight-700 text-xs text-main">Promotional Price Discount</span>
                   </div>
-                  {parseFloat(priceDiscountPercent) > 0 && parseFloat(retailPrice) > 0 && (
+                  {/* Mode Selector Toggle: % vs Rs. */}
+                  <div className="discount-mode-toggle flex-align-center gap-1">
+                    <button
+                      type="button"
+                      className={`btn-mode-toggle ${priceDiscountMode === 'percent' ? 'active' : ''}`}
+                      onClick={() => {
+                        setPriceDiscountMode('percent');
+                        setPriceDiscountPercent('0');
+                        setPriceDiscountRs('0');
+                      }}
+                      title="Discount by Percentage (%)"
+                    >
+                      % Option
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-mode-toggle ${priceDiscountMode === 'rupees' ? 'active' : ''}`}
+                      onClick={() => {
+                        setPriceDiscountMode('rupees');
+                        setPriceDiscountPercent('0');
+                        setPriceDiscountRs('0');
+                      }}
+                      title="Discount by Flat Rupees (Rs.)"
+                    >
+                      Rs. Option
+                    </button>
+                  </div>
+                </div>
+
+                {/* Applied Discount Preview Badge */}
+                {((priceDiscountMode === 'percent' && parseFloat(priceDiscountPercent) > 0) ||
+                  (priceDiscountMode === 'rupees' && parseFloat(priceDiscountRs) > 0)) && parseFloat(retailPrice) > 0 && (
+                  <div className="flex-between w-100 mb-1">
+                    <span className="text-xxs text-muted font-weight-600">Applied Discount:</span>
                     <span className="badge badge-warning text-xxs font-mono font-weight-700">
-                      -{priceDiscountPercent}% (-Rs. {Math.round(parseFloat(retailPrice) * (parseFloat(priceDiscountPercent) / 100)).toLocaleString()}) → Net Rs. {Math.round(parseFloat(retailPrice) * (1 - parseFloat(priceDiscountPercent) / 100)).toLocaleString()}
+                      {priceDiscountMode === 'rupees'
+                        ? `-Rs. ${parseFloat(priceDiscountRs).toLocaleString()} (${Math.round((parseFloat(priceDiscountRs) / (parseFloat(retailPrice) || 1)) * 100)}% off) → Net Rs. ${Math.max(0, Math.round(parseFloat(retailPrice) - parseFloat(priceDiscountRs))).toLocaleString()}`
+                        : `-${priceDiscountPercent}% (-Rs. ${Math.round(parseFloat(retailPrice) * (parseFloat(priceDiscountPercent) / 100)).toLocaleString()}) → Net Rs. ${Math.round(parseFloat(retailPrice) * (1 - parseFloat(priceDiscountPercent) / 100)).toLocaleString()}`
+                      }
                     </span>
-                  )}
-                </div>
-                <div className="discount-pills-row">
-                  {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
-                    const isActive = parseFloat(priceDiscountPercent) === pct;
-                    return (
-                      <button
-                        key={pct}
-                        type="button"
-                        className={`discount-pill-btn ${isActive ? 'active' : ''}`}
-                        onClick={() => setPriceDiscountPercent(String(pct))}
-                      >
-                        {pct === 0 ? 'Regular (0%)' : `${pct}%`}
-                      </button>
-                    );
-                  })}
-                </div>
+                  </div>
+                )}
+
+                {priceDiscountMode === 'percent' ? (
+                  <div className="discount-pills-row">
+                    {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
+                      const isActive = parseFloat(priceDiscountPercent) === pct;
+                      return (
+                        <button
+                          key={pct}
+                          type="button"
+                          className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                          onClick={() => {
+                            setPriceDiscountPercent(String(pct));
+                            setPriceDiscountRs('0');
+                          }}
+                        >
+                          {pct === 0 ? 'Regular (0%)' : `${pct}%`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="discount-pills-row">
+                    {[0, 50, 100, 200, 500, 1000].map((amt) => {
+                      const isActive = parseFloat(priceDiscountRs) === amt;
+                      return (
+                        <button
+                          key={amt}
+                          type="button"
+                          className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                          onClick={() => {
+                            setPriceDiscountRs(String(amt));
+                            setPriceDiscountPercent('0');
+                          }}
+                        >
+                          {amt === 0 ? 'Regular (Rs. 0)' : `Rs. ${amt}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Dedicated Barcode & Thermal Sticker Setup Section */}

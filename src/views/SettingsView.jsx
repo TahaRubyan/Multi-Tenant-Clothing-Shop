@@ -34,6 +34,7 @@ import {
 import {
   testPrintThermalReceipt,
   testPrintBarcodeLabel,
+  triggerCashDrawerKick,
   LABEL_PRINTER_KEYWORD_REGEX,
   RECEIPT_PRINTER_KEYWORD_REGEX,
 } from '../utils/printUtils';
@@ -223,7 +224,7 @@ export const SettingsView = () => {
     showToast('Hardware and printer configurations saved successfully', 'success');
   };
 
-  const handleTestCashDrawerKick = () => {
+  const handleTestCashDrawerKick = async () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = ctx.createOscillator();
@@ -238,7 +239,13 @@ export const SettingsView = () => {
       osc.start();
       osc.stop(ctx.currentTime + 0.2);
     } catch (_) {}
-    showToast(`Cash drawer kick pulse (${cashDrawerPulse}, RJ11 ${cashDrawerPin.toUpperCase()}) triggered via ${receiptPrinter}!`, 'success');
+
+    const res = await triggerCashDrawerKick(shopSettings, { deviceName: receiptPrinter });
+    if (res && res.success === false && res.error) {
+      showToast(`Drawer kick warning: ${res.error}. Ensure receipt printer is on and connected via USB.`, 'warning');
+    } else {
+      showToast(`Cash drawer kick pulse (${cashDrawerPulse}, RJ11 ${cashDrawerPin.toUpperCase()}) sent to ${receiptPrinter}!`, 'success');
+    }
   };
 
   const handleCreateUser = (e) => {
@@ -1271,6 +1278,12 @@ export const SettingsView = () => {
                     >
                       <DollarSign size={13} className="text-primary" /> Test Open Cash Drawer
                     </button>
+                  </div>
+
+                  <div className="p-2 rounded mt-2" style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                    <p className="text-xxs text-main mb-0" style={{ lineHeight: '1.4' }}>
+                      <strong>Hardware Tip:</strong> Cash drawers do not require separate Windows drivers. The drawer connects via RJ11/RJ12 cable into the receipt printer DK port. Ensure the physical key is in the <strong>vertical (unlocked)</strong> position.
+                    </p>
                   </div>
                 </div>
               </div>

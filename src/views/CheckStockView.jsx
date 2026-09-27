@@ -41,6 +41,8 @@ export const CheckStockView = () => {
   const [editRetail, setEditRetail] = useState('');
   const [editBaseRetail, setEditBaseRetail] = useState('');
   const [editDiscountPct, setEditDiscountPct] = useState(0);
+  const [editDiscountRs, setEditDiscountRs] = useState(0);
+  const [editDiscountMode, setEditDiscountMode] = useState('percent'); // 'percent' | 'rupees'
 
   // Manager PIN prompt for non-admin price edit
   const [pendingPriceEditProduct, setPendingPriceEditProduct] = useState(null);
@@ -115,6 +117,8 @@ export const CheckStockView = () => {
       setEditRetail(p.retailPrice.toString());
       setEditBaseRetail(p.retailPrice.toString());
       setEditDiscountPct(0);
+      setEditDiscountRs(0);
+      setEditDiscountMode('percent');
     } else {
       // Prompt Manager PIN
       setPendingPriceEditProduct(p);
@@ -134,6 +138,8 @@ export const CheckStockView = () => {
       setEditRetail(p.retailPrice.toString());
       setEditBaseRetail(p.retailPrice.toString());
       setEditDiscountPct(0);
+      setEditDiscountRs(0);
+      setEditDiscountMode('percent');
       setEnteredPin('');
       setPinError(false);
     } else {
@@ -490,43 +496,109 @@ export const CheckStockView = () => {
                   />
                 </div>
 
-                {/* Price Discount Option with % Selection */}
+                {/* Price Discount Option with % and Rs Selection */}
                 <div className="whole-discount-box mb-4">
-                  <div className="flex-between w-100">
+                  <div className="flex-between w-100 mb-1.5">
                     <div className="flex-align-center gap-1">
-                      <Percent size={13} className="text-primary" />
-                      <span className="font-weight-700 text-xs text-main">Apply Price Discount (% Option)</span>
+                      <Tag size={13} className="text-primary" />
+                      <span className="font-weight-700 text-xs text-main">Apply Price Discount</span>
                     </div>
-                    {editDiscountPct > 0 && (
+                    {/* Mode Selector Toggle: % vs Rs. */}
+                    <div className="discount-mode-toggle flex-align-center gap-1">
+                      <button
+                        type="button"
+                        className={`btn-mode-toggle ${editDiscountMode === 'percent' ? 'active' : ''}`}
+                        onClick={() => {
+                          setEditDiscountMode('percent');
+                          setEditDiscountPct(0);
+                          setEditDiscountRs(0);
+                          setEditRetail(editBaseRetail);
+                        }}
+                        title="Discount by Percentage (%)"
+                      >
+                        % Option
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn-mode-toggle ${editDiscountMode === 'rupees' ? 'active' : ''}`}
+                        onClick={() => {
+                          setEditDiscountMode('rupees');
+                          setEditDiscountPct(0);
+                          setEditDiscountRs(0);
+                          setEditRetail(editBaseRetail);
+                        }}
+                        title="Discount by Flat Rupees (Rs.)"
+                      >
+                        Rs. Option
+                      </button>
+                    </div>
+                  </div>
+
+                  {(editDiscountPct > 0 || editDiscountRs > 0) && (
+                    <div className="flex-between w-100 mb-1">
+                      <span className="text-xxs text-muted font-weight-600">Applied Discount:</span>
                       <span className="badge badge-warning text-xxs font-mono font-weight-700">
-                        -{editDiscountPct}% (-Rs. {(parseFloat(editBaseRetail || 0) - parseFloat(editRetail || 0)).toLocaleString()})
+                        {editDiscountMode === 'rupees'
+                          ? `-Rs. ${editDiscountRs.toLocaleString()} (${Math.round((editDiscountRs / (parseFloat(editBaseRetail) || 1)) * 100)}% off)`
+                          : `-${editDiscountPct}% (-Rs. ${(parseFloat(editBaseRetail || 0) - parseFloat(editRetail || 0)).toLocaleString()})`
+                        }
                       </span>
-                    )}
-                  </div>
-                  <div className="discount-pills-row">
-                    {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
-                      const isActive = editDiscountPct === pct;
-                      return (
-                        <button
-                          key={pct}
-                          type="button"
-                          className={`discount-pill-btn ${isActive ? 'active' : ''}`}
-                          onClick={() => {
-                            setEditDiscountPct(pct);
-                            if (pct === 0) {
-                              setEditRetail(editBaseRetail);
-                            } else {
-                              const base = parseFloat(editBaseRetail) || 0;
-                              const discounted = Math.round(base * (1 - pct / 100));
-                              setEditRetail(discounted.toString());
-                            }
-                          }}
-                        >
-                          {pct === 0 ? 'Regular (0%)' : `${pct}%`}
-                        </button>
-                      );
-                    })}
-                  </div>
+                    </div>
+                  )}
+
+                  {editDiscountMode === 'percent' ? (
+                    <div className="discount-pills-row">
+                      {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
+                        const isActive = editDiscountPct === pct;
+                        return (
+                          <button
+                            key={pct}
+                            type="button"
+                            className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                            onClick={() => {
+                              setEditDiscountPct(pct);
+                              setEditDiscountRs(0);
+                              if (pct === 0) {
+                                setEditRetail(editBaseRetail);
+                              } else {
+                                const base = parseFloat(editBaseRetail) || 0;
+                                const discounted = Math.round(base * (1 - pct / 100));
+                                setEditRetail(discounted.toString());
+                              }
+                            }}
+                          >
+                            {pct === 0 ? 'Regular (0%)' : `${pct}%`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="discount-pills-row">
+                      {[0, 50, 100, 200, 500, 1000].map((amt) => {
+                        const isActive = editDiscountRs === amt;
+                        return (
+                          <button
+                            key={amt}
+                            type="button"
+                            className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                            onClick={() => {
+                              setEditDiscountRs(amt);
+                              setEditDiscountPct(0);
+                              if (amt === 0) {
+                                setEditRetail(editBaseRetail);
+                              } else {
+                                const base = parseFloat(editBaseRetail) || 0;
+                                const discounted = Math.max(0, base - amt);
+                                setEditRetail(discounted.toString());
+                              }
+                            }}
+                          >
+                            {amt === 0 ? 'Regular (Rs. 0)' : `Rs. ${amt}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="modal-actions flex-between pt-2">

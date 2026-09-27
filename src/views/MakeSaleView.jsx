@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePOS } from '../context/POSContext';
 import confetti from 'canvas-confetti';
-import { printThermalReceipt, formatConciseArticle } from '../utils/printUtils';
+import { printThermalReceipt, formatConciseArticle, triggerCashDrawerKick } from '../utils/printUtils';
 import { ModalPortal } from '../components/ModalPortal';
 import {
   Search,
@@ -45,6 +45,11 @@ export const MakeSaleView = () => {
     clearCart,
     wholeSaleDiscountPercent,
     setWholeSaleDiscountPercent,
+    wholeSaleDiscountAmount,
+    setWholeSaleDiscountAmount,
+    wholeSaleDiscountMode,
+    setWholeSaleDiscountMode,
+    setWholeSaleDiscount,
     completeSale,
     getActiveStorewideDiscount,
     shopSettings,
@@ -172,15 +177,15 @@ export const MakeSaleView = () => {
     }
   };
 
-  const handleBillDiscountChange = (val) => {
+  const handleBillDiscountChange = (val, mode = wholeSaleDiscountMode) => {
     if (val === '' || val === 0 || val === '0') {
-      setWholeSaleDiscountPercent(0);
+      setWholeSaleDiscount(mode, 0);
       return;
     }
     if (isDiscountPinUnlocked) {
-      setWholeSaleDiscountPercent(val);
+      setWholeSaleDiscount(mode, val);
     } else {
-      setPendingDiscountAction({ type: 'bill', val });
+      setPendingDiscountAction({ type: 'bill', mode, val });
       setEnteredPin('');
       setPinError('');
       setShowPinPromptModal(true);
@@ -193,7 +198,9 @@ export const MakeSaleView = () => {
     if (enteredPin === correctPin) {
       setIsDiscountPinUnlocked(true);
       if (pendingDiscountAction?.type === 'bill') {
-        setWholeSaleDiscountPercent(pendingDiscountAction.val || '10');
+        const targetMode = pendingDiscountAction.mode || 'percent';
+        const defaultVal = targetMode === 'rupees' ? '100' : '10';
+        setWholeSaleDiscount(targetMode, pendingDiscountAction.val || defaultVal);
       } else if (pendingDiscountAction?.type === 'item') {
         setItemDiscountPercent(
           pendingDiscountAction.cartItemId,
@@ -387,8 +394,17 @@ export const MakeSaleView = () => {
     ? Math.round(cartSubtotal * (activeStorewidePromo.discountPercent / 100))
     : 0;
 
-  const wholeDiscPercentNum = parseFloat(wholeSaleDiscountPercent) || 0;
-  const wholeSaleDiscountAmt = Math.round(cartSubtotal * (wholeDiscPercentNum / 100));
+  let wholeSaleDiscountAmt = 0;
+  let wholeDiscPercentNum = 0;
+
+  if (wholeSaleDiscountMode === 'rupees') {
+    const flatAmt = Math.max(0, parseFloat(wholeSaleDiscountAmount) || 0);
+    wholeSaleDiscountAmt = Math.min(Math.max(0, cartSubtotal), flatAmt);
+    wholeDiscPercentNum = cartSubtotal > 0 ? parseFloat(((wholeSaleDiscountAmt / cartSubtotal) * 100).toFixed(1)) : 0;
+  } else {
+    wholeDiscPercentNum = parseFloat(wholeSaleDiscountPercent) || 0;
+    wholeSaleDiscountAmt = Math.round(cartSubtotal * (wholeDiscPercentNum / 100));
+  }
 
   const cartNetTotal = Math.max(0, cartSubtotal - storewideDiscountAmt - wholeSaleDiscountAmt);
 
@@ -432,6 +448,11 @@ export const MakeSaleView = () => {
 
       // Automatically route print to thermal receipt printer without popup
       printThermalReceipt(saleResult, shopSettings, { silent: true, type: 'receipt' });
+
+      // Automatically kick cash drawer solenoid if cash transaction
+      if (isCash) {
+        triggerCashDrawerKick(shopSettings).catch(() => {});
+      }
 
       showToast(`Sale #${saleResult.receiptNumber} recorded & receipt printed!`, 'success');
       setAmountReceived('');
@@ -772,57 +793,134 @@ export const MakeSaleView = () => {
               </div>
             )}
 
-            {/* PRICE DISCOUNT OPTION WITH % SELECTION */}
+            {/* PRICE DISCOUNT OPTION: DUAL % AND RS. SELECTOR */}
             <div className="whole-discount-box">
-              <div className="flex-between w-100">
+              <div className="flex-between w-100 mb-1.5">
                 <div className="flex-align-center gap-1">
-                  <Percent size={13} className="text-primary" />
-                  <span className="font-weight-700 text-xs text-main">Price Discount (% Option)</span>
+                  <Tag size={13} className="text-primary" />
+                  <span className="font-weight-700 text-xs text-main">Price Discount</span>
                 </div>
-                {wholeSaleDiscountAmt > 0 && (
+                {/* Mode Selector Toggle: % vs Rs. */}
+                <div className="discount-mode-toggle flex-align-center gap-1">
+                  <button
+                    type="button"
+                    className={`btn-mode-toggle ${wholeSaleDiscountMode === 'percent' ? 'active' : ''}`}
+                    onClick={() => {
+                      if (wholeSaleDiscountMode !== 'percent') {
+                        setWholeSaleDiscount('percent', 0);
+                      }
+                    }}
+                    title="Discount by Percentage (%)"
+                  >
+                    % Option
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-mode-toggle ${wholeSaleDiscountMode === 'rupees' ? 'active' : ''}`}
+                    onClick={() => {
+                      if (wholeSaleDiscountMode !== 'rupees') {
+                        setWholeSaleDiscount('rupees', 0);
+                      }
+                    }}
+                    title="Discount by Flat Rupees (Rs.)"
+                  >
+                    Rs. Option
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Discount Badge */}
+              {wholeSaleDiscountAmt > 0 && (
+                <div className="flex-between w-100 mb-1">
+                  <span className="text-xxs text-muted font-weight-600">Applied Discount:</span>
                   <span className="badge badge-warning text-xxs font-mono font-weight-700">
-                    -{wholeDiscPercentNum}% (-Rs. {wholeSaleDiscountAmt.toLocaleString()})
+                    {wholeSaleDiscountMode === 'rupees'
+                      ? `-Rs. ${wholeSaleDiscountAmt.toLocaleString()} (${wholeDiscPercentNum}% off)`
+                      : `-${wholeDiscPercentNum}% (-Rs. ${wholeSaleDiscountAmt.toLocaleString()})`
+                    }
                   </span>
-                )}
-              </div>
-
-              {/* Selectable Percentage Discount Pills */}
-              <div className="discount-pills-row">
-                {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
-                  const isActive = pct === 0 ? (!wholeDiscPercentNum || wholeDiscPercentNum === 0) : (wholeDiscPercentNum === pct);
-                  return (
-                    <button
-                      key={pct}
-                      type="button"
-                      className={`discount-pill-btn ${isActive ? 'active' : ''}`}
-                      onClick={() => handleBillDiscountChange(pct)}
-                      title={pct === 0 ? 'No discount' : `Apply ${pct}% discount`}
-                    >
-                      {pct === 0 ? 'None (0%)' : `${pct}%`}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Percent Input */}
-              <div className="flex-between w-100 mt-1">
-                <span className="text-xxs text-muted font-weight-600">Custom Discount %:</span>
-                <div className="discount-input-field">
-                  <Tag size={12} className="text-muted" />
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    value={wholeSaleDiscountPercent || ''}
-                    onChange={(e) => handleBillDiscountChange(e.target.value)}
-                    placeholder="0"
-                    className="font-mono font-weight-700 text-xs"
-                    aria-label="Custom Discount Percent"
-                  />
-                  <span className="font-weight-700 text-subtle text-xs">%</span>
                 </div>
-              </div>
+              )}
+
+              {/* MODE 1: PERCENTAGE MODE */}
+              {wholeSaleDiscountMode === 'percent' ? (
+                <>
+                  <div className="discount-pills-row">
+                    {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
+                      const isActive = pct === 0 ? (!wholeDiscPercentNum || wholeDiscPercentNum === 0) : (wholeDiscPercentNum === pct);
+                      return (
+                        <button
+                          key={pct}
+                          type="button"
+                          className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                          onClick={() => handleBillDiscountChange(pct, 'percent')}
+                          title={pct === 0 ? 'No discount' : `Apply ${pct}% discount`}
+                        >
+                          {pct === 0 ? 'None (0%)' : `${pct}%`}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex-between w-100 mt-1">
+                    <span className="text-xxs text-muted font-weight-600">Custom Discount %:</span>
+                    <div className="discount-input-field">
+                      <Percent size={12} className="text-muted" />
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={wholeSaleDiscountPercent || ''}
+                        onChange={(e) => handleBillDiscountChange(e.target.value, 'percent')}
+                        placeholder="0"
+                        className="font-mono font-weight-700 text-xs"
+                        aria-label="Custom Discount Percent"
+                      />
+                      <span className="font-weight-700 text-subtle text-xs">%</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* MODE 2: FLAT RUPEES MODE */
+                <>
+                  <div className="discount-pills-row">
+                    {[0, 50, 100, 200, 500, 1000].map((amt) => {
+                      const currentAmt = parseFloat(wholeSaleDiscountAmount) || 0;
+                      const isActive = amt === 0 ? (!currentAmt || currentAmt === 0) : (currentAmt === amt);
+                      return (
+                        <button
+                          key={amt}
+                          type="button"
+                          className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                          onClick={() => handleBillDiscountChange(amt, 'rupees')}
+                          title={amt === 0 ? 'No discount' : `Apply Rs. ${amt} discount`}
+                        >
+                          {amt === 0 ? 'None (Rs. 0)' : `Rs. ${amt}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex-between w-100 mt-1">
+                    <span className="text-xxs text-muted font-weight-600">Custom Discount Rs.:</span>
+                    <div className="discount-input-field">
+                      <span className="font-weight-700 text-subtle text-xxs">Rs.</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max={cartSubtotal > 0 ? cartSubtotal : 999999}
+                        step="10"
+                        value={wholeSaleDiscountAmount || ''}
+                        onChange={(e) => handleBillDiscountChange(e.target.value, 'rupees')}
+                        placeholder="0"
+                        className="font-mono font-weight-700 text-xs"
+                        aria-label="Custom Discount Rupees"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="t-row net-total-box">

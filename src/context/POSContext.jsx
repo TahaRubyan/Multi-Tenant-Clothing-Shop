@@ -1019,6 +1019,8 @@ export const POSProvider = ({ children }) => {
   // Cart State for POS
   const [cart, setCart] = useState([]);
   const [wholeSaleDiscountPercent, setWholeSaleDiscountPercent] = useState(0);
+  const [wholeSaleDiscountAmount, setWholeSaleDiscountAmount] = useState(0);
+  const [wholeSaleDiscountMode, setWholeSaleDiscountMode] = useState('percent'); // 'percent' | 'rupees'
 
   const addToCart = (product, initialQty = 1, selectedVariant = null) => {
     const isVariant = Boolean(selectedVariant);
@@ -1150,6 +1152,20 @@ export const POSProvider = ({ children }) => {
   const clearCart = () => {
     setCart([]);
     setWholeSaleDiscountPercent(0);
+    setWholeSaleDiscountAmount(0);
+    setWholeSaleDiscountMode('percent');
+  };
+
+  const setWholeSaleDiscount = (mode, val) => {
+    if (mode === 'rupees') {
+      setWholeSaleDiscountMode('rupees');
+      setWholeSaleDiscountAmount(val);
+      setWholeSaleDiscountPercent(0);
+    } else {
+      setWholeSaleDiscountMode('percent');
+      setWholeSaleDiscountPercent(val);
+      setWholeSaleDiscountAmount(0);
+    }
   };
 
   const addReturnItemToCart = (invoiceItem, originalInvoiceNumber = '') => {
@@ -1216,8 +1232,17 @@ export const POSProvider = ({ children }) => {
       storewideDiscountVal = Math.round(subtotal * (storewidePromo.discountPercent / 100));
     }
 
-    const wholeDiscPercentNum = parseFloat(wholeSaleDiscountPercent) || 0;
-    const wholeSaleDiscAmt = Math.round(subtotal * (wholeDiscPercentNum / 100));
+    let wholeSaleDiscAmt = 0;
+    let wholeDiscPercentNum = 0;
+
+    if (wholeSaleDiscountMode === 'rupees') {
+      const flatAmt = Math.max(0, parseFloat(wholeSaleDiscountAmount) || 0);
+      wholeSaleDiscAmt = Math.min(Math.max(0, subtotal), flatAmt);
+      wholeDiscPercentNum = subtotal > 0 ? parseFloat(((wholeSaleDiscAmt / subtotal) * 100).toFixed(1)) : 0;
+    } else {
+      wholeDiscPercentNum = parseFloat(wholeSaleDiscountPercent) || 0;
+      wholeSaleDiscAmt = Math.round(subtotal * (wholeDiscPercentNum / 100));
+    }
 
     const netTotal = Math.max(0, subtotal - storewideDiscountVal - wholeSaleDiscAmt);
     const grossProfit = netTotal - totalWholesaleCost;
@@ -1251,6 +1276,8 @@ export const POSProvider = ({ children }) => {
       storewideDiscount: storewideDiscountVal,
       wholeSaleDiscount: wholeSaleDiscAmt,
       wholeSaleDiscountPercent: wholeDiscPercentNum,
+      wholeSaleDiscountMode,
+      wholeSaleDiscountAmount: parseFloat(wholeSaleDiscountAmount) || 0,
       netTotal,
       grossProfit,
       amountReceived,
@@ -1430,6 +1457,11 @@ export const POSProvider = ({ children }) => {
         clearCart,
         wholeSaleDiscountPercent,
         setWholeSaleDiscountPercent,
+        wholeSaleDiscountAmount,
+        setWholeSaleDiscountAmount,
+        wholeSaleDiscountMode,
+        setWholeSaleDiscountMode,
+        setWholeSaleDiscount,
         salesLogs,
         allSalesLogs,
         completeSale,
