@@ -152,53 +152,48 @@ export function autoDetectPrinters(printers = []) {
 }
 
 function fallbackIframePrint(htmlContent, shouldTriggerPrint = true) {
+  if (!shouldTriggerPrint || typeof document === 'undefined') return;
+
   const existingFrame = document.getElementById('pos-clean-print-frame');
   if (existingFrame) {
-    try {
-      existingFrame.remove();
-    } catch (_) {}
+    try { existingFrame.remove(); } catch (_) {}
   }
 
   const iframe = document.createElement('iframe');
   iframe.id = 'pos-clean-print-frame';
-  // Use on-screen rendering with full viewport dimensions so browser layout engines evaluate CSS and SVG properly
   iframe.style.position = 'fixed';
-  iframe.style.left = '0';
   iframe.style.top = '0';
-  iframe.style.width = '100%';
-  iframe.style.height = '100%';
-  iframe.style.border = 'none';
+  iframe.style.left = '0';
+  iframe.style.width = '1px';
+  iframe.style.height = '1px';
   iframe.style.opacity = '0';
-  iframe.style.pointerEvents = 'none';
-  iframe.style.zIndex = '-99999';
-
+  iframe.style.border = 'none';
   document.body.appendChild(iframe);
 
   try {
-    const frameDoc = iframe.contentWindow.document;
-    frameDoc.open();
-    frameDoc.write(htmlContent);
-    frameDoc.close();
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (doc) {
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
 
-    if (shouldTriggerPrint) {
-      // Allow CSS rendering and SVG vector rasterization before initiating print pop-up
       setTimeout(() => {
         try {
-          if (iframe.contentWindow && typeof iframe.contentWindow.print === 'function') {
+          if (iframe.contentWindow) {
             iframe.contentWindow.focus();
             iframe.contentWindow.print();
-          } else if (typeof window.print === 'function') {
-            window.print();
           }
-        } catch (err) {
-          console.warn('Iframe print warning, falling back to window.print:', err);
-          if (typeof window.print === 'function') window.print();
+        } catch (e) {
+          console.warn('Isolated iframe print error:', e);
+        } finally {
+          setTimeout(() => {
+            try { iframe.remove(); } catch (_) {}
+          }, 3000);
         }
-      }, 350);
+      }, 250);
     }
   } catch (err) {
-    console.error('Print initialization error:', err);
-    if (shouldTriggerPrint && typeof window.print === 'function') window.print();
+    console.warn('Print iframe write error:', err);
   }
 }
 

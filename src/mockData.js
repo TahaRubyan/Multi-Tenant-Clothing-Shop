@@ -9,7 +9,7 @@ export const INITIAL_TENANTS = [
     address: 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan',
     phone: '+92 300 1234567',
     shopType: 'mixed_garments',
-    ownerName: 'Haji Muhammad Ahmed',
+    ownerName: 'Adil Zaman',
     modules: {
       ladies_suits: true,
       gents_suits: true,

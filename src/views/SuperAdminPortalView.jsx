@@ -468,7 +468,7 @@ export const SuperAdminPortalView = () => {
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="e.g. Haji Muhammad Saleem"
+                      placeholder="e.g. Adil Zaman"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
                       required

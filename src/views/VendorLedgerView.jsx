@@ -151,7 +151,7 @@ export const VendorLedgerView = () => {
     setWizardSelectedVendorId(targetId);
     setWizardStep(targetId ? 2 : 1);
     setPaymentAmount('');
-    setPaidBy(currentUser ? currentUser.fullName : 'Haji Muhammad Ahmed (Admin)');
+    setPaidBy(currentUser ? currentUser.fullName : 'Adil Zaman (Admin)');
     setReferenceNote('Wholesale invoice settlement');
     setConfirmedPaymentData(null);
     setActiveSubTab('payment-wizard');
@@ -688,7 +688,7 @@ export const VendorLedgerView = () => {
                     className="form-input font-weight-600"
                     value={paidBy}
                     onChange={(e) => setPaidBy(e.target.value)}
-                    placeholder="e.g. Haji Muhammad Ahmed (Admin)"
+                    placeholder="e.g. Adil Zaman (Admin)"
                     required
                   />
                 </div>

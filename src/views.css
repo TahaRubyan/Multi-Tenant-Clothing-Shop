@@ -3362,13 +3362,33 @@
     print-color-adjust: exact !important;
   }
 
-  /* Neutralize all root layouts and overflow traps */
-  #root,
-  .app-container,
-  .main-content-wrapper,
-  .content-body,
-  .view-transition-container,
-  .view-container {
+  /* Absolute Isolation for POS Isolated Print Target (Zero UI capture) */
+  body.has-pos-isolated-print > *:not(#pos-isolated-print-target),
+  body:has(#pos-isolated-print-target) > *:not(#pos-isolated-print-target) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  #pos-isolated-print-target {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    z-index: 999999 !important;
+  }
+
+  /* Neutralize root layouts only when no isolated print target is active */
+  body:not(.has-pos-isolated-print) #root,
+  body:not(.has-pos-isolated-print) .app-container,
+  body:not(.has-pos-isolated-print) .main-content-wrapper,
+  body:not(.has-pos-isolated-print) .content-body,
+  body:not(.has-pos-isolated-print) .view-transition-container,
+  body:not(.has-pos-isolated-print) .view-container {
     height: auto !important;
     min-height: auto !important;
     overflow: visible !important;
@@ -3377,6 +3397,12 @@
     background: #ffffff !important;
     padding: 0 !important;
     margin: 0 !important;
+  }
+
+  /* If a printable modal is active, hide the host application in the background */
+  body:has(.modal-overlay .printable-area, .modal-overlay .settlement-slip-preview, .modal-overlay .printable-receipt-card) #root {
+    display: none !important;
+    visibility: hidden !important;
   }
 
   /* Hide all navigation, sidebars, buttons, alerts, and search forms */
@@ -3402,20 +3428,27 @@
     display: none !important;
   }
 
-  /* Strip modal overlays of dark backdrops and fixed positioning */
+  /* Regular UI Modals (e.g. Edit Product Prices, Delete Confirm) must NEVER print */
   .modal-overlay {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* ONLY modals that explicitly contain a printable slip or receipt are displayed */
+  .modal-overlay:has(.printable-area, .settlement-slip-preview, .printable-receipt-card) {
+    display: block !important;
+    visibility: visible !important;
     position: static !important;
     background: transparent !important;
     backdrop-filter: none !important;
     box-shadow: none !important;
-    display: block !important;
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
     height: auto !important;
   }
 
-  .modal-content {
+  .modal-overlay:has(.printable-area, .settlement-slip-preview, .printable-receipt-card) .modal-content {
     background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
