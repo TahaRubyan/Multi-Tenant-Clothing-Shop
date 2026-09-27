@@ -367,16 +367,19 @@ function executePrint(htmlContent, options = {}) {
       silent,
       pageSize,
     }).catch(err => {
-      console.warn('Electron direct print warning, falling back to browser print dialog:', err);
-      fallbackIframePrint(htmlContent, true);
+      console.warn('Electron direct print warning:', err);
+      if (!silent) {
+        fallbackIframePrint(htmlContent, true);
+      }
     });
 
     return;
   }
 
   // 2. Web / Browser / Vercel Mode:
-  // Trigger browser print pop-up dialog so user can select their printer and print directly
-  fallbackIframePrint(htmlContent, true);
+  // Only trigger print dialog popup if silent is explicitly set to false
+  const shouldPopup = options?.silent === false;
+  fallbackIframePrint(htmlContent, shouldPopup);
 
   // Optional background bridge dispatch for local workstation printing
   const isHttpEnv = typeof window !== 'undefined' &&

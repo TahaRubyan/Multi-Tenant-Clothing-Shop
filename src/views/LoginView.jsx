@@ -61,7 +61,7 @@ export const LoginView = () => {
                     setUsername(e.target.value);
                     if (errorMsg) setErrorMsg('');
                   }}
-                  placeholder="e.g. Masteradmin or Nova.admin"
+                  placeholder="Enter username"
                   required
                   autoFocus
                 />

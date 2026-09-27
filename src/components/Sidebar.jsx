@@ -32,7 +32,16 @@ export const Sidebar = () => {
 
   const navItems = isMasterAdmin
     ? [
-        { id: 'super-admin-portal', label: 'Tenant Management', icon: ShieldCheck, badge: 'Master', perm: null },
+        { id: 'super-admin-portal', label: 'Platform Portal', icon: ShieldCheck, badge: 'Master', perm: null },
+        { id: 'dashboard', label: 'Shop Dashboard', icon: LayoutDashboard, perm: null },
+        { id: 'make-sale', label: 'POS Terminal', icon: ShoppingCart, badge: 'POS', perm: null },
+        { id: 'product-setup', label: 'Product Setup', icon: PackagePlus, perm: null },
+        { id: 'check-stock', label: 'Check Stock', icon: Boxes, perm: null },
+        { id: 'stock-updation', label: 'Stock Updation', icon: RefreshCw, perm: null },
+        { id: 'vendor-ledger', label: 'Vendor Ledger', icon: Truck, perm: null },
+        { id: 'discounts', label: 'Discounts & Offers', icon: Tag, perm: null },
+        { id: 'analytics', label: 'Analytics', icon: TrendingUp, perm: null },
+        { id: 'settings', label: 'Store Settings', icon: Settings, perm: null },
       ]
     : [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: null },

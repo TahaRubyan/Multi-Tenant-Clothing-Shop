@@ -505,7 +505,7 @@ export const POSProvider = ({ children }) => {
 
   const logout = (force = false) => {
     const isMaster = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin';
-    if (!force && !isMaster && !isCashSettled && allSalesLogs.length > 0) {
+    if (!force && !isMaster && !isCashSettled) {
       showToast('Action Blocked: Cash register is unsettled! Please settle cash before signing out.', 'danger');
       setShowDaySettlementModal(true);
       return false;
@@ -513,6 +513,40 @@ export const POSProvider = ({ children }) => {
     setCurrentUser(null);
     return true;
   };
+
+  const exitApplication = async (force = false) => {
+    const isMaster = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin';
+    if (!force && !isMaster && !isCashSettled) {
+      showToast('Action Blocked: Cash register is unsettled! Please settle cash before exiting.', 'danger');
+      setShowDaySettlementModal(true);
+      return false;
+    }
+
+    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.closeApp === 'function') {
+      try {
+        await window.electronAPI.closeApp();
+        return true;
+      } catch (err) {
+        console.warn('Failed to call electronAPI.closeApp:', err);
+      }
+    }
+    setCurrentUser(null);
+    showToast('Terminal session closed cleanly. Application ready for next shift.', 'info');
+    return true;
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      const isMaster = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin';
+      if (currentUser && !isMaster && !isCashSettled) {
+        e.preventDefault();
+        e.returnValue = 'Unsettled cash detected! Please settle cash register before exiting.';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentUser, isCashSettled]);
 
   const switchTenant = (tenantId) => {
     const target = tenants.find(t => t.id === tenantId);
@@ -563,7 +597,6 @@ export const POSProvider = ({ children }) => {
         role: 'Admin',
         tenantIds: [newId],
         isSuperAdmin: false,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
       };
       setUsers(prev => [...prev, newAdmin]);
     }
@@ -1262,7 +1295,6 @@ export const POSProvider = ({ children }) => {
       id: `u-${Date.now()}`,
       tenantIds: [currentTenantId],
       isSuperAdmin: false,
-      avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80`,
     };
     setUsers(prev => [...prev, newUser]);
   };
@@ -1306,6 +1338,7 @@ export const POSProvider = ({ children }) => {
         hasModule,
         login,
         logout,
+        exitApplication,
         roles,
         addRole,
         deleteRole,

@@ -38,9 +38,9 @@ describe('Interface & Component View Tests', () => {
 
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
     expect(screen.getByText(/Order Payment & Settlement/i)).toBeInTheDocument();
-    expect(screen.getByText(/Cash/i)).toBeInTheDocument();
-    expect(screen.getByText(/Card/i)).toBeInTheDocument();
-    expect(screen.getByText(/Mobile Bank/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cash/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Card/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Mobile Bank/i })).toBeInTheDocument();
   });
 
   it('MakeSaleView search dropdown triggers when search bar is clicked or focused', () => {

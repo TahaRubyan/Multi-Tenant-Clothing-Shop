@@ -190,31 +190,31 @@ export const DashboardView = () => {
         <div className="banner-actions flex-align-center gap-2">
           <button
             type="button"
-            className="btn btn-primary btn-action-pulse"
+            className="btn btn-primary btn-sm btn-action-pulse flex-align-center gap-1"
             onClick={() => setActiveTab('make-sale')}
           >
-            <ShoppingBag size={18} /> Make a Sale
+            <ShoppingBag size={15} /> Make a Sale
           </button>
           <button
             type="button"
-            className="btn btn-settle-prominent"
+            className="btn btn-settle-prominent btn-sm flex-align-center gap-1"
             onClick={() => setShowDaySettlementModal(true)}
             title="Settle Cash Drawer & Close Day Shift"
           >
-            <Banknote size={18} /> Close / Settle Cash
+            <Banknote size={15} /> Close / Settle Cash
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-secondary btn-sm flex-align-center gap-1"
             onClick={() => setActiveTab('product-setup')}
           >
-            <PlusCircle size={18} /> Add Product
+            <PlusCircle size={15} /> Add Product
           </button>
         </div>
       </div>
 
       {/* Main Top KPI Cards - Revenue, Cash, Credit, Invoices & Alerts */}
-      <div className="dashboard-kpi-grid mb-4">
+      <div className="dashboard-kpi-grid mb-3">
         {/* 1. Today's Total Revenue */}
         <div
           className="dashboard-kpi-card glass-card kpi-interactive-card"
@@ -222,7 +222,7 @@ export const DashboardView = () => {
           title="Click to view full Revenue Analytics"
         >
           <div className="kpi-icon icon-emerald">
-            <DollarSign size={24} />
+            <DollarSign size={19} />
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Today's Revenue</span>
@@ -230,7 +230,7 @@ export const DashboardView = () => {
               {shopSettings.currencySymbol} {todaysRevenue.toLocaleString()}
             </h3>
             <span className="kpi-sub positive flex-align-center gap-1">
-              <TrendingUp size={13} /> Net settled revenue
+              <TrendingUp size={12} /> Net settled revenue
             </span>
           </div>
         </div>
@@ -242,7 +242,7 @@ export const DashboardView = () => {
           title="Click to view Cash Register Analytics"
         >
           <div className="kpi-icon icon-blue">
-            <Banknote size={24} />
+            <Banknote size={19} />
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Cash In Hand</span>
@@ -250,7 +250,7 @@ export const DashboardView = () => {
               {shopSettings.currencySymbol} {todaysCashSales.toLocaleString()}
             </h3>
             <span className="kpi-sub positive flex-align-center gap-1">
-              <CheckCircle2 size={13} /> Counter cash drawer
+              <CheckCircle2 size={12} /> Counter cash drawer
             </span>
           </div>
         </div>
@@ -262,7 +262,7 @@ export const DashboardView = () => {
           title="Click to view Digital & Credit Settlements"
         >
           <div className="kpi-icon icon-cyan">
-            <CreditCard size={24} />
+            <CreditCard size={19} />
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Digital / Card Credit</span>
@@ -270,7 +270,7 @@ export const DashboardView = () => {
               {shopSettings.currencySymbol} {todaysDigitalSales.toLocaleString()}
             </h3>
             <span className="kpi-sub positive flex-align-center gap-1">
-              <TrendingUp size={13} /> Bank &amp; terminal credit
+              <TrendingUp size={12} /> Bank &amp; terminal credit
             </span>
           </div>
         </div>
@@ -282,13 +282,13 @@ export const DashboardView = () => {
           title="Click to view Sales Invoices Log"
         >
           <div className="kpi-icon icon-purple">
-            <ShoppingBag size={24} />
+            <ShoppingBag size={19} />
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Total Invoices</span>
             <h3 className="kpi-value font-mono">{totalOrders} Sales</h3>
             <span className="kpi-sub positive flex-align-center gap-1">
-              <CheckCircle2 size={13} /> Processed checkouts
+              <CheckCircle2 size={12} /> Processed checkouts
             </span>
           </div>
         </div>
@@ -302,7 +302,7 @@ export const DashboardView = () => {
           title="Click to view Low Stock Inventory"
         >
           <div className="kpi-icon icon-red">
-            <AlertTriangle size={24} />
+            <AlertTriangle size={19} />
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Low Stock Alerts</span>

@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   PanelLeftClose,
   PanelLeftOpen,
+  UserCheck,
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -28,6 +29,9 @@ export const Navbar = () => {
     toggleSidebar,
     isCashSettled,
     salesLogs = [],
+    showToast,
+    activeTab,
+    setActiveTab,
   } = usePOS();
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
@@ -47,11 +51,11 @@ export const Navbar = () => {
   }, []);
 
   const activeShopTitle = isMasterAdmin
-    ? 'PLATFORM SAAS CONTROLLER'
+    ? (activeTab === 'super-admin-portal' ? 'PLATFORM SAAS CONTROLLER' : `${currentTenant?.name || 'Shop Terminal'} (Master View)`)
     : (shopSettings.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN');
 
   const activeShopLocation = isMasterAdmin
-    ? 'Master Multi-Tenant Cloud Mesh • Platform Admin Scope'
+    ? (activeTab === 'super-admin-portal' ? 'Master Multi-Tenant Cloud Mesh • Platform Admin Scope' : `${currentTenant?.city || 'Pakistan'} • Master Terminal Inspection`)
     : (shopSettings.shopLocation || currentTenant?.city || 'Jalal Pur Jattan, Gujrat');
 
   return (
@@ -93,6 +97,16 @@ export const Navbar = () => {
                   <Store size={13} /> Switch Shop
                 </button>
               )}
+              {isMasterAdmin && activeTab !== 'super-admin-portal' && (
+                <button
+                  type="button"
+                  className="btn btn-outline-warning btn-xs flex-align-center gap-1"
+                  onClick={() => setActiveTab('super-admin-portal')}
+                  title="Return to Master Platform Portal"
+                >
+                  <ShieldCheck size={12} /> Master Portal
+                </button>
+              )}
             </div>
             <span className="navbar-shop-subheading">
               <MapPin size={11} /> {activeShopLocation}
@@ -110,25 +124,38 @@ export const Navbar = () => {
         {!isMasterAdmin && currentUser && (
           <button
             type="button"
-            className={`btn-settle-day-header ${!isCashSettled && salesLogs.length > 0 ? 'unsettled-pulse' : 'settled-clean'}`}
+            className={`btn-settle-day-header ${!isCashSettled ? 'unsettled-pulse' : 'settled-clean'}`}
             onClick={() => setShowDaySettlementModal(true)}
             title="End Day Cash Register Settlement & Drawer Reconciliation"
           >
-            <Banknote size={15} className={!isCashSettled && salesLogs.length > 0 ? 'text-amber' : 'text-success'} />
-            <span>{!isCashSettled && salesLogs.length > 0 ? 'Settle Cash (Unsettled)' : 'Cash Settled ✓'}</span>
+            <Banknote size={15} className={!isCashSettled ? 'text-amber' : 'text-success'} />
+            <span>{!isCashSettled ? 'Settle Cash (Unsettled)' : 'Cash Settled ✓'}</span>
           </button>
         )}
 
         {currentUser && (
           <div className="user-profile-card">
-            <img src={currentUser.avatar} alt={currentUser.fullName} className="user-avatar" />
+            <div className="user-icon-avatar" title={`${currentUser.fullName} (${currentUser.role})`}>
+              {isMasterAdmin ? <ShieldCheck size={16} /> : <UserCheck size={16} />}
+            </div>
             <div className="user-info">
               <span className="user-name">{currentUser.fullName}</span>
               <span className={`user-role-badge ${currentUser.role.toLowerCase().replace(/\s+/g, '-')}`}>
                 <ShieldCheck size={12} /> {currentUser.role}
               </span>
             </div>
-            <button className="logout-btn" onClick={() => logout()} title="Sign Out">
+            <button
+              className="logout-btn"
+              onClick={() => {
+                if (!isMasterAdmin && !isCashSettled) {
+                  showToast('Action Blocked: Cash register is unsettled! Please settle cash before signing out.', 'danger');
+                  setShowDaySettlementModal(true);
+                } else {
+                  logout();
+                }
+              }}
+              title={!isCashSettled ? "Settle Cash Required Before Sign Out" : "Sign Out"}
+            >
               <LogOut size={16} />
             </button>
           </div>

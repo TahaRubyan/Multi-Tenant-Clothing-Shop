@@ -42,7 +42,7 @@ export const SettingsView = () => {
   const {
     shopSettings,
     updateShopSettings,
-    resetToDemoData,
+    currentTenant,
     users = [],
     addUser,
     deleteUser,
@@ -248,6 +248,8 @@ export const SettingsView = () => {
       fullName: newFullName.trim(),
       role: newRole,
       password: newPassword,
+      tenantIds: [currentTenant?.id || 'tenant-nova-101'],
+      tenantId: currentTenant?.id || 'tenant-nova-101',
     });
 
     showToast(`Created staff account for ${newFullName}`, 'success');
@@ -337,6 +339,22 @@ export const SettingsView = () => {
   };
 
   const isAdmin = currentUser?.isSuperAdmin || currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin';
+  const isSuperAdmin = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin';
+  const visibleUsers = users.filter((u) => {
+    if (isSuperAdmin) {
+      return true;
+    }
+    // Strictly filter out Super Admin accounts
+    if (u.isSuperAdmin || u.role === 'Super Admin') return false;
+    // Strictly isolate to the current respective shop credentials
+    if (currentTenant?.id) {
+      return (
+        (u.tenantIds && Array.isArray(u.tenantIds) && u.tenantIds.includes(currentTenant.id)) ||
+        u.tenantId === currentTenant.id
+      );
+    }
+    return true;
+  });
 
   return (
     <div className="view-container settings-view no-scroll-view">
@@ -369,7 +387,7 @@ export const SettingsView = () => {
             className={`stock-subnav-item ${activeSettingsTab === 'staff_security' || activeSettingsTab === 'staff_accounts' || activeSettingsTab === 'roles_permissions' ? 'active' : ''}`}
             onClick={() => setActiveSettingsTab('staff_security')}
           >
-            <Users size={16} /> Staff Accounts & Roles & Authorities ({users.length})
+            <Users size={16} /> Staff Accounts & Roles & Authorities ({visibleUsers.length})
           </button>
           <button
             type="button"
@@ -539,22 +557,6 @@ export const SettingsView = () => {
                       placeholder="e.g. Thank you for shopping at NOVA MEN & WOMEN FASHION. Exchanges accepted within 14 days with original receipt."
                     ></textarea>
                   </div>
-
-                  <div className="demo-reset-box glass-card p-3 flex-between">
-                    <div>
-                      <strong className="text-xs text-main block">Reset to Full Demo Dataset</strong>
-                      <small className="text-muted text-xxs">
-                        Re-seeds full Pakistani textile inventory (Gul Ahmed, Pasha, Boski, 40+ products, suppliers & logs).
-                      </small>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm flex-align-center gap-1"
-                      onClick={resetToDemoData}
-                    >
-                      <RotateCcw size={12} /> Reload Demo Data
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -690,7 +692,7 @@ export const SettingsView = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => (
+                  {visibleUsers.map((u) => (
                     <tr key={u.id}>
                       <td>
                         <div className="flex-align-center gap-2">

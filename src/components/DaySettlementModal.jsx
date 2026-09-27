@@ -12,6 +12,8 @@ import {
   CreditCard,
   Smartphone,
   ArrowRight,
+  LogOut,
+  Power,
 } from 'lucide-react';
 import { printSettlementReport } from '../utils/printUtils';
 
@@ -24,6 +26,8 @@ export const DaySettlementModal = () => {
     shopSettings,
     recordDaySettlement,
     daySettlements = [],
+    logout,
+    exitApplication,
   } = usePOS();
 
   const [activeTab, setActiveTab] = useState('settle'); // 'settle' | 'history'
@@ -71,13 +75,12 @@ export const DaySettlementModal = () => {
   const isBalanced = hasEnteredCash && discrepancy === 0;
   const hasDiscrepancy = hasEnteredCash && discrepancy !== 0;
 
-  const handleCloseRegisterSubmit = (e) => {
-    e.preventDefault();
-    if (!hasEnteredCash) return;
+  const performSettlement = () => {
+    if (!hasEnteredCash) return null;
 
     if (hasDiscrepancy && !reasonNote.trim()) {
       alert('Please enter a reconciliation / justification note for the cash discrepancy.');
-      return;
+      return null;
     }
 
     const report = recordDaySettlement({
@@ -94,9 +97,35 @@ export const DaySettlementModal = () => {
       reasonNote: reasonNote.trim() || 'Register verified and balanced with sales counter.',
     });
 
-    setLastClosedReport(report);
     setActualCashInput('');
     setReasonNote('');
+    return report;
+  };
+
+  const handleCloseRegisterSubmit = (e) => {
+    if (e) e.preventDefault();
+    const report = performSettlement();
+    if (report) {
+      setLastClosedReport(report);
+    }
+  };
+
+  const handleSettleAndLogout = (e) => {
+    if (e) e.preventDefault();
+    const report = performSettlement();
+    if (report) {
+      setShowDaySettlementModal(false);
+      logout(true);
+    }
+  };
+
+  const handleSettleAndExitApp = async (e) => {
+    if (e) e.preventDefault();
+    const report = performSettlement();
+    if (report) {
+      setShowDaySettlementModal(false);
+      await exitApplication(true);
+    }
   };
 
   return (
@@ -224,7 +253,7 @@ export const DaySettlementModal = () => {
                   )}
                 </div>
 
-                <div className="flex-align-center justify-center gap-2 pt-2">
+                <div className="flex-align-center justify-center flex-wrap gap-2 pt-2">
                   <button
                     type="button"
                     className="btn btn-secondary flex-align-center gap-1"
@@ -234,13 +263,35 @@ export const DaySettlementModal = () => {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-success flex-align-center gap-1 font-weight-700"
+                    onClick={() => {
+                      logout(true);
+                      setShowDaySettlementModal(false);
+                      setLastClosedReport(null);
+                    }}
+                  >
+                    <LogOut size={16} /> Settle Cash, Sign Out &amp; Close Session
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger flex-align-center gap-1 font-weight-700"
+                    onClick={() => {
+                      exitApplication(true);
+                      setShowDaySettlementModal(false);
+                      setLastClosedReport(null);
+                    }}
+                  >
+                    <Power size={16} /> Settle &amp; Exit Application
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
                     onClick={() => {
                       setLastClosedReport(null);
                       setShowDaySettlementModal(false);
                     }}
                   >
-                    Done &amp; Return to Terminal
+                    Stay in Terminal
                   </button>
                 </div>
               </div>
@@ -375,7 +426,7 @@ export const DaySettlementModal = () => {
                 </div>
 
                 {/* Actions Footer */}
-                <div className="modal-actions flex-between pt-2">
+                <div className="modal-actions flex-between flex-wrap gap-2 pt-2">
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -384,13 +435,33 @@ export const DaySettlementModal = () => {
                     Cancel
                   </button>
 
-                  <button
-                    type="submit"
-                    className="btn btn-primary flex-align-center gap-2"
-                    disabled={!hasEnteredCash || (hasDiscrepancy && !reasonNote.trim())}
-                  >
-                    <CheckCircle2 size={16} /> Confirm Settlement &amp; Close Register
-                  </button>
+                  <div className="flex-align-center flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger flex-align-center gap-1 font-weight-600"
+                      onClick={handleSettleAndExitApp}
+                      disabled={!hasEnteredCash || (hasDiscrepancy && !reasonNote.trim())}
+                      title="Settle drawer and exit application immediately"
+                    >
+                      <Power size={14} /> Settle &amp; Exit App
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-success flex-align-center gap-1 font-weight-700"
+                      onClick={handleSettleAndLogout}
+                      disabled={!hasEnteredCash || (hasDiscrepancy && !reasonNote.trim())}
+                      title="Settle drawer and sign out to login screen immediately"
+                    >
+                      <LogOut size={14} /> Settle &amp; Sign Out
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary flex-align-center gap-2"
+                      disabled={!hasEnteredCash || (hasDiscrepancy && !reasonNote.trim())}
+                    >
+                      <CheckCircle2 size={16} /> Confirm Settlement &amp; Review
+                    </button>
+                  </div>
                 </div>
               </form>
             )}

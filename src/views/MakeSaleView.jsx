@@ -401,7 +401,20 @@ export const MakeSaleView = () => {
       return;
     }
 
-    const saleResult = completeSale(paymentMethod, amountRecNum);
+    if (isCash) {
+      const enteredAmt = String(amountReceived || '').trim();
+      if (!enteredAmt || parseFloat(enteredAmt) <= 0) {
+        showToast('Cash Received is required. Please enter amount received from customer.', 'warning');
+        return;
+      }
+      if (parseFloat(enteredAmt) < cartNetTotal) {
+        showToast(`Insufficient cash: Received Rs. ${parseFloat(enteredAmt).toLocaleString()} is less than Net Total Rs. ${cartNetTotal.toLocaleString()}`, 'danger');
+        return;
+      }
+    }
+
+    const effectiveAmountRec = isCash ? (parseFloat(amountReceived) || 0) : cartNetTotal;
+    const saleResult = completeSale(paymentMethod, effectiveAmountRec);
     if (saleResult) {
       try {
         confetti({
@@ -411,7 +424,10 @@ export const MakeSaleView = () => {
         });
       } catch (_) {}
 
-      showToast(`Sale #${saleResult.receiptNumber} recorded! Invoice saved to Analytics.`, 'success');
+      // Automatically route print to thermal receipt printer without popup
+      printThermalReceipt(saleResult, shopSettings, { silent: true, type: 'receipt' });
+
+      showToast(`Sale #${saleResult.receiptNumber} recorded & receipt printed!`, 'success');
       setAmountReceived('');
       setIsDiscountPinUnlocked(false); // Automatically re-arms stealth PIN protection for next sale
       setCompletedSaleData(saleResult);
@@ -861,11 +877,23 @@ export const MakeSaleView = () => {
             </div>
           )}
 
+          {/* Inline Validation Hints for Cash Checkout */}
+          {isCash && (!amountReceived || parseFloat(amountReceived) <= 0) && (
+            <div className="text-danger text-xxs font-weight-700 mb-1 text-center" style={{ color: '#dc2626' }}>
+              * Enter cash received to proceed with sale
+            </div>
+          )}
+          {isCash && amountReceived && parseFloat(amountReceived) > 0 && parseFloat(amountReceived) < cartNetTotal && (
+            <div className="text-danger text-xxs font-weight-700 mb-1 text-center" style={{ color: '#dc2626' }}>
+              * Cash received (Rs. {parseFloat(amountReceived).toLocaleString()}) is less than Net Total
+            </div>
+          )}
+
           {/* Checkout & Print Button */}
           <button
             type="button"
             className="btn btn-primary btn-checkout-primary hover-lift"
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || (isCash && (!amountReceived || parseFloat(amountReceived) < cartNetTotal))}
             onClick={handleCheckout}
             aria-label="Save Order & Print Receipt"
           >

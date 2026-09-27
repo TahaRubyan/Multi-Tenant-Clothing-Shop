@@ -129,7 +129,6 @@ export const INITIAL_USERS = [
     role: 'Super Admin',
     tenantIds: ['tenant-nova-101', 'tenant-testing-102'],
     isSuperAdmin: true,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
   },
 
   // 2. NOVA STORE ADMIN (NOVA MEN AND WOMEN)
@@ -141,7 +140,6 @@ export const INITIAL_USERS = [
     role: 'Admin',
     tenantIds: ['tenant-nova-101'],
     isSuperAdmin: false,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
   },
 
   // 3. TESTING PORTAL ADMIN (Testing Sandbox)
@@ -153,7 +151,6 @@ export const INITIAL_USERS = [
     role: 'Admin',
     tenantIds: ['tenant-testing-102'],
     isSuperAdmin: false,
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
   },
 
   // 4. FRONT-DESK CASHIER TERMINAL
@@ -165,7 +162,6 @@ export const INITIAL_USERS = [
     role: 'Salesman',
     tenantIds: ['tenant-nova-101', 'tenant-testing-102'],
     isSuperAdmin: false,
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
   },
 ];
 
@@ -181,7 +177,7 @@ export const INITIAL_PRINTER_SETTINGS = {
   printMethod: 'thermal_transfer',
   autoPrintReceipt: true,
   autoPrintLabel: false,
-  silentPrinting: false,
+  silentPrinting: true,
   showReceiptModal: true,
 };
 
@@ -199,7 +195,7 @@ export const INITIAL_SHOP_SETTINGS = {
   labelSize: '50x30mm',
   printMethod: 'thermal_transfer',
   autoPrintReceipt: true,
-  silentPrinting: false,
+  silentPrinting: true,
 };
 
 export const INITIAL_PRODUCT_TEMPLATES = [

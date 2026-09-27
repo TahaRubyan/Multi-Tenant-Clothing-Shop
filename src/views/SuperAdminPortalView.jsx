@@ -24,6 +24,9 @@ import {
   Scissors,
   ShoppingBag,
   Info,
+  Search,
+  Activity,
+  Wifi,
 } from 'lucide-react';
 
 export const SuperAdminPortalView = () => {
@@ -33,9 +36,16 @@ export const SuperAdminPortalView = () => {
     toggleTenantStatus,
     deleteTenant,
     showToast,
+    switchTenant,
+    setActiveTab,
+    currentTenant,
+    allProducts = [],
+    allSalesLogs = [],
   } = usePOS();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'suspended'
 
   // New Tenant Form State
   const [shopName, setShopName] = useState('');
@@ -153,6 +163,23 @@ export const SuperAdminPortalView = () => {
     setAdminPassword('Admin123');
   };
 
+  const filteredTenants = (tenants || []).filter((t) => {
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      (t.name || '').toLowerCase().includes(q) ||
+      (t.ownerName || '').toLowerCase().includes(q) ||
+      (t.city || '').toLowerCase().includes(q) ||
+      (t.id || '').toLowerCase().includes(q);
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && t.status === 'active') ||
+      (statusFilter === 'suspended' && t.status !== 'active');
+
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <div className="view-container super-admin-view scrollable-panel">
       {/* Platform Header */}
@@ -204,89 +231,183 @@ export const SuperAdminPortalView = () => {
           </div>
           <div className="kpi-info">
             <span className="kpi-label">Storage Engine</span>
-            <span className="kpi-value">SQLite + Cloud</span>
-            <span className="kpi-sub positive">● Offline PWA Mesh</span>
+            <span className="kpi-value">PostgreSQL + Cloud</span>
+            <span className="kpi-sub positive">● Neon Serverless Mesh</span>
           </div>
+        </div>
+      </div>
+
+      {/* Cloud Mesh & Database Synchronized Strip */}
+      <div className="glass-card mb-4 p-3 flex-between flex-wrap gap-2" style={{ borderLeft: '4px solid #0284c7' }}>
+        <div className="flex-align-center gap-3">
+          <div className="brand-icon-badge" style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7' }}>
+            <Database size={20} />
+          </div>
+          <div>
+            <div className="flex-align-center gap-2">
+              <h4 className="text-xs font-weight-700 text-main mb-0">PostgreSQL / Neon Cloud Mesh Connection</h4>
+              <span className="badge badge-success text-xxs">● Live Synchronized</span>
+              <span className="badge badge-amber text-xxs font-mono">RLS Tenant Partitioning Active</span>
+            </div>
+            <p className="text-xxs text-muted mb-0 mt-0.5">
+              Serverless Cluster: <strong className="text-main">neon-mesh-us-east.aws</strong> &nbsp;|&nbsp; 
+              Catalog Pool: <strong className="text-main">{allProducts.length} Total SKUs</strong> &nbsp;|&nbsp; 
+              Transactions: <strong className="text-main">{allSalesLogs.length} Logged Sales</strong>
+            </p>
+          </div>
+        </div>
+        <div className="flex-align-center gap-2">
+          <span className="badge badge-info text-xs font-mono">TLS 1.3 • SSL Enforced</span>
         </div>
       </div>
 
       {/* Registered Tenants Management Table Card */}
       <div className="glass-card table-panel-full mb-4">
-        <div className="card-header-styled flex-between mb-3">
+        <div className="card-header-styled flex-between flex-wrap gap-2 mb-3">
           <div className="flex-align-center gap-2">
             <Building2 size={20} className="text-primary" />
             <h3 className="mb-0">Registered Client Shops Directory</h3>
+            <span className="badge badge-sage ml-1">{filteredTenants.length} of {tenants.length}</span>
           </div>
-          <span className="badge badge-sage">{(tenants || []).length} Registered Tenants</span>
+
+          <div className="flex-align-center flex-wrap gap-2">
+            <div className="input-with-icon" style={{ width: '240px' }}>
+              <Search size={14} className="input-icon" />
+              <input
+                type="text"
+                className="form-input text-xs"
+                placeholder="Search shop, owner, city or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="stock-subnav-header p-0.5">
+              <button
+                type="button"
+                className={`stock-subnav-item text-xs py-1 px-2 ${statusFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('all')}
+              >
+                All ({(tenants || []).length})
+              </button>
+              <button
+                type="button"
+                className={`stock-subnav-item text-xs py-1 px-2 ${statusFilter === 'active' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('active')}
+              >
+                Active ({(tenants || []).filter(t => t.status === 'active').length})
+              </button>
+              <button
+                type="button"
+                className={`stock-subnav-item text-xs py-1 px-2 ${statusFilter === 'suspended' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('suspended')}
+              >
+                Suspended ({(tenants || []).filter(t => t.status !== 'active').length})
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="table-responsive-clean">
           <table className="clean-ledger-table">
             <thead>
               <tr>
-                <th style={{ width: '25%' }}>Client Shop Name</th>
-                <th style={{ width: '30%' }}>Enabled Capabilities &amp; Modules</th>
-                <th style={{ width: '18%' }}>Owner &amp; Contact</th>
-                <th style={{ width: '17%' }}>City &amp; Location</th>
-                <th style={{ width: '10%' }} className="text-right">Actions</th>
+                <th style={{ width: '22%' }}>Client Shop Name</th>
+                <th style={{ width: '28%' }}>Enabled Capabilities &amp; Modules</th>
+                <th style={{ width: '16%' }}>Owner &amp; Contact</th>
+                <th style={{ width: '16%' }}>City &amp; Location</th>
+                <th style={{ width: '18%' }} className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {(tenants || []).map((t) => {
-                const mods = t.modules || {};
-                return (
-                  <tr key={t.id}>
-                    <td>
-                      <div className="shop-title-cell">
-                        <div className="flex-align-center gap-2">
-                          <strong className="text-main font-weight-700">{t.name}</strong>
-                          <span className={`badge ${t.status === 'active' ? 'badge-success' : 'badge-danger'} badge-compact`}>
-                            {t.status === 'active' ? 'Active' : 'Suspended'}
-                          </span>
+              {filteredTenants.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="text-center py-4 text-muted">
+                    No shops found matching filter "{searchQuery}".
+                  </td>
+                </tr>
+              ) : (
+                filteredTenants.map((t) => {
+                  const mods = t.modules || {};
+                  return (
+                    <tr key={t.id}>
+                      <td>
+                        <div className="shop-title-cell">
+                          <div className="flex-align-center gap-2">
+                            <strong className="text-main font-weight-700">{t.name}</strong>
+                            <span className={`badge ${t.status === 'active' ? 'badge-success' : 'badge-danger'} badge-compact`}>
+                              {t.status === 'active' ? 'Active' : 'Suspended'}
+                            </span>
+                          </div>
+                          <small className="text-muted font-mono text-xs">{t.id} • {t.tagline || 'Textile Retail'}</small>
                         </div>
-                        <small className="text-muted font-mono text-xs">{t.id} • {t.tagline || 'Textile Retail'}</small>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex-wrap gap-1">
-                        {mods.ladies_suits && <span className="badge badge-info badge-compact">👗 Ladies Suits</span>}
-                        {mods.gents_suits && <span className="badge badge-sage badge-compact">👔 Gents Suits</span>}
-                        {mods.cloth_meters && <span className="badge badge-amber badge-compact">📏 Meters</span>}
-                        {mods.ready_made_apparel && <span className="badge badge-primary badge-compact">🛍️ Ready-Made</span>}
-                        {mods.pin_protected_discounts && <span className="badge badge-danger badge-compact">🔒 PIN Discount</span>}
-                        {mods.vendor_ledger && <span className="badge badge-compact">🚛 Vendor AP</span>}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex-column">
-                        <span className="font-weight-600">{t.ownerName}</span>
-                        <small className="text-muted"><Phone size={11} /> {t.phone}</small>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex-column">
-                        <span>{t.city}</span>
-                        <small className="text-subtle text-xs truncate-material">{t.address}</small>
-                      </div>
-                    </td>
-                    <td className="text-right">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-danger btn-icon"
-                        onClick={() => {
-                          if (window.confirm(`Delete tenant "${t.name}"?`)) {
-                            deleteTenant(t.id);
-                            showToast(`Deleted tenant: ${t.name}`, 'danger');
-                          }
-                        }}
-                        title="Delete Client Shop"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td>
+                        <div className="flex-wrap gap-1">
+                          {mods.ladies_suits && <span className="badge badge-info badge-compact">👗 Ladies Suits</span>}
+                          {mods.gents_suits && <span className="badge badge-sage badge-compact">👔 Gents Suits</span>}
+                          {mods.cloth_meters && <span className="badge badge-amber badge-compact">📏 Meters</span>}
+                          {mods.ready_made_apparel && <span className="badge badge-primary badge-compact">🛍️ Ready-Made</span>}
+                          {mods.pin_protected_discounts && <span className="badge badge-danger badge-compact">🔒 PIN Discount</span>}
+                          {mods.vendor_ledger && <span className="badge badge-compact">🚛 Vendor AP</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex-column">
+                          <span className="font-weight-600">{t.ownerName}</span>
+                          <small className="text-muted"><Phone size={11} /> {t.phone}</small>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex-column">
+                          <span>{t.city}</span>
+                          <small className="text-subtle text-xs truncate-material">{t.address}</small>
+                        </div>
+                      </td>
+                      <td className="text-right">
+                        <div className="flex-align-center justify-end gap-1">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary flex-align-center gap-1"
+                            onClick={() => {
+                              switchTenant(t.id);
+                              setActiveTab('dashboard');
+                              showToast(`Switched terminal context to: ${t.name}`, 'info');
+                            }}
+                            title="Open Shop POS Terminal Context"
+                          >
+                            <ArrowRight size={13} /> Enter POS
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${t.status === 'active' ? 'btn-outline-warning' : 'btn-outline-success'} btn-icon`}
+                            onClick={() => {
+                              toggleTenantStatus(t.id);
+                              showToast(`Toggled ${t.name} to ${t.status === 'active' ? 'Suspended' : 'Active'}`, 'info');
+                            }}
+                            title={t.status === 'active' ? 'Suspend Shop Access' : 'Activate Shop Access'}
+                          >
+                            <Power size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger btn-icon"
+                            onClick={() => {
+                              if (window.confirm(`Delete tenant "${t.name}"?`)) {
+                                deleteTenant(t.id);
+                                showToast(`Deleted tenant: ${t.name}`, 'danger');
+                              }
+                            }}
+                            disabled={tenants.length <= 1}
+                            title="Delete Client Shop"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

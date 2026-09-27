@@ -201,6 +201,14 @@ ipcMain.handle('get-printers', async () => {
   }
 });
 
+ipcMain.handle('close-app', () => {
+  if (mainWindow) {
+    mainWindow.destroy();
+  }
+  app.quit();
+  return { success: true };
+});
+
 ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceName, type = 'any', silent = true, pageSize }) => {
   try {
     const resolvedDevice = await resolvePrinterName(deviceName, type);

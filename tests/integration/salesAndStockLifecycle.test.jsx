@@ -217,6 +217,10 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
     fireEvent.change(barcodeInput, { target: { value: '1001' } });
     fireEvent.submit(barcodeInput.closest('form'));
 
+    // Enter cash received to enable checkout
+    const amountInput = screen.getByLabelText(/Amount Received/i);
+    fireEvent.change(amountInput, { target: { value: '3000' } });
+
     // Verify cart has item
     const checkoutBtn = screen.getByRole('button', { name: /Save Order & Print Receipt/i });
     expect(checkoutBtn).not.toBeDisabled();

@@ -277,10 +277,220 @@ export const ProductSetupView = () => {
         </div>
       </div>
 
-      {/* Main 2-Column Workspace */}
-      <div className="setup-2col-workspace">
-        {/* LEFT COLUMN: Guided Wizard Steps */}
-        <div className="glass-card setup-form-card flex-1 scrollable-form-panel">
+      {/* Main Workspace: Full-Width Celebratory Dashboard for Step 4, OR 2-Column Wizard for Steps 1-3 */}
+      {currentStep === 4 && createdProductResult ? (
+        (() => {
+          const productObj = createdProductResult.product || createdProductResult;
+          const grossProfit = (productObj.retailPrice || 0) - (productObj.wholesalePrice || 0);
+          const marginPercent = productObj.retailPrice > 0 ? Math.round((grossProfit / productObj.retailPrice) * 100) : 0;
+          return (
+            <div className="glass-card setup-success-card p-4">
+              {/* Centered Celebratory Header */}
+              <div className="text-center pb-3 mb-4 border-bottom">
+                <div className="flex-align-center justify-center gap-2 mb-1">
+                  <div className="brand-icon-badge" style={{ width: '38px', height: '38px', background: 'rgba(16, 185, 129, 0.12)', color: '#059669' }}>
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <h3 className="text-main font-weight-800 text-lg mb-0">Product Enrolled in System</h3>
+                  <span className="badge badge-success flex-align-center gap-1 font-weight-700">
+                    <Check size={12} /> ACTIVE IN INVENTORY
+                  </span>
+                </div>
+                <p className="text-muted text-xs mb-0">
+                  <strong>{productObj.fabricMaterial}</strong> is ready for sales counter and thermal tag dispatch.
+                </p>
+              </div>
+
+              {/* 2 Balanced Columns with generous width */}
+              <div className="setup-success-grid mb-4">
+                {/* Left Column: Inventory & Financial Record */}
+                <div className="p-4 bg-subtle rounded border flex-column justify-between">
+                  <div>
+                    <div className="flex-align-center gap-2 mb-3 pb-2 border-bottom">
+                      <PackageCheck size={18} className="text-primary" />
+                      <h4 className="text-sm font-weight-700 text-main mb-0">Inventory &amp; Financial Record</h4>
+                    </div>
+
+                    <div className="text-xs">
+                      <div className="flex-between py-1.5 border-bottom">
+                        <span className="text-muted">Tag Title:</span>
+                        <strong className="text-primary font-weight-700">{productObj.tagLabel || productObj.fabricMaterial}</strong>
+                      </div>
+                      <div className="flex-between py-1.5 border-bottom">
+                        <span className="text-muted">Color &amp; Size:</span>
+                        <span className="font-weight-600 text-main">{productObj.fabricColor || 'Standard'}</span>
+                      </div>
+                      <div className="flex-between py-1.5 border-bottom">
+                        <span className="text-muted">Scannable Barcode:</span>
+                        <span className="font-mono font-weight-800 text-primary bg-surface px-2 py-0.5 rounded border">{productObj.barcode}</span>
+                      </div>
+                      {productObj.barcodeKeywords && (
+                        <div className="flex-between py-1.5 border-bottom">
+                          <span className="text-muted">Keywords:</span>
+                          <span className="text-xxs text-muted font-mono">{productObj.barcodeKeywords}</span>
+                        </div>
+                      )}
+                      <div className="flex-between py-1.5 border-bottom">
+                        <span className="text-muted">Initial Stock:</span>
+                        <span className="badge badge-success font-weight-800">{productObj.stock} PIECES</span>
+                      </div>
+                      <div className="flex-between py-1.5 border-bottom">
+                        <span className="text-muted">Low Stock Alert:</span>
+                        <span className="text-xxs text-muted">&lt;= {productObj.reorderLimit || 5} units</span>
+                      </div>
+                      <div className="flex-between py-1.5 border-bottom">
+                        <span className="text-muted">Wholesale Cost:</span>
+                        <span className="font-mono text-muted">Rs. {Number(productObj.wholesalePrice || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex-between py-1.5">
+                        <span className="font-weight-700 text-main">Customer Price:</span>
+                        <span className="font-mono font-weight-800 text-success text-sm">Rs. {Number(productObj.retailPrice || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {productObj.wholesalePrice > 0 && grossProfit > 0 && (
+                    <div className="flex-between pt-2.5 border-top mt-3 text-xs">
+                      <span className="text-success font-weight-700">Gross Margin:</span>
+                      <span className="badge badge-success font-mono font-weight-800">
+                        +Rs. {grossProfit.toLocaleString()} ({marginPercent}%)
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Thermal Tag & Dedicated Print Dispatch Column */}
+                <div className="p-4 bg-subtle rounded border flex-column justify-between">
+                  <div>
+                    <div className="flex-between mb-3 pb-2 border-bottom">
+                      <div className="flex-align-center gap-1.5">
+                        <Printer size={18} className="text-primary" />
+                        <h4 className="text-sm font-weight-700 text-main mb-0">50×30mm Thermal Tag</h4>
+                      </div>
+                      <span className="badge badge-neutral text-xxs font-mono">1.8" × 0.9"</span>
+                    </div>
+
+                    <div className="my-3 mx-auto" style={{ maxWidth: '280px' }}>
+                      <BarcodeLabelPreview
+                        shopName={shopSettings?.shopName}
+                        itemName={productObj.fabricMaterial}
+                        tagLabel={productObj.tagLabel}
+                        tagSubtitle={productObj.tagSubtitle}
+                        color={productObj.fabricColor}
+                        clothType={productObj.fabricType || productObj.apparelCategory || productObj.category}
+                        barcode={productObj.barcode}
+                        price={productObj.retailPrice}
+                      />
+                    </div>
+
+                    {/* Quantity Stepper & Quick Presets */}
+                    <div className="mt-3 p-3 bg-surface rounded border mx-auto" style={{ maxWidth: '340px' }}>
+                      <div className="flex-between mb-1.5">
+                        <span className="text-xxs font-weight-700 text-muted uppercase tracking-wider">STICKERS TO PRINT:</span>
+                        <span className="text-xs font-mono font-weight-700 text-primary">{stickerPrintCount} Labels</span>
+                      </div>
+                      <div className="flex-align-center gap-2 mb-2">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm px-3"
+                          onClick={() => setStickerPrintCount(prev => Math.max(1, (parseInt(prev, 10) || 1) - 1))}
+                        >
+                          -1
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          className="form-input text-center font-mono font-weight-800 text-sm py-1"
+                          value={stickerPrintCount}
+                          onChange={(e) => setStickerPrintCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm px-3"
+                          onClick={() => setStickerPrintCount(prev => (parseInt(prev, 10) || 0) + 1)}
+                        >
+                          +1
+                        </button>
+                      </div>
+                      <div className="quick-presets flex-align-center gap-1 justify-center">
+                        <button
+                          type="button"
+                          className="btn-preset-chip"
+                          onClick={() => setStickerPrintCount('1')}
+                        >
+                          1 pc
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-preset-chip"
+                          onClick={() => setStickerPrintCount('5')}
+                        >
+                          5 pcs
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-preset-chip"
+                          onClick={() => setStickerPrintCount('10')}
+                        >
+                          10 pcs
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-preset-chip"
+                          onClick={() => setStickerPrintCount(String(productObj.stock || '20'))}
+                        >
+                          All ({productObj.stock})
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 mx-auto width-full" style={{ maxWidth: '340px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-block btn-lg flex-align-center justify-center gap-2"
+                      onClick={() => printBarcodeLabels(productObj, parseInt(stickerPrintCount, 10) || 1, shopSettings)}
+                    >
+                      <Printer size={18} /> Print {stickerPrintCount} Barcode Stickers
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Actions Bar */}
+              <div className="flex-between pt-3 border-top">
+                <button
+                  type="button"
+                  className="btn btn-secondary flex-align-center gap-1.5"
+                  onClick={handleResetForNextProduct}
+                >
+                  <Plus size={15} /> Add Another Product
+                </button>
+
+                <div className="flex-align-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-secondary flex-align-center gap-1.5"
+                    onClick={() => setActiveTab('check-stock')}
+                  >
+                    <Boxes size={15} /> View in Inventory
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary flex-align-center gap-1.5"
+                    onClick={() => setActiveTab('make-sale')}
+                  >
+                    <Tag size={15} /> Open in POS Counter <ArrowRight size={15} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      ) : (
+        <div className="setup-2col-workspace">
+          {/* LEFT COLUMN: Guided Wizard Steps */}
+          <div className="glass-card setup-form-card flex-1 scrollable-form-panel">
           {/* ========================================================
               PHASE 1: SOURCING & PRODUCT CATEGORY
               ======================================================== */}
@@ -771,214 +981,6 @@ export const ProductSetupView = () => {
             </form>
           )}
 
-          {/* ========================================================
-              PHASE 4: CELEBRATORY CONFIRMATION & STICKER PRINT
-              ======================================================== */}
-          {currentStep === 4 && createdProductResult && (() => {
-            const productObj = createdProductResult.product || createdProductResult;
-            const grossProfit = (productObj.retailPrice || 0) - (productObj.wholesalePrice || 0);
-            const marginPercent = productObj.retailPrice > 0 ? Math.round((grossProfit / productObj.retailPrice) * 100) : 0;
-            return (
-              <div className="wizard-step-container">
-                {/* Celebratory Banner */}
-                <div className="text-center pb-3 mb-3 border-bottom">
-                  <div className="brand-icon-badge mx-auto mb-2" style={{ width: '48px', height: '48px' }}>
-                    <CheckCircle2 size={32} className="text-success mx-auto" />
-                  </div>
-                  <div className="flex-align-center justify-center gap-2 mb-1">
-                    <h3 className="text-main font-weight-800 mb-0">Product Enrolled in System</h3>
-                    <span className="badge badge-success flex-align-center gap-1">
-                      <Check size={12} /> Active in Inventory
-                    </span>
-                  </div>
-                  <p className="text-muted text-xs mb-0">
-                    <strong>{productObj.fabricMaterial}</strong> is ready for sales counter and thermal tag dispatch.
-                  </p>
-                </div>
-
-                {/* 2-Column Visual Hierarchy: Financials & Stock vs Thermal Tag */}
-                <div className="form-grid-2col mb-3 align-start">
-                  {/* Left Column: Inventory & Metrics Record */}
-                  <div className="p-3 bg-subtle rounded border">
-                    <div className="flex-align-center gap-2 mb-2 pb-1 border-bottom">
-                      <PackageCheck size={16} className="text-primary" />
-                      <strong className="text-xs text-main">Inventory &amp; Financial Record</strong>
-                    </div>
-
-                    <div className="text-xs">
-                      <div className="flex-between py-1 border-bottom">
-                        <span className="text-muted">Tag Title:</span>
-                        <strong className="text-primary font-weight-700">{productObj.tagLabel || productObj.fabricMaterial}</strong>
-                      </div>
-                      <div className="flex-between py-1 border-bottom">
-                        <span className="text-muted">Color &amp; Size:</span>
-                        <span className="font-weight-600 text-main">{productObj.fabricColor || 'Standard'}</span>
-                      </div>
-                      <div className="flex-between py-1 border-bottom">
-                        <span className="text-muted">Scannable Barcode:</span>
-                        <span className="font-mono font-weight-800 text-primary">{productObj.barcode}</span>
-                      </div>
-                      {productObj.barcodeKeywords && (
-                        <div className="flex-between py-1 border-bottom">
-                          <span className="text-muted">Keywords:</span>
-                          <span className="text-xxs text-muted font-mono">{productObj.barcodeKeywords}</span>
-                        </div>
-                      )}
-                      <div className="flex-between py-1 border-bottom">
-                        <span className="text-muted">Initial Stock:</span>
-                        <span className="badge badge-success font-weight-800">{productObj.stock} Pieces</span>
-                      </div>
-                      <div className="flex-between py-1 border-bottom">
-                        <span className="text-muted">Low Stock Alert:</span>
-                        <span className="text-xxs text-muted">&lt;= {productObj.reorderLimit || 5} units</span>
-                      </div>
-                      <div className="flex-between py-1 border-bottom">
-                        <span className="text-muted">Wholesale Cost:</span>
-                        <span className="font-mono text-muted">Rs. {Number(productObj.wholesalePrice || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex-between py-1">
-                        <span className="font-weight-700 text-main">Customer Price:</span>
-                        <span className="font-mono font-weight-800 text-success">Rs. {Number(productObj.retailPrice || 0).toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {productObj.wholesalePrice > 0 && grossProfit > 0 && (
-                      <div className="flex-between pt-2 border-top mt-2 text-xs">
-                        <span className="text-success font-weight-600">Gross Margin:</span>
-                        <span className="badge badge-success font-mono font-weight-800">
-                          +Rs. {grossProfit.toLocaleString()} ({marginPercent}%)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right Column: Thermal Tag & Print Controls */}
-                  <div className="p-3 bg-subtle rounded border flex-column flex-between">
-                    <div>
-                      <div className="flex-between mb-2 pb-1 border-bottom">
-                        <div className="flex-align-center gap-1.5">
-                          <Printer size={16} className="text-primary" />
-                          <strong className="text-xs text-main">50×30mm Thermal Tag</strong>
-                        </div>
-                        <span className="badge badge-neutral text-xxs font-mono">1.8" × 0.9"</span>
-                      </div>
-
-                      <div className="my-2 mx-auto" style={{ maxWidth: '260px' }}>
-                        <BarcodeLabelPreview
-                          shopName={shopSettings?.shopName}
-                          itemName={productObj.fabricMaterial}
-                          tagLabel={productObj.tagLabel}
-                          tagSubtitle={productObj.tagSubtitle}
-                          color={productObj.fabricColor}
-                          clothType={productObj.fabricType || productObj.apparelCategory || productObj.category}
-                          barcode={productObj.barcode}
-                          price={productObj.retailPrice}
-                        />
-                      </div>
-
-                      {/* Quantity Stepper & Quick Presets */}
-                      <div className="mt-2 p-2 bg-surface rounded border">
-                        <div className="flex-between mb-1">
-                          <span className="text-xxs font-weight-700 text-muted">STICKERS TO PRINT:</span>
-                          <span className="text-xs font-mono font-weight-700 text-primary">{stickerPrintCount} Labels</span>
-                        </div>
-                        <div className="flex-align-center gap-2 mb-2">
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-xs px-2"
-                            onClick={() => setStickerPrintCount(prev => Math.max(1, (parseInt(prev, 10) || 1) - 1))}
-                          >
-                            -1
-                          </button>
-                          <input
-                            type="number"
-                            min="1"
-                            className="form-input text-center font-mono font-weight-800 text-xs py-0.5"
-                            value={stickerPrintCount}
-                            onChange={(e) => setStickerPrintCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-xs px-2"
-                            onClick={() => setStickerPrintCount(prev => (parseInt(prev, 10) || 0) + 1)}
-                          >
-                            +1
-                          </button>
-                        </div>
-                        <div className="quick-presets flex-align-center gap-1 justify-center">
-                          <button
-                            type="button"
-                            className="btn-preset-chip"
-                            onClick={() => setStickerPrintCount('1')}
-                          >
-                            1 pc
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-preset-chip"
-                            onClick={() => setStickerPrintCount('5')}
-                          >
-                            5 pcs
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-preset-chip"
-                            onClick={() => setStickerPrintCount('10')}
-                          >
-                            10 pcs
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-preset-chip"
-                            onClick={() => setStickerPrintCount(String(productObj.stock || '20'))}
-                          >
-                            All ({productObj.stock})
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-block flex-align-center justify-center gap-2"
-                        onClick={() => printBarcodeLabels(productObj, parseInt(stickerPrintCount, 10) || 1, shopSettings)}
-                      >
-                        <Printer size={16} /> Print {stickerPrintCount} Barcode Stickers
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Action Buttons */}
-                <div className="modal-actions flex-between pt-3 border-top mt-2">
-                  <button
-                    type="button"
-                    className="btn btn-secondary flex-align-center gap-1"
-                    onClick={handleResetForNextProduct}
-                  >
-                    <Plus size={15} /> + Add Another Product
-                  </button>
-                  <div className="flex-align-center gap-2">
-                    <button
-                      type="button"
-                      className="btn btn-secondary flex-align-center gap-1"
-                      onClick={() => setActiveTab('check-stock')}
-                    >
-                      <Boxes size={15} /> View in Inventory
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary flex-align-center gap-1"
-                      onClick={() => setActiveTab('make-sale')}
-                    >
-                      <Tag size={15} /> Open in POS Counter <ArrowRight size={15} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
         </div>
 
         {/* RIGHT COLUMN: Live 1.8" x 0.9" Thermal Barcode Sticker Preview */}
@@ -1010,6 +1012,7 @@ export const ProductSetupView = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* ========================================================
           MODAL: ADD CUSTOM APPAREL CATEGORY

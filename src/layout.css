@@ -141,6 +141,19 @@
   border: 1.5px solid var(--brand-primary);
 }
 
+.user-icon-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-surface, #eff6ff);
+  border: 1.5px solid var(--brand-primary, #2563eb);
+  color: var(--brand-primary, #2563eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .user-info {
   display: flex;
   flex-direction: column;
