@@ -5,6 +5,12 @@ import {
   RECEIPT_PRINTER_KEYWORD_REGEX,
 } from '../utils/printUtils';
 import {
+  syncSaleToCloud,
+  syncProductToCloud,
+  syncSettlementToCloud,
+  flushOfflineQueue,
+} from '../utils/supabaseClient';
+import {
   INITIAL_TENANTS,
   INITIAL_PRODUCTS,
   INITIAL_ROLES,
@@ -120,11 +126,47 @@ export const POSProvider = ({ children }) => {
 
   // Dynamically synchronize window & document tab title with shop settings
   useEffect(() => {
-    const titleName = shopSettings?.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN';
+    const titleName = shopSettings?.shopName || currentTenant?.name || 'TESSLO Fashion Retail';
     if (typeof document !== 'undefined') {
-      document.title = `${titleName} - POS Terminal`;
+      document.title = `${titleName} • TESSLO Fashion POS`;
     }
   }, [shopSettings?.shopName, currentTenant?.name]);
+
+  // Online / Offline Status & Cloud Auto-Sync
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      showToast('Internet connection restored! Synchronizing with TESSLO Supabase cloud...', 'success');
+      flushOfflineQueue().then(({ flushed }) => {
+        if (flushed > 0) {
+          showToast(`Synchronized ${flushed} offline records to TESSLO cloud!`, 'success');
+        }
+      }).catch(() => {});
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      showToast('Working offline: transactions and updates will be saved locally and queued.', 'warning');
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+    }
+
+    // Flush any pending queue on startup if online
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      flushOfflineQueue().catch(() => {});
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      }
+    };
+  }, []);
 
   // Product Templates & Custom Attribute Sets
   const [productTemplates, setProductTemplates] = useState(() =>
@@ -325,6 +367,7 @@ export const POSProvider = ({ children }) => {
     };
     setDaySettlements(prev => [newEntry, ...prev]);
     setIsCashSettled(true);
+    syncSettlementToCloud(newEntry, currentTenantId).catch(() => {});
     showToast('Day-end cash settlement recorded and register closed for today', 'success');
     return newEntry;
   };
@@ -866,6 +909,7 @@ export const POSProvider = ({ children }) => {
       vendorId: productData.vendorId || '',
     };
     setAllStockLog(prev => [newStockLog, ...prev]);
+    syncProductToCloud(newProduct, currentTenantId).catch(() => {});
     return newProduct;
   };
 
@@ -941,18 +985,24 @@ export const POSProvider = ({ children }) => {
   };
 
   const updateProductPrices = (productId, newWholesale, newRetail) => {
+    let updatedTarget = null;
     setAllProducts(prev =>
       prev.map(p => {
         if (p.id === productId) {
-          return {
+          const up = {
             ...p,
             wholesalePrice: parseFloat(newWholesale) || p.wholesalePrice,
             retailPrice: parseFloat(newRetail) || p.retailPrice,
           };
+          updatedTarget = up;
+          return up;
         }
         return p;
       })
     );
+    if (updatedTarget) {
+      syncProductToCloud(updatedTarget, currentTenantId).catch(() => {});
+    }
   };
 
   const deleteProduct = (productId) => {
@@ -1260,6 +1310,7 @@ export const POSProvider = ({ children }) => {
     setAllSalesLogs(prev => [newSale, ...prev]);
     setIsCashSettled(false);
     clearCart();
+    syncSaleToCloud(newSale, currentTenantId).catch(() => {});
     return newSale;
   };
 
@@ -1406,6 +1457,7 @@ export const POSProvider = ({ children }) => {
         updatePrinterSettings,
         availablePrinters,
         refreshPrinters,
+        isOnline,
       }}
     >
       {children}

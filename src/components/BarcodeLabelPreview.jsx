@@ -12,7 +12,7 @@ import { generateBarcodeSvg } from '../utils/printUtils';
  * Line 6: price
  */
 export default function BarcodeLabelPreview({
-  shopName = 'NOVA MEN AND WOMEN',
+  shopName = 'TESSLO',
   itemName = 'Executive Cotton Kurta',
   tagLabel = '',
   tagSubtitle = '',
@@ -22,7 +22,7 @@ export default function BarcodeLabelPreview({
   price = 3500,
   className = '',
 }) {
-  const displayShopName = (shopName || 'NOVA MEN AND WOMEN').toUpperCase();
+  const displayShopName = (shopName || 'TESSLO').toUpperCase();
   const baseName = tagLabel || itemName || 'Garment Item';
   const effectiveSubtitle = tagSubtitle || color || '';
   const itemNameWithColor = effectiveSubtitle ? `${baseName} - ${effectiveSubtitle}` : baseName;

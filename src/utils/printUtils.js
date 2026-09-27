@@ -251,7 +251,8 @@ export function generateEscPosReceipt(saleData, shopSettings = {}) {
   lines.push('\x1b\x70\x00\x19\xfa');
   lines.push('\x1b\x70\x01\x19\xfa');
   lines.push('\x1ba\x01'); // Center align
-  lines.push('\x1bE\x01' + shopName + '\n\x1bE\x00'); // Shop Name Bold
+  lines.push('\x1b!\x38' + shopName + '\n\x1b!\x00'); // Double-Height, Double-Width, Bold Shop Header
+  lines.push('\x1bE\x01TESSLO FASHION RETAIL OS\n\x1bE\x00');
 
   // Address wrapped cleanly across lines without truncation
   const locationLines = wrapReceiptText(shopLocation, 44);
@@ -317,11 +318,11 @@ export function generateEscPosReceipt(saleData, shopSettings = {}) {
     lines.push(formatRow('Total Discount:', `-Rs. ${allDiscountsTotal.toLocaleString()}`));
   }
 
-  lines.push('------------------------------------------------\n');
-  lines.push('\x1bE\x01'); // Bold Net Total
+  lines.push('================================================\n');
+  lines.push('\x1b!\x20'); // Double-Height Bold Net Total
   lines.push(formatRow('NET TOTAL:', `Rs. ${netTotal}`));
-  lines.push('\x1bE\x00');
-  lines.push('------------------------------------------------\n');
+  lines.push('\x1b!\x00');
+  lines.push('================================================\n');
 
   lines.push(formatRow('Amount Tendered:', `Rs. ${amountReceived}`));
   if (paymentMethod === 'Cash' || parseFloat(saleData.changeReturned) > 0) {
@@ -506,49 +507,70 @@ export function generateThermalReceiptHtml(saleData, shopSettings = {}) {
       padding: 0;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      text-rendering: geometricPrecision !important;
     }
     body {
       background: #ffffff !important;
       color: #000000 !important;
-      font-family: 'Courier New', Courier, monospace, -apple-system, sans-serif;
-      width: 80mm;
-      max-width: 80mm;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+      width: 78mm;
+      max-width: 78mm;
       margin: 0 auto;
-      padding: 6px 5px;
+      padding: 6px 4px;
       font-size: 11px;
-      line-height: 1.45;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
     }
     .text-center { text-align: center; }
     .text-right { text-align: right; }
     .text-left { text-align: left; }
-    .bold { font-weight: bold; }
+    .bold { font-weight: 800; }
     .divider {
       text-align: center;
-      font-size: 10px;
+      font-size: 11px;
+      font-weight: 900;
       margin: 5px 0;
-      letter-spacing: 1px;
-      line-height: 1.4;
+      letter-spacing: 1.5px;
+      line-height: 1.2;
+      border-bottom: 1.5px dashed #000000;
+      height: 1px;
     }
     .header-title {
-      font-size: 15px;
-      font-weight: 800;
+      font-size: 17px;
+      font-weight: 900;
       text-transform: uppercase;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
       letter-spacing: 0.6px;
-      line-height: 1.35;
+      line-height: 1.25;
+      color: #000000 !important;
+    }
+    .header-platform-tag {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #000000 !important;
+      margin-bottom: 3px;
     }
     .subtext {
-      font-size: 10px;
-      color: #111111;
-      line-height: 1.55;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #000000 !important;
+      line-height: 1.45;
     }
     .meta-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 3px 6px;
-      font-size: 10px;
-      line-height: 1.5;
+      font-size: 10.5px;
+      font-weight: 600;
+      line-height: 1.45;
       margin: 6px 0;
+      border: 1px solid #000000;
+      padding: 5px 6px;
+      border-radius: 4px;
+      background: #fafafa;
     }
     table {
       width: 100%;
@@ -556,62 +578,72 @@ export function generateThermalReceiptHtml(saleData, shopSettings = {}) {
       margin: 5px 0;
     }
     th {
-      font-size: 10px;
-      font-weight: 700;
+      font-size: 10.5px;
+      font-weight: 900;
       text-transform: uppercase;
       padding: 4px 1px;
-      border-top: 1px dashed #000;
-      border-bottom: 1px dashed #000;
-      line-height: 1.4;
+      border-top: 2px solid #000000;
+      border-bottom: 2px solid #000000;
+      line-height: 1.3;
+      color: #000000 !important;
     }
     .row {
       display: flex;
       justify-content: space-between;
       margin: 3px 0;
-      font-size: 10.5px;
-      line-height: 1.45;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: #000000 !important;
     }
     .net-total-row {
       display: flex;
       justify-content: space-between;
-      font-size: 14px;
-      font-weight: 800;
-      padding: 5px 0;
-      border-top: 1px dashed #000;
-      border-bottom: 1px dashed #000;
-      margin: 4px 0;
-      line-height: 1.4;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 900;
+      padding: 6px 2px;
+      border-top: 2px solid #000000;
+      border-bottom: 2px solid #000000;
+      margin: 6px 0;
+      line-height: 1.3;
+      color: #000000 !important;
     }
     .footer-section {
       text-align: center;
-      font-size: 10px;
-      margin-top: 6px;
-      line-height: 1.6;
+      font-size: 10.5px;
+      font-weight: 600;
+      margin-top: 8px;
+      line-height: 1.5;
+      color: #000000 !important;
     }
     .footer-policy {
       font-size: 9.5px;
-      color: #222222;
-      line-height: 1.55;
-      margin-top: 2px;
+      font-weight: 600;
+      color: #111111 !important;
+      line-height: 1.45;
+      margin-top: 3px;
     }
     .barcode-code {
-      font-family: 'Courier New', monospace;
-      font-size: 11px;
-      font-weight: bold;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      font-weight: 900;
       letter-spacing: 2px;
       text-align: center;
-      margin-top: 5px;
-      line-height: 1.4;
+      margin-top: 6px;
+      line-height: 1.3;
+      color: #000000 !important;
     }
   </style>
 </head>
 <body>
   <!-- HEADER -->
   <div class="text-center">
+    <div class="header-platform-tag">TESSLO CLOTHING ERP</div>
     <div class="header-title">${escapeHtml(shopName)}</div>
     <div class="subtext">${escapeHtml(shopLocation)}</div>
     <div class="subtext">Tel: ${escapeHtml(shopPhone)}</div>
-    <div class="divider">--------------------------------</div>
+    <div class="divider"></div>
   </div>
 
   <!-- BODY: Cashier, Payment, Date, Invoice -->
@@ -622,7 +654,7 @@ export function generateThermalReceiptHtml(saleData, shopSettings = {}) {
     <div>Invoice: <strong>${escapeHtml(receiptNumber)}</strong></div>
   </div>
 
-  <div class="divider">--------------------------------</div>
+  <div class="divider"></div>
 
   <!-- TABLE: Article, Qty, Price, Discount, Total -->
   <table style="width: 100%; border-collapse: collapse; margin: 4px 0; table-layout: fixed;">
@@ -663,14 +695,14 @@ export function generateThermalReceiptHtml(saleData, shopSettings = {}) {
     <span>-Rs. ${allDiscountsTotal.toLocaleString()}</span>
   </div>` : ''}
 
-  <div class="divider">--------------------------------</div>
+  <div class="divider"></div>
 
   <div class="net-total-row">
     <span>NET TOTAL:</span>
     <span>Rs. ${netTotal}</span>
   </div>
 
-  <div class="divider">--------------------------------</div>
+  <div class="divider"></div>
 
   <div class="row">
     <span>Amount Tendered:</span>
@@ -682,7 +714,7 @@ export function generateThermalReceiptHtml(saleData, shopSettings = {}) {
     <span>Rs. ${changeReturned}</span>
   </div>` : ''}
 
-  <div class="divider">--------------------------------</div>
+  <div class="divider"></div>
 
   <!-- FOOTER: Thank you note, Exchange Policy, Invoice # -->
   <div class="footer-section">
@@ -737,9 +769,9 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
  */
 export function generateZplLabel(product, shopSettings = {}, count = 1) {
   if (!product) return '';
-  const shopName = (shopSettings?.shopName || 'NOVA MEN AND WOMEN').toUpperCase().slice(0, 32);
-  const baseItemName = product?.fabricMaterial || product?.name || 'Garment Item';
-  const color = product?.fabricColor || product?.color || '';
+  const shopName = (shopSettings?.shopName || 'TESSLO').toUpperCase().slice(0, 32);
+  const baseItemName = product?.tagLabel || product?.fabricMaterial || product?.name || 'Garment Item';
+  const color = product?.tagSubtitle || product?.fabricColor || product?.color || '';
   const itemNameWithColor = (color ? `${baseItemName} - ${color}` : baseItemName).slice(0, 32);
   const clothType = (product?.fabricType || product?.apparelCategory || product?.category || 'Cotton Fabric').toUpperCase().slice(0, 30);
   const itemCode = String(product?.barcode || product?.sku || '000000000000').trim();
@@ -750,19 +782,19 @@ export function generateZplLabel(product, shopSettings = {}, count = 1) {
 
   return `^XA
 ${mediaTypeCmd}
-~SD25
-^MD25
-^PR2
+~SD22
+^MD22
+^PR3
 ^PW384
-^LL240
+^LL230
 ^LH0,0
 ^FO10,8^FB364,1,0,C^A0N,22,22^FD${shopName}^FS
-^FO10,34^FB364,1,0,C^A0N,20,20^FD${itemNameWithColor}^FS
-^FO10,58^FB364,1,0,C^A0N,18,18^FD${clothType}^FS
-^FO42,80^BY2,2,42^BCN,42,N,N,N^FD${itemCode}^FS
-^FO10,130^FB364,1,0,C^A0N,20,20^FD${itemCode}^FS
-^FO10,154^GB364,2,2^FS
-^FO10,162^FB364,1,0,C^A0N,26,26^FDPRICE: Rs. ${price}^FS
+^FO10,32^FB364,1,0,C^A0N,20,20^FD${itemNameWithColor}^FS
+^FO10,54^FB364,1,0,C^A0N,18,18^FD${clothType}^FS
+^FO20,74^BY2,3,40^BCN,40,N,N,N^FD${itemCode}^FS
+^FO10,120^FB364,1,0,C^A0N,19,19^FD${itemCode}^FS
+^FO10,142^GB364,2,2^FS
+^FO10,148^FB364,1,0,C^A0N,26,26^FDPRICE: Rs. ${price}^FS
 ^PQ${printQty}
 ^XZ`;
 }
@@ -923,10 +955,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       }
       .sticker-label {
         width: 48mm !important;
-        height: 28mm !important;
+        height: 26.5mm !important;
         max-width: 48mm !important;
-        max-height: 28mm !important;
-        margin: 1mm auto !important;
+        max-height: 26.5mm !important;
+        margin: 0 auto !important;
         box-sizing: border-box !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
@@ -960,10 +992,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     }
     .sticker-label {
       width: 48mm;
-      height: 28mm;
+      height: 26.5mm;
       max-width: 48mm;
-      max-height: 28mm;
-      padding: 1mm 1.5mm;
+      max-height: 26.5mm;
+      padding: 0.8mm 1.2mm;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -1020,8 +1052,8 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     }
     .lbl-barcode-box {
       width: 96%;
-      height: 11mm;
-      min-height: 11mm;
+      height: 9.5mm;
+      min-height: 9.5mm;
       display: flex;
       align-items: center;
       justify-content: center;

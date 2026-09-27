@@ -32,6 +32,7 @@ export const Navbar = () => {
     showToast,
     activeTab,
     setActiveTab,
+    isOnline,
   } = usePOS();
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
@@ -61,7 +62,7 @@ export const Navbar = () => {
   return (
     <header className="navbar-container">
       {/* LEFT: Sidebar Toggle + Clock with Time & Date + Online Status */}
-      <div className="nav-left">
+      <div className="nav-left flex-align-center gap-2">
         <button
           type="button"
           className="btn-toggle-sidebar-nav"
@@ -77,6 +78,26 @@ export const Navbar = () => {
           <span className="time-divider">•</span>
           <span className="time-mono">{timeStr}</span>
         </div>
+
+        <div
+          className="info-pill"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+          title={isOnline ? 'TESSLO Cloud Mesh Connected (Online)' : 'Working Offline (Local Storage Queued)'}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              width: '7px',
+              height: '7px',
+              borderRadius: '50%',
+              backgroundColor: isOnline ? '#10b981' : '#f59e0b',
+              boxShadow: isOnline ? '0 0 6px #10b981' : '0 0 6px #f59e0b',
+            }}
+          />
+          <span className="font-mono text-xxs font-weight-700" style={{ color: isOnline ? '#059669' : '#d97706' }}>
+            {isOnline ? 'CLOUD SYNC' : 'OFFLINE'}
+          </span>
+        </div>
       </div>
 
       {/* CENTER: Active Context / Shop Title */}
@@ -87,6 +108,19 @@ export const Navbar = () => {
           </div>
           <div className="center-brand-titles">
             <div className="flex-align-center justify-center gap-2">
+              <span
+                className="badge font-mono font-weight-800 text-xxs"
+                style={{
+                  background: '#0f172a',
+                  color: '#f8fafc',
+                  padding: '0.15rem 0.45rem',
+                  borderRadius: '4px',
+                  letterSpacing: '0.08em',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                }}
+              >
+                TESSLO
+              </span>
               <h2 className="navbar-shop-title">{activeShopTitle}</h2>
               {isMultiShopOwner && (
                 <button

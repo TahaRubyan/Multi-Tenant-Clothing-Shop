@@ -9,10 +9,12 @@ import {
 } from 'lucide-react';
 
 export const LoginView = () => {
-  const { login } = usePOS();
+  const { login, shopSettings, currentTenant } = usePOS();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const currentShopName = shopSettings?.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN';
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -36,8 +38,22 @@ export const LoginView = () => {
           <div className="login-brand-icon mx-auto mb-2">
             <Scissors size={28} />
           </div>
-          <h2 className="login-brand-title">NOVA MEN AND WOMEN</h2>
-          <p className="login-subtitle">Multi-Tenant Retail POS & Fabric Inventory Management</p>
+          <div className="flex-align-center justify-center gap-2 mb-1">
+            <span
+              className="badge font-mono font-weight-800 text-xs"
+              style={{
+                background: '#0f172a',
+                color: '#f8fafc',
+                padding: '0.2rem 0.6rem',
+                borderRadius: '4px',
+                letterSpacing: '0.08em',
+              }}
+            >
+              TESSLO
+            </span>
+          </div>
+          <h2 className="login-brand-title">{currentShopName}</h2>
+          <p className="login-subtitle">Fashion Retail ERP &amp; Cloud Multi-Tenant POS Terminal</p>
         </div>
 
         {/* Credentials Form */}
