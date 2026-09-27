@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Building2,
 } from 'lucide-react';
+import { ModalPortal } from './ModalPortal';
 
 export const ShopSwitcherModal = () => {
   const {
@@ -64,8 +65,9 @@ export const ShopSwitcherModal = () => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content shop-switcher-modal-card">
+    <ModalPortal>
+      <div className="modal-overlay">
+        <div className="modal-content shop-switcher-modal-card">
         {/* Header */}
         <div className="modal-header">
           <div className="modal-title">
@@ -159,5 +161,6 @@ export const ShopSwitcherModal = () => {
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 };

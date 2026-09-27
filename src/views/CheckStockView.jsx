@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { usePOS } from '../context/POSContext';
 import { printBarcodeLabels } from '../utils/printUtils';
 import BarcodeLabelPreview from '../components/BarcodeLabelPreview';
+import { ModalPortal } from '../components/ModalPortal';
 import {
   Search,
   Edit2,
@@ -360,250 +361,258 @@ export const CheckStockView = () => {
 
       {/* MANAGER PIN MODAL FOR PRICE EDIT (WHEN NON-ADMIN) */}
       {pendingPriceEditProduct && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-sm glass-card p-4">
-            <div className="modal-header">
-              <div className="modal-title flex-align-center gap-2 text-primary">
-                <Lock size={20} />
-                <h3 className="mb-0">Manager Authorization</h3>
-              </div>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setPendingPriceEditProduct(null)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleVerifyPin} className="modal-body py-2">
-              <p className="text-xs text-muted mb-3">
-                Price modifications require Manager or Admin authentication. Please enter your 4-digit PIN to edit prices for <strong>{pendingPriceEditProduct.fabricMaterial}</strong>.
-              </p>
-
-              <div className="form-group mb-3 text-center">
-                <input
-                  type="password"
-                  maxLength={6}
-                  className="form-input text-center font-mono font-weight-800 text-lg letter-spacing-wide"
-                  placeholder="• • • •"
-                  value={enteredPin}
-                  onChange={(e) => {
-                    setEnteredPin(e.target.value);
-                    setPinError(false);
-                  }}
-                  autoFocus
-                  required
-                />
-                {pinError && (
-                  <span className="text-danger text-xs mt-1 d-block font-weight-600">
-                    Incorrect PIN. Default is 1234.
-                  </span>
-                )}
-              </div>
-
-              <div className="modal-actions flex-end gap-2">
+        <ModalPortal>
+          <div className="modal-overlay">
+            <div className="modal-content modal-sm glass-card p-4">
+              <div className="modal-header">
+                <div className="modal-title flex-align-center gap-2 text-primary">
+                  <Lock size={20} />
+                  <h3 className="mb-0">Manager Authorization</h3>
+                </div>
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn-close"
                   onClick={() => setPendingPriceEditProduct(null)}
                 >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary btn-sm flex-align-center gap-1">
-                  <KeyRound size={14} /> Verify & Unlock
+                  <X size={16} />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleVerifyPin} className="modal-body py-2">
+                <p className="text-xs text-muted mb-3">
+                  Price modifications require Manager or Admin authentication. Please enter your 4-digit PIN to edit prices for <strong>{pendingPriceEditProduct.fabricMaterial}</strong>.
+                </p>
+
+                <div className="form-group mb-3 text-center">
+                  <input
+                    type="password"
+                    maxLength={6}
+                    className="form-input text-center font-mono font-weight-800 text-lg letter-spacing-wide"
+                    placeholder="• • • •"
+                    value={enteredPin}
+                    onChange={(e) => {
+                      setEnteredPin(e.target.value);
+                      setPinError(false);
+                    }}
+                    autoFocus
+                    required
+                  />
+                  {pinError && (
+                    <span className="text-danger text-xs mt-1 d-block font-weight-600">
+                      Incorrect PIN. Default is 1234.
+                    </span>
+                  )}
+                </div>
+
+                <div className="modal-actions flex-end gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setPendingPriceEditProduct(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-sm flex-align-center gap-1">
+                    <KeyRound size={14} /> Verify & Unlock
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* EDIT PRICE MODAL */}
       {editPriceModalProduct && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-card p-4">
-            <div className="modal-header">
-              <div className="modal-title flex-align-center gap-2">
-                <DollarSign size={22} className="text-primary" />
-                <h3 className="mb-0">Edit Product Prices</h3>
-              </div>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setEditPriceModalProduct(null)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSavePriceEdit} className="modal-body py-2">
-              <div className="p-2 mb-3 bg-secondary rounded border">
-                <div className="font-weight-700 text-sm text-main">{editPriceModalProduct.fabricMaterial}</div>
-                <div className="text-xs text-muted font-mono">Barcode: {editPriceModalProduct.barcode} | In-Stock: {editPriceModalProduct.stock} units</div>
-              </div>
-
-              <div className="form-group mb-3">
-                <label className="form-label mb-1">
-                  Wholesale Cost Price (Rs.):
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  className="form-input font-mono"
-                  value={editWholesale}
-                  onChange={(e) => setEditWholesale(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group mb-4">
-                <label className="form-label mb-1">
-                  Retail Sale Price (Rs.):
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  className="form-input font-mono font-weight-700 text-primary"
-                  value={editRetail}
-                  onChange={(e) => setEditRetail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="modal-actions flex-between pt-2">
-                <button type="button" className="btn btn-secondary" onClick={() => setEditPriceModalProduct(null)}>
-                  Cancel
-                </button>
-                <div className="flex-align-center gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-outline-primary flex-align-center gap-1"
-                    onClick={(e) => handleSavePriceEdit(e, true)}
-                  >
-                    <Tag size={15} /> Save &amp; Print Stickers
-                  </button>
-                  <button type="submit" className="btn btn-primary flex-align-center gap-1">
-                    <CheckCircle2 size={16} /> Save Changes
-                  </button>
+        <ModalPortal>
+          <div className="modal-overlay">
+            <div className="modal-content glass-card p-4">
+              <div className="modal-header">
+                <div className="modal-title flex-align-center gap-2">
+                  <DollarSign size={22} className="text-primary" />
+                  <h3 className="mb-0">Edit Product Prices</h3>
                 </div>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setEditPriceModalProduct(null)}
+                >
+                  <X size={16} />
+                </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSavePriceEdit} className="modal-body py-2">
+                <div className="p-2 mb-3 bg-secondary rounded border">
+                  <div className="font-weight-700 text-sm text-main">{editPriceModalProduct.fabricMaterial}</div>
+                  <div className="text-xs text-muted font-mono">Barcode: {editPriceModalProduct.barcode} | In-Stock: {editPriceModalProduct.stock} units</div>
+                </div>
+
+                <div className="form-group mb-3">
+                  <label className="form-label mb-1">
+                    Wholesale Cost Price (Rs.):
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    className="form-input font-mono"
+                    value={editWholesale}
+                    onChange={(e) => setEditWholesale(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group mb-4">
+                  <label className="form-label mb-1">
+                    Retail Sale Price (Rs.):
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    className="form-input font-mono font-weight-700 text-primary"
+                    value={editRetail}
+                    onChange={(e) => setEditRetail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="modal-actions flex-between pt-2">
+                  <button type="button" className="btn btn-secondary" onClick={() => setEditPriceModalProduct(null)}>
+                    Cancel
+                  </button>
+                  <div className="flex-align-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary flex-align-center gap-1"
+                      onClick={(e) => handleSavePriceEdit(e, true)}
+                    >
+                      <Tag size={15} /> Save &amp; Print Stickers
+                    </button>
+                    <button type="submit" className="btn btn-primary flex-align-center gap-1">
+                      <CheckCircle2 size={16} /> Save Changes
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* THERMAL STICKER PRINT MODAL AFTER PRICE EDIT */}
       {stickerModalProduct && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-card p-4" style={{ maxWidth: '480px' }}>
-            <div className="modal-header">
-              <div className="modal-title flex-align-center gap-2">
-                <Printer size={20} className="text-primary" />
-                <h3 className="mb-0">Price Updated - Print Barcode Stickers</h3>
-              </div>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setStickerModalProduct(null)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="modal-body text-center py-2">
-              <p className="text-xs text-muted mb-2">
-                New retail price saved: <strong>Rs. {stickerModalProduct.retailPrice.toLocaleString()}</strong>.
-                Print fresh thermal stickers to relabel items on rack.
-              </p>
-
-              {/* 1.8" x 0.9" Thermal Barcode Sticker Preview - Exact 6 Lines */}
-              <div className="my-3 mx-auto" style={{ maxWidth: '270px' }}>
-                <BarcodeLabelPreview
-                  shopName={shopSettings?.shopName}
-                  itemName={stickerModalProduct.fabricMaterial}
-                  color={stickerModalProduct.fabricColor}
-                  clothType={stickerModalProduct.apparelCategory || stickerModalProduct.fabricType}
-                  barcode={stickerModalProduct.barcode}
-                  price={stickerModalProduct.retailPrice}
-                />
+        <ModalPortal>
+          <div className="modal-overlay">
+            <div className="modal-content glass-card p-4" style={{ maxWidth: '480px' }}>
+              <div className="modal-header">
+                <div className="modal-title flex-align-center gap-2">
+                  <Printer size={20} className="text-primary" />
+                  <h3 className="mb-0">Price Updated - Print Barcode Stickers</h3>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setStickerModalProduct(null)}
+                >
+                  <X size={16} />
+                </button>
               </div>
 
-              <div className="form-group my-3" style={{ maxWidth: '240px', margin: '0 auto' }}>
-                <label className="form-label text-xs">Sticker Print Quantity (Defaulted to Stock):</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  className="form-input text-center font-mono font-weight-700"
-                  value={stickerPrintCount}
-                  onChange={(e) => setStickerPrintCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                />
-              </div>
-            </div>
+              <div className="modal-body text-center py-2">
+                <p className="text-xs text-muted mb-2">
+                  New retail price saved: <strong>Rs. {stickerModalProduct.retailPrice.toLocaleString()}</strong>.
+                  Print fresh thermal stickers to relabel items on rack.
+                </p>
 
-            <div className="modal-actions flex-between">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setStickerModalProduct(null)}
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary flex-align-center gap-2"
-                onClick={() => {
-                  printBarcodeLabels(stickerModalProduct, stickerPrintCount, shopSettings);
-                  showToast(`Printed ${stickerPrintCount} price stickers!`, 'success');
-                  setStickerModalProduct(null);
-                }}
-              >
-                <Printer size={16} /> Print {stickerPrintCount} Stickers (1.8" × 0.9")
-              </button>
+                {/* 1.8" x 0.9" Thermal Barcode Sticker Preview - Exact 6 Lines */}
+                <div className="my-3 mx-auto" style={{ maxWidth: '270px' }}>
+                  <BarcodeLabelPreview
+                    shopName={shopSettings?.shopName}
+                    itemName={stickerModalProduct.fabricMaterial}
+                    color={stickerModalProduct.fabricColor}
+                    clothType={stickerModalProduct.apparelCategory || stickerModalProduct.fabricType}
+                    barcode={stickerModalProduct.barcode}
+                    price={stickerModalProduct.retailPrice}
+                  />
+                </div>
+
+                <div className="form-group my-3" style={{ maxWidth: '240px', margin: '0 auto' }}>
+                  <label className="form-label text-xs">Sticker Print Quantity (Defaulted to Stock):</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    className="form-input text-center font-mono font-weight-700"
+                    value={stickerPrintCount}
+                    onChange={(e) => setStickerPrintCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions flex-between">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setStickerModalProduct(null)}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary flex-align-center gap-2"
+                  onClick={() => {
+                    printBarcodeLabels(stickerModalProduct, stickerPrintCount, shopSettings);
+                    showToast(`Printed ${stickerPrintCount} price stickers!`, 'success');
+                    setStickerModalProduct(null);
+                  }}
+                >
+                  <Printer size={16} /> Print {stickerPrintCount} Stickers (1.8" × 0.9")
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* DELETE CONFIRMATION MODAL */}
       {deleteConfirmProduct && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-card p-4">
-            <div className="modal-header">
-              <div className="modal-title text-danger flex-align-center gap-2">
-                <AlertTriangle size={22} />
-                <h3 className="mb-0">Confirm Product Deletion</h3>
+        <ModalPortal>
+          <div className="modal-overlay">
+            <div className="modal-content glass-card p-4">
+              <div className="modal-header">
+                <div className="modal-title text-danger flex-align-center gap-2">
+                  <AlertTriangle size={22} />
+                  <h3 className="mb-0">Confirm Product Deletion</h3>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setDeleteConfirmProduct(null)}
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setDeleteConfirmProduct(null)}
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            <div className="modal-body py-2">
-              <p>
-                Are you sure you want to permanently delete{' '}
-                <strong>{deleteConfirmProduct.fabricMaterial}</strong> ({deleteConfirmProduct.barcode}) from inventory?
-              </p>
-              <p className="text-muted text-xs mt-2">
-                This item currently has <strong>0 stock</strong>. Deleting will remove this SKU from inventory search.
-              </p>
-            </div>
+              <div className="modal-body py-2">
+                <p>
+                  Are you sure you want to permanently delete{' '}
+                  <strong>{deleteConfirmProduct.fabricMaterial}</strong> ({deleteConfirmProduct.barcode}) from inventory?
+                </p>
+                <p className="text-muted text-xs mt-2">
+                  This item currently has <strong>0 stock</strong>. Deleting will remove this SKU from inventory search.
+                </p>
+              </div>
 
-            <div className="modal-actions flex-end gap-2">
-              <button className="btn btn-secondary" onClick={() => setDeleteConfirmProduct(null)}>
-                Cancel
-              </button>
-              <button className="btn btn-danger" onClick={handleConfirmDelete}>
-                Confirm Delete Item
-              </button>
+              <div className="modal-actions flex-end gap-2">
+                <button className="btn btn-secondary" onClick={() => setDeleteConfirmProduct(null)}>
+                  Cancel
+                </button>
+                <button className="btn btn-danger" onClick={handleConfirmDelete}>
+                  Confirm Delete Item
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePOS } from '../context/POSContext';
 import confetti from 'canvas-confetti';
 import { printThermalReceipt, formatConciseArticle } from '../utils/printUtils';
+import { ModalPortal } from '../components/ModalPortal';
 import {
   Search,
   Barcode,
@@ -905,12 +906,13 @@ export const MakeSaleView = () => {
 
       {/* 80mm THERMAL RECEIPT & SALE SETTLEMENT SPLIT MODAL */}
       {completedSaleData && (
-        <div
-          className="receipt-dialog-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setCompletedSaleData(null);
-          }}
-        >
+        <ModalPortal>
+          <div
+            className="receipt-dialog-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setCompletedSaleData(null);
+            }}
+          >
           <div className="receipt-split-modal-card">
             {/* Split Modal Header with Shop Name from Settings */}
             <div className="receipt-split-header">
@@ -1174,161 +1176,166 @@ export const MakeSaleView = () => {
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
+    )}
 
       {/* INVOICE RETURN & EXCHANGE SELECTOR MODAL */}
       {showReturnItemsModal && selectedReturnInvoice && (
-        <div className="modal-overlay">
-          <div className="modal-content return-lookup-modal glass-card" style={{ maxWidth: '680px' }}>
-            <div className="modal-header flex-between">
-              <div className="flex-align-center gap-2">
-                <RotateCcw size={20} className="text-amber" />
-                <div>
-                  <h3 className="mb-0">Invoice {selectedReturnInvoice.receiptNumber}</h3>
-                  <small className="text-muted">Select items to return for exchange credit or cash refund</small>
+        <ModalPortal>
+          <div className="modal-overlay">
+            <div className="modal-content return-lookup-modal glass-card" style={{ maxWidth: '680px' }}>
+              <div className="modal-header flex-between">
+                <div className="flex-align-center gap-2">
+                  <RotateCcw size={20} className="text-amber" />
+                  <div>
+                    <h3 className="mb-0">Invoice {selectedReturnInvoice.receiptNumber}</h3>
+                    <small className="text-muted">Select items to return for exchange credit or cash refund</small>
+                  </div>
                 </div>
-              </div>
-              <button className="btn-close" onClick={() => setShowReturnItemsModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal-body p-3">
-              <div className="flex-between mb-2">
-                <span className="text-xs text-muted font-mono">{selectedReturnInvoice.dateTime} • {selectedReturnInvoice.paymentMethod}</span>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-xs"
-                  onClick={() => {
-                    selectedReturnInvoice.items?.forEach((it) => {
-                      addReturnItemToCart(it, selectedReturnInvoice.receiptNumber);
-                    });
-                    showToast(`Added all items from ${selectedReturnInvoice.receiptNumber} as exchange return`, 'success');
-                    setShowReturnItemsModal(false);
-                    setReturnInvoiceQuery('');
-                  }}
-                >
-                  Return All Items
+                <button className="btn-close" onClick={() => setShowReturnItemsModal(false)}>
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="return-items-list">
-                {selectedReturnInvoice.items?.map((it, idx) => (
-                  <div key={`${it.barcode}-${idx}`} className="return-item-row-card glass-card p-2 mb-2">
-                    <div className="flex-between">
-                      <div>
-                        <div className="flex-align-center gap-2">
-                          <span className="badge badge-sage badge-compact">
-                            {it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece'}
-                          </span>
-                          <strong className="text-main text-sm">{it.fabric}</strong>
-                        </div>
-                        <div className="text-xs text-muted font-mono mt-1">
-                          {it.barcode} • Purchased Qty: {it.qty} @ Rs. {it.unitPrice.toLocaleString()}
-                        </div>
-                      </div>
+              <div className="modal-body p-3">
+                <div className="flex-between mb-2">
+                  <span className="text-xs text-muted font-mono">{selectedReturnInvoice.dateTime} • {selectedReturnInvoice.paymentMethod}</span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => {
+                      selectedReturnInvoice.items?.forEach((it) => {
+                        addReturnItemToCart(it, selectedReturnInvoice.receiptNumber);
+                      });
+                      showToast(`Added all items from ${selectedReturnInvoice.receiptNumber} as exchange return`, 'success');
+                      setShowReturnItemsModal(false);
+                      setReturnInvoiceQuery('');
+                    }}
+                  >
+                    Return All Items
+                  </button>
+                </div>
 
-                      <div className="text-right">
-                        <div className="font-mono font-weight-700 text-sm mb-1 text-danger">
-                          -Rs. {it.total.toLocaleString()}
+                <div className="return-items-list">
+                  {selectedReturnInvoice.items?.map((it, idx) => (
+                    <div key={`${it.barcode}-${idx}`} className="return-item-row-card glass-card p-2 mb-2">
+                      <div className="flex-between">
+                        <div>
+                          <div className="flex-align-center gap-2">
+                            <span className="badge badge-sage badge-compact">
+                              {it.variantDetails ? it.variantDetails.size : it.unitType || 'Piece'}
+                            </span>
+                            <strong className="text-main text-sm">{it.fabric}</strong>
+                          </div>
+                          <div className="text-xs text-muted font-mono mt-1">
+                            {it.barcode} • Purchased Qty: {it.qty} @ Rs. {it.unitPrice.toLocaleString()}
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          className="btn btn-warning btn-sm flex-align-center gap-1"
-                          onClick={() => {
-                            addReturnItemToCart(it, selectedReturnInvoice.receiptNumber);
-                            showToast(`Returned "${it.fabric}" added for exchange`, 'success');
-                            setShowReturnItemsModal(false);
-                            setReturnInvoiceQuery('');
-                          }}
-                        >
-                          <RotateCcw size={12} /> Add to Cart (Return)
-                        </button>
+
+                        <div className="text-right">
+                          <div className="font-mono font-weight-700 text-sm mb-1 text-danger">
+                            -Rs. {it.total.toLocaleString()}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-warning btn-sm flex-align-center gap-1"
+                            onClick={() => {
+                              addReturnItemToCart(it, selectedReturnInvoice.receiptNumber);
+                              showToast(`Returned "${it.fabric}" added for exchange`, 'success');
+                              setShowReturnItemsModal(false);
+                              setReturnInvoiceQuery('');
+                            }}
+                          >
+                            <RotateCcw size={12} /> Add to Cart (Return)
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              <div className="modal-actions flex-between p-3">
+                <span className="text-xs text-muted font-weight-600">
+                  Items are added with negative credit (-Rs. X,XXX) into your cart.
+                </span>
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowReturnItemsModal(false)}>
+                  Close
+                </button>
               </div>
             </div>
-
-            <div className="modal-actions flex-between p-3">
-              <span className="text-xs text-muted font-weight-600">
-                Items are added with negative credit (-Rs. X,XXX) into your cart.
-              </span>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowReturnItemsModal(false)}>
-                Close
-              </button>
-            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* WHOLESALE DISCOUNT PIN AUTHORIZATION MODAL */}
       {showPinPromptModal && (
-        <div className="pos-pin-modal-overlay">
-          <div className="pos-pin-security-card glass-card">
-            <div className="security-icon-circle mx-auto">
-              <ShieldCheck size={28} className="text-primary" />
-            </div>
-
-            <div className="security-card-header text-center">
-              <h3 className="security-card-title">Manager PIN Authorization</h3>
-              <p className="security-card-subtitle">
-                Enter the 4-digit Manager PIN (<strong>1234</strong>) to unlock custom &amp; wholesale bill discounts.
-              </p>
-            </div>
-
-            <form onSubmit={handleVerifyPinSubmit} className="security-card-form">
-              <div className="security-pin-input-wrap">
-                <input
-                  type={showPinPreview ? 'text' : 'password'}
-                  maxLength="6"
-                  className="security-pin-input"
-                  value={enteredPin}
-                  onChange={(e) => setEnteredPin(e.target.value)}
-                  placeholder={showPinPreview ? '1234' : '••••'}
-                  autoFocus
-                  required
-                />
-                <button
-                  type="button"
-                  className="pin-preview-toggle-btn"
-                  onClick={() => setShowPinPreview((prev) => !prev)}
-                  title={showPinPreview ? 'Hide PIN' : 'Preview PIN'}
-                  aria-label={showPinPreview ? 'Hide PIN' : 'Preview PIN'}
-                  tabIndex={-1}
-                >
-                  {showPinPreview ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+        <ModalPortal>
+          <div className="pos-pin-modal-overlay">
+            <div className="pos-pin-security-card glass-card">
+              <div className="security-icon-circle mx-auto">
+                <ShieldCheck size={28} className="text-primary" />
               </div>
 
-              {pinError && (
-                <div className="security-error-alert text-danger text-xs text-center font-weight-600">
-                  {pinError}
+              <div className="security-card-header text-center">
+                <h3 className="security-card-title">Manager PIN Authorization</h3>
+                <p className="security-card-subtitle">
+                  Enter the 4-digit Manager PIN (<strong>1234</strong>) to unlock custom &amp; wholesale bill discounts.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyPinSubmit} className="security-card-form">
+                <div className="security-pin-input-wrap">
+                  <input
+                    type={showPinPreview ? 'text' : 'password'}
+                    maxLength="6"
+                    className="security-pin-input"
+                    value={enteredPin}
+                    onChange={(e) => setEnteredPin(e.target.value)}
+                    placeholder={showPinPreview ? '1234' : '••••'}
+                    autoFocus
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="pin-preview-toggle-btn"
+                    onClick={() => setShowPinPreview((prev) => !prev)}
+                    title={showPinPreview ? 'Hide PIN' : 'Preview PIN'}
+                    aria-label={showPinPreview ? 'Hide PIN' : 'Preview PIN'}
+                    tabIndex={-1}
+                  >
+                    {showPinPreview ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
-              )}
 
-              <div className="security-actions-row flex-between gap-3">
-                <button
-                  type="button"
-                  className="btn btn-secondary flex-1"
-                  onClick={() => {
-                    setShowPinPromptModal(false);
-                    setEnteredPin('');
-                    setPinError('');
-                    setShowPinPreview(false);
-                    setWholeSaleDiscountPercent(0);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary flex-1">
-                  Authorize Discount
-                </button>
-              </div>
-            </form>
+                {pinError && (
+                  <div className="security-error-alert text-danger text-xs text-center font-weight-600">
+                    {pinError}
+                  </div>
+                )}
+
+                <div className="security-actions-row flex-between gap-3">
+                  <button
+                    type="button"
+                    className="btn btn-secondary flex-1"
+                    onClick={() => {
+                      setShowPinPromptModal(false);
+                      setEnteredPin('');
+                      setPinError('');
+                      setShowPinPreview(false);
+                      setWholeSaleDiscountPercent(0);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary flex-1">
+                    Authorize Discount
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

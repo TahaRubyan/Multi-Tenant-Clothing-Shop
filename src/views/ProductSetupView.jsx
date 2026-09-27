@@ -3,6 +3,7 @@ import { usePOS } from '../context/POSContext';
 import confetti from 'canvas-confetti';
 import { printBarcodeLabels } from '../utils/printUtils';
 import BarcodeLabelPreview from '../components/BarcodeLabelPreview';
+import { ModalPortal } from '../components/ModalPortal';
 import {
   Barcode,
   Printer,
@@ -1018,51 +1019,53 @@ export const ProductSetupView = () => {
           MODAL: ADD CUSTOM APPAREL CATEGORY
           ======================================================== */}
       {showAddCategoryModal && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-sm glass-card p-4">
-            <div className="modal-header">
-              <div className="modal-title flex-align-center gap-2">
-                <Tag size={18} className="text-primary" />
-                <h3 className="mb-0">Add Custom Product Category</h3>
-              </div>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setShowAddCategoryModal(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddCategorySubmit} className="modal-body">
-              <div className="form-group mb-3">
-                <label className="form-label">Category Name *</label>
-                <input
-                  type="text"
-                  className="form-input font-weight-700"
-                  placeholder="e.g. Leather Jacket, Formal Waistcoat, Silk Scarf..."
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  autoFocus
-                  required
-                />
-              </div>
-
-              <div className="modal-actions flex-between">
+        <ModalPortal>
+          <div className="modal-overlay">
+            <div className="modal-content modal-sm glass-card p-4">
+              <div className="modal-header">
+                <div className="modal-title flex-align-center gap-2">
+                  <Tag size={18} className="text-primary" />
+                  <h3 className="mb-0">Add Custom Product Category</h3>
+                </div>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn-close"
                   onClick={() => setShowAddCategoryModal(false)}
                 >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Plus size={15} /> Add Category
+                  <X size={16} />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleAddCategorySubmit} className="modal-body">
+                <div className="form-group mb-3">
+                  <label className="form-label">Category Name *</label>
+                  <input
+                    type="text"
+                    className="form-input font-weight-700"
+                    placeholder="e.g. Leather Jacket, Formal Waistcoat, Silk Scarf..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                <div className="modal-actions flex-between">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowAddCategoryModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    <Plus size={15} /> Add Category
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

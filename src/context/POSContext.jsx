@@ -22,7 +22,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v8.5_clean_all_mock_data';
+const POS_DATA_VERSION = 'v9.0_hardware_prod_release';
 
 // Clean one-time migration for legacy localStorage cache
 try {

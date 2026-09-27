@@ -247,6 +247,9 @@ export function generateEscPosReceipt(saleData, shopSettings = {}) {
 
   const lines = [];
   lines.push('\x1b@'); // Initialize printer
+  // RJ11 / RJ12 Cash Drawer Kick Pulse (Pin 2: ESC p 0 25 250, Pin 5: ESC p 1 25 250)
+  lines.push('\x1b\x70\x00\x19\xfa');
+  lines.push('\x1b\x70\x01\x19\xfa');
   lines.push('\x1ba\x01'); // Center align
   lines.push('\x1bE\x01' + shopName + '\n\x1bE\x00'); // Shop Name Bold
 
@@ -377,8 +380,10 @@ function executePrint(htmlContent, options = {}) {
   }
 
   // 2. Web / Browser / Vercel Mode:
-  // Only trigger print dialog popup if silent is explicitly set to false
-  const shouldPopup = options?.silent === false;
+  // Browsers cannot access raw USB hardware directly without the print dialog.
+  // Trigger clean print dialog in browser/Vercel mode so physical paper prints successfully.
+  const isBrowser = typeof window !== 'undefined' && !window.electronAPI;
+  const shouldPopup = isBrowser ? true : (options?.silent === false);
   fallbackIframePrint(htmlContent, shouldPopup);
 
   // Optional background bridge dispatch for local workstation printing

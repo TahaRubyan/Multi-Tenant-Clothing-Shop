@@ -7,20 +7,24 @@ const os = require('os');
 
 let mainWindow;
 
-// Helper: Send raw printer command text directly via Windows spooler
-function rawPrint(printerName, content, docName = 'Barcode Label') {
+// Helper: Send raw printer command bytes directly via Windows spooler without string corruption
+function rawPrint(printerName, content, docName = 'POS Hardware Document') {
   return new Promise((resolve) => {
     try {
-      const tempContentFile = path.join(os.tmpdir(), `raw_data_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+      const tempContentFile = path.join(os.tmpdir(), `raw_data_${Date.now()}_${Math.random().toString(36).slice(2)}.bin`);
       const tempPs1File = path.join(os.tmpdir(), `raw_spool_${Date.now()}_${Math.random().toString(36).slice(2)}.ps1`);
       
-      fs.writeFileSync(tempContentFile, content, 'utf8');
+      const buffer = Buffer.isBuffer(content) 
+        ? content 
+        : Buffer.from(content, typeof content === 'string' && content.startsWith('^XA') ? 'utf8' : 'latin1');
+      fs.writeFileSync(tempContentFile, buffer);
 
-      const psScript = `Add-Type -TypeDefinition @"
+      const psScript = `
+Add-Type -TypeDefinition @"
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-public class RawPrinter {
+public class RawPrinterBytes {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public class DOCINFOA {
         [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
@@ -41,32 +45,33 @@ public class RawPrinter {
     public static extern bool EndPagePrinter(IntPtr hPrinter);
     [DllImport("winspool.drv", EntryPoint = "WritePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
     public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
-    public static bool SendStringToPrinter(string szPrinterName, string szString) {
+
+    public static bool SendBytes(string printer, byte[] bytes, string doc) {
         IntPtr hPrinter = IntPtr.Zero;
         DOCINFOA di = new DOCINFOA();
-        bool bSuccess = false;
-        di.pDocName = "${docName}";
+        bool ok = false;
+        di.pDocName = doc;
         di.pDataType = "RAW";
-        if (OpenPrinter(szPrinterName, out hPrinter, IntPtr.Zero)) {
+        if (OpenPrinter(printer, out hPrinter, IntPtr.Zero)) {
             if (StartDocPrinter(hPrinter, 1, di)) {
                 if (StartPagePrinter(hPrinter)) {
-                    IntPtr pBytes = Marshal.StringToCoTaskMemAnsi(szString);
-                    int dwCount = szString.Length;
-                    int dwWritten = 0;
-                    bSuccess = WritePrinter(hPrinter, pBytes, dwCount, out dwWritten);
-                    Marshal.FreeCoTaskMem(pBytes);
+                    IntPtr ptr = Marshal.AllocHGlobal(bytes.Length);
+                    Marshal.Copy(bytes, 0, ptr, bytes.Length);
+                    int written = 0;
+                    ok = WritePrinter(hPrinter, ptr, bytes.Length, out written);
+                    Marshal.FreeHGlobal(ptr);
                     EndPagePrinter(hPrinter);
                 }
                 EndDocPrinter(hPrinter);
             }
             ClosePrinter(hPrinter);
         }
-        return bSuccess;
+        return ok;
     }
 }
 "@
-$rawContent = [System.IO.File]::ReadAllText('${tempContentFile.replace(/\\/g, '\\\\')}')
-$res = [RawPrinter]::SendStringToPrinter('${printerName.replace(/'/g, "''")}', $rawContent)
+$bytes = [System.IO.File]::ReadAllBytes('${tempContentFile.replace(/\\/g, '\\\\')}')
+$res = [RawPrinterBytes]::SendBytes('${printerName.replace(/'/g, "''")}', $bytes, '${docName.replace(/'/g, "''")}')
 Write-Output "SUCCESS:$res"
 `;
 
@@ -209,6 +214,21 @@ ipcMain.handle('close-app', () => {
   return { success: true };
 });
 
+ipcMain.handle('kick-cash-drawer', async (event, printerName) => {
+  try {
+    const targetPrinter = await resolvePrinterName(printerName, 'receipt');
+    // Standard ESC/POS drawer kick pulses for RJ11/RJ12 drawer connected to printer:
+    // ESC p 0 25 250 (Pin 2 pulse) and ESC p 1 25 250 (Pin 5 pulse)
+    const kickBytes = Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa, 0x1b, 0x70, 0x01, 0x19, 0xfa]);
+    console.log(`[Cash Drawer Bridge] Sending drawer kick pulse to receipt printer: ${targetPrinter}`);
+    const res = await rawPrint(targetPrinter, kickBytes, 'Open Cash Drawer');
+    return { success: res.success, printer: targetPrinter };
+  } catch (err) {
+    console.error('Kick cash drawer error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceName, type = 'any', silent = true, pageSize }) => {
   try {
     const resolvedDevice = await resolvePrinterName(deviceName, type);
@@ -274,9 +294,11 @@ ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceNam
         }
 
         printWindow.webContents.print(printOptions, (success, failureReason) => {
-          try {
-            printWindow.close();
-          } catch (_) {}
+          setTimeout(() => {
+            try {
+              if (!printWindow.isDestroyed()) printWindow.close();
+            } catch (_) {}
+          }, 1500);
 
           if (!success) {
             console.warn('Silent print warning:', failureReason);

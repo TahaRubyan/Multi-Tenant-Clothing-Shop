@@ -16,6 +16,7 @@ import {
   Power,
 } from 'lucide-react';
 import { printSettlementReport } from '../utils/printUtils';
+import { ModalPortal } from './ModalPortal';
 
 export const DaySettlementModal = () => {
   const {
@@ -129,8 +130,9 @@ export const DaySettlementModal = () => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content modal-lg glass-card day-settlement-modal">
+    <ModalPortal>
+      <div className="modal-overlay">
+        <div className="modal-content modal-lg glass-card day-settlement-modal">
         {/* Header */}
         <div className="modal-header flex-between pb-3 border-bottom">
           <div className="flex-align-center gap-2">
@@ -532,5 +534,6 @@ export const DaySettlementModal = () => {
         )}
       </div>
     </div>
+  </ModalPortal>
   );
 };
