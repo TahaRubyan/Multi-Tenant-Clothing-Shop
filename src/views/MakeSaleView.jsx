@@ -52,6 +52,7 @@ export const MakeSaleView = () => {
     showToast,
     salesLogs,
     addReturnItemToCart,
+    currentUser,
   } = usePOS();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -172,6 +173,10 @@ export const MakeSaleView = () => {
   };
 
   const handleBillDiscountChange = (val) => {
+    if (val === '' || val === 0 || val === '0') {
+      setWholeSaleDiscountPercent(0);
+      return;
+    }
     if (isDiscountPinUnlocked) {
       setWholeSaleDiscountPercent(val);
     } else {
@@ -767,26 +772,56 @@ export const MakeSaleView = () => {
               </div>
             )}
 
-            {/* WHOLESALE / BILL DISCOUNT - STEALTH PIN PROTECTED */}
-            <div className="t-row whole-discount-box">
-              <div className="flex-column">
-                <span className="font-weight-600">Wholesale Discount (%)</span>
+            {/* PRICE DISCOUNT OPTION WITH % SELECTION */}
+            <div className="whole-discount-box">
+              <div className="flex-between w-100">
+                <div className="flex-align-center gap-1">
+                  <Percent size={13} className="text-primary" />
+                  <span className="font-weight-700 text-xs text-main">Price Discount (% Option)</span>
+                </div>
                 {wholeSaleDiscountAmt > 0 && (
-                  <span className="text-xs font-mono text-amber">-Rs. {wholeSaleDiscountAmt.toLocaleString()}</span>
+                  <span className="badge badge-warning text-xxs font-mono font-weight-700">
+                    -{wholeDiscPercentNum}% (-Rs. {wholeSaleDiscountAmt.toLocaleString()})
+                  </span>
                 )}
               </div>
-              <div className="discount-input-field">
-                <Tag size={14} className="text-muted" />
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={wholeSaleDiscountPercent || ''}
-                  onChange={(e) => handleBillDiscountChange(e.target.value)}
-                  placeholder="0"
-                  className="font-mono font-weight-700"
-                />
-                <span className="font-weight-700 text-subtle">%</span>
+
+              {/* Selectable Percentage Discount Pills */}
+              <div className="discount-pills-row">
+                {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
+                  const isActive = pct === 0 ? (!wholeDiscPercentNum || wholeDiscPercentNum === 0) : (wholeDiscPercentNum === pct);
+                  return (
+                    <button
+                      key={pct}
+                      type="button"
+                      className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                      onClick={() => handleBillDiscountChange(pct)}
+                      title={pct === 0 ? 'No discount' : `Apply ${pct}% discount`}
+                    >
+                      {pct === 0 ? 'None (0%)' : `${pct}%`}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Percent Input */}
+              <div className="flex-between w-100 mt-1">
+                <span className="text-xxs text-muted font-weight-600">Custom Discount %:</span>
+                <div className="discount-input-field">
+                  <Tag size={12} className="text-muted" />
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={wholeSaleDiscountPercent || ''}
+                    onChange={(e) => handleBillDiscountChange(e.target.value)}
+                    placeholder="0"
+                    className="font-mono font-weight-700 text-xs"
+                    aria-label="Custom Discount Percent"
+                  />
+                  <span className="font-weight-700 text-subtle text-xs">%</span>
+                </div>
               </div>
             </div>
 

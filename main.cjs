@@ -229,7 +229,7 @@ ipcMain.handle('kick-cash-drawer', async (event, printerName) => {
   }
 });
 
-ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceName, type = 'any', silent = true, pageSize }) => {
+ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceName, type = 'any', silent = true, pageSize, orientation = 'x_axis' }) => {
   try {
     const resolvedDevice = await resolvePrinterName(deviceName, type);
 
@@ -239,7 +239,7 @@ ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceNam
       const isEpl = Boolean(epl && detectEplHardware(targetPrinter));
       const rawPayload = isEpl ? epl : (zpl || epl);
       const docName = isEpl ? 'EPL Barcode Label' : 'ZPL Barcode Label';
-      console.log(`[Electron Hardware Bridge] Routing raw ${isEpl ? 'EPL' : 'ZPL'} to: ${targetPrinter}`);
+      console.log(`[Electron Hardware Bridge] Routing raw ${isEpl ? 'EPL' : 'ZPL'} (${orientation}) to: ${targetPrinter}`);
 
       const rawRes = await rawPrint(targetPrinter, rawPayload, docName);
       if (rawRes.success) {
@@ -279,10 +279,16 @@ ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceNam
         if (isHandled) return;
         isHandled = true;
 
+        // X-Axis View: when printing 50x30mm labels, landscape = true prints along X-axis
+        const isLandscape = orientation === 'y_axis'
+          ? false
+          : (orientation === 'x_axis' ? true : (type === 'label' || (pageSize && pageSize.width > pageSize.height)));
+
         const printOptions = {
           silent: silent !== false,
           printBackground: true,
           margins: { marginType: 'none' },
+          landscape: isLandscape,
         };
 
         if (pageSize && typeof pageSize === 'object') {

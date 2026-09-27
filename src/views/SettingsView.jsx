@@ -70,6 +70,7 @@ export const SettingsView = () => {
   const [receiptPaperWidth, setReceiptPaperWidth] = useState(printerSettings?.receiptPaperWidth || '75mm');
   const [labelSize, setLabelSize] = useState(printerSettings?.labelSize || '50x30mm');
   const [printMethod, setPrintMethod] = useState(printerSettings?.printMethod || 'thermal_transfer');
+  const [labelOrientation, setLabelOrientation] = useState(printerSettings?.labelOrientation || 'x_axis');
   const [autoPrintReceipt, setAutoPrintReceipt] = useState(printerSettings?.autoPrintReceipt !== false);
   const [autoCutReceipt, setAutoCutReceipt] = useState(printerSettings?.autoCutReceipt !== false);
   const [silentPrinting, setSilentPrinting] = useState(printerSettings?.silentPrinting === true);
@@ -94,6 +95,9 @@ export const SettingsView = () => {
     }
     if (printerSettings?.printMethod) {
       setPrintMethod(printerSettings.printMethod);
+    }
+    if (printerSettings?.labelOrientation) {
+      setLabelOrientation(printerSettings.labelOrientation);
     }
     if (printerSettings?.silentPrinting !== undefined) {
       setSilentPrinting(printerSettings.silentPrinting);
@@ -207,6 +211,7 @@ export const SettingsView = () => {
       receiptPaperWidth,
       labelSize,
       printMethod,
+      labelOrientation,
       autoPrintReceipt,
       autoCutReceipt,
       silentPrinting,
@@ -1115,10 +1120,10 @@ export const SettingsView = () => {
                         style={{ height: '36px' }}
                         onClick={() => {
                           testPrintBarcodeLabel(
-                            { ...shopSettings, labelPrinter, labelSize, printMethod },
-                            { deviceName: labelPrinter, silent: silentPrinting, forceBrowserPrint: !silentPrinting }
+                            { ...shopSettings, labelPrinter, labelSize, printMethod, labelOrientation },
+                            { deviceName: labelPrinter, silent: silentPrinting, forceBrowserPrint: !silentPrinting, orientation: labelOrientation }
                           );
-                          showToast(`Test barcode tag dispatched to ${labelPrinter}`, 'success');
+                          showToast(`Test barcode tag dispatched to ${labelPrinter} (${labelOrientation === 'x_axis' ? 'X-Axis View' : 'Y-Axis View'})`, 'success');
                         }}
                         title="Dispatch a clean 50x30mm barcode sticker label to the selected printer"
                       >
@@ -1127,7 +1132,7 @@ export const SettingsView = () => {
                     </div>
                   </div>
 
-                  <div className="form-group mb-0">
+                  <div className="form-group mb-3">
                     <label htmlFor="label-print-method-select" className="form-label text-xs font-weight-700">
                       Print Method / Ribbon Mode *
                     </label>
@@ -1148,6 +1153,34 @@ export const SettingsView = () => {
                       ) : (
                         <span style={{ color: '#d97706', fontWeight: 600 }}>
                           ⚠ Direct Thermal: Only for ribbonless paper. If your Zebra has a black ink roll, keep this set to Thermal Transfer.
+                        </span>
+                      )}
+                    </small>
+                  </div>
+
+                  <div className="form-group mb-0">
+                    <label htmlFor="label-orientation-select" className="form-label text-xs font-weight-700">
+                      Label Print Orientation / Coordinate Axis View *
+                    </label>
+                    <select
+                      id="label-orientation-select"
+                      className="form-select font-weight-600 text-xs font-mono"
+                      value={labelOrientation}
+                      onChange={(e) => setLabelOrientation(e.target.value)}
+                    >
+                      <option value="x_axis">Horizontal / X-Axis View (50mm Wide × 30mm Feed) [Recommended]</option>
+                      <option value="y_axis">Vertical / Y-Axis View (30mm Wide × 50mm Feed)</option>
+                      <option value="rotated_90">Rotated 90° Clockwise</option>
+                      <option value="inverted_180">Inverted 180° (Bottom-Up Feed)</option>
+                    </select>
+                    <small className="text-muted text-xxs mt-1 block">
+                      {labelOrientation === 'x_axis' ? (
+                        <span style={{ color: '#059669', fontWeight: 600 }}>
+                          ✓ X-Axis Mode: Text, barcode, and prices print horizontally across the 50mm roll width matching your printer feed direction.
+                        </span>
+                      ) : (
+                        <span style={{ color: '#2563eb', fontWeight: 600 }}>
+                          ℹ Y-Axis Mode: Text and barcode print along the vertical 50mm axis.
                         </span>
                       )}
                     </small>

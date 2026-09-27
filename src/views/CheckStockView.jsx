@@ -18,6 +18,7 @@ import {
   Lock,
   KeyRound,
   X,
+  Percent,
 } from 'lucide-react';
 
 export const CheckStockView = () => {
@@ -38,6 +39,8 @@ export const CheckStockView = () => {
   const [editPriceModalProduct, setEditPriceModalProduct] = useState(null);
   const [editWholesale, setEditWholesale] = useState('');
   const [editRetail, setEditRetail] = useState('');
+  const [editBaseRetail, setEditBaseRetail] = useState('');
+  const [editDiscountPct, setEditDiscountPct] = useState(0);
 
   // Manager PIN prompt for non-admin price edit
   const [pendingPriceEditProduct, setPendingPriceEditProduct] = useState(null);
@@ -110,6 +113,8 @@ export const CheckStockView = () => {
       setEditPriceModalProduct(p);
       setEditWholesale(p.wholesalePrice.toString());
       setEditRetail(p.retailPrice.toString());
+      setEditBaseRetail(p.retailPrice.toString());
+      setEditDiscountPct(0);
     } else {
       // Prompt Manager PIN
       setPendingPriceEditProduct(p);
@@ -127,6 +132,8 @@ export const CheckStockView = () => {
       setEditPriceModalProduct(p);
       setEditWholesale(p.wholesalePrice.toString());
       setEditRetail(p.retailPrice.toString());
+      setEditBaseRetail(p.retailPrice.toString());
+      setEditDiscountPct(0);
       setEnteredPin('');
       setPinError(false);
     } else {
@@ -461,18 +468,65 @@ export const CheckStockView = () => {
                   />
                 </div>
 
-                <div className="form-group mb-4">
-                  <label className="form-label mb-1">
-                    Retail Sale Price (Rs.):
-                  </label>
+                <div className="form-group mb-3">
+                  <div className="flex-between mb-1">
+                    <label className="form-label mb-0">Retail Sale Price (Rs.) *</label>
+                    {parseFloat(editRetail) > parseFloat(editWholesale) && (
+                      <span className="text-xxs font-weight-700 text-success">
+                        Margin: Rs. {(parseFloat(editRetail) - parseFloat(editWholesale)).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="number"
                     step="1"
                     className="form-input font-mono font-weight-700 text-primary"
                     value={editRetail}
-                    onChange={(e) => setEditRetail(e.target.value)}
+                    onChange={(e) => {
+                      setEditRetail(e.target.value);
+                      setEditDiscountPct(0);
+                    }}
                     required
                   />
+                </div>
+
+                {/* Price Discount Option with % Selection */}
+                <div className="whole-discount-box mb-4">
+                  <div className="flex-between w-100">
+                    <div className="flex-align-center gap-1">
+                      <Percent size={13} className="text-primary" />
+                      <span className="font-weight-700 text-xs text-main">Apply Price Discount (% Option)</span>
+                    </div>
+                    {editDiscountPct > 0 && (
+                      <span className="badge badge-warning text-xxs font-mono font-weight-700">
+                        -{editDiscountPct}% (-Rs. {(parseFloat(editBaseRetail || 0) - parseFloat(editRetail || 0)).toLocaleString()})
+                      </span>
+                    )}
+                  </div>
+                  <div className="discount-pills-row">
+                    {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
+                      const isActive = editDiscountPct === pct;
+                      return (
+                        <button
+                          key={pct}
+                          type="button"
+                          className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                          onClick={() => {
+                            setEditDiscountPct(pct);
+                            if (pct === 0) {
+                              setEditRetail(editBaseRetail);
+                            } else {
+                              const base = parseFloat(editBaseRetail) || 0;
+                              const discounted = Math.round(base * (1 - pct / 100));
+                              setEditRetail(discounted.toString());
+                            }
+                          }}
+                        >
+                          {pct === 0 ? 'Regular (0%)' : `${pct}%`}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="modal-actions flex-between pt-2">

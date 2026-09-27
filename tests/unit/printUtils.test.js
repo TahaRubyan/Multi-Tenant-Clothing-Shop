@@ -219,6 +219,36 @@ describe('Print Utilities Unit Tests', () => {
       expect(zplDirectThermal).toContain('^MTD');
       expect(zplDirectThermal).not.toContain('^MTT');
     });
+
+    it('generates horizontal X-axis view (^PON, ^FWN) by default and rotated Y-axis (^FWR) when selected in ZPL', () => {
+      const mockProduct = {
+        fabricMaterial: 'Executive Kurta',
+        barcode: '123456789012',
+        retailPrice: 4500,
+      };
+
+      const zplXAxis = generateZplLabel(mockProduct, {}, 1, { orientation: 'x_axis' });
+      expect(zplXAxis).toContain('^PON');
+      expect(zplXAxis).toContain('^FWN');
+      expect(zplXAxis).not.toContain('^FWR');
+
+      const zplYAxis = generateZplLabel(mockProduct, {}, 1, { orientation: 'y_axis' });
+      expect(zplYAxis).toContain('^FWR');
+    });
+
+    it('generates horizontal X-axis view (rotation 0) by default and rotated Y-axis (rotation 1) in EPL2', () => {
+      const mockProduct = {
+        fabricMaterial: 'Executive Kurta',
+        barcode: '123456789012',
+        retailPrice: 4500,
+      };
+
+      const eplXAxis = generateEplLabel(mockProduct, {}, 1, { orientation: 'x_axis' });
+      expect(eplXAxis).toContain(',0,3,1,1,N,"');
+
+      const eplYAxis = generateEplLabel(mockProduct, {}, 1, { orientation: 'y_axis' });
+      expect(eplYAxis).toContain(',1,3,1,1,N,"');
+    });
   });
 
   describe('Hardware Test Print Functions', () => {

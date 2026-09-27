@@ -12,7 +12,7 @@ import { generateBarcodeSvg } from '../utils/printUtils';
  * Line 6: price
  */
 export default function BarcodeLabelPreview({
-  shopName = 'TESSLO',
+  shopName = 'NOVA MEN AND WOMEN',
   itemName = 'Executive Cotton Kurta',
   tagLabel = '',
   tagSubtitle = '',

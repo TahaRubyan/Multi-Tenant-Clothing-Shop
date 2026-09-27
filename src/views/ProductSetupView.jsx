@@ -29,6 +29,7 @@ import {
   Watch,
   Smile,
   RefreshCw,
+  Percent,
 } from 'lucide-react';
 
 export const ProductSetupView = () => {
@@ -68,6 +69,7 @@ export const ProductSetupView = () => {
   // STEP 3: Pricing & Barcode
   const [wholesalePrice, setWholesalePrice] = useState('1400');
   const [retailPrice, setRetailPrice] = useState('3200');
+  const [priceDiscountPercent, setPriceDiscountPercent] = useState('0');
   const [barcode, setBarcode] = useState('');
   const [tagLabel, setTagLabel] = useState('');
   const [tagSubtitle, setTagSubtitle] = useState('');
@@ -134,7 +136,12 @@ export const ProductSetupView = () => {
 
   const handleSaveProductFinal = (e) => {
     e.preventDefault();
-    const retailNum = parseFloat(retailPrice) || 0;
+    const baseRetail = parseFloat(retailPrice) || 0;
+    const discountPct = parseFloat(priceDiscountPercent) || 0;
+    const effectiveRetail = discountPct > 0
+      ? Math.round(baseRetail * (1 - discountPct / 100))
+      : baseRetail;
+    const retailNum = effectiveRetail;
     const wholesaleNum = parseFloat(wholesalePrice) || 0;
     const stockNum = parseFloat(initialStock) || 0;
 
@@ -860,8 +867,38 @@ export const ProductSetupView = () => {
                     required
                   />
                   <small className="text-muted text-xxs mt-0.5 block">
-                    Selling price printed on barcode tag & charged at POS.
+                    Base catalog retail price charged at counter.
                   </small>
+                </div>
+              </div>
+
+              {/* Price Discount Option with % Selection */}
+              <div className="whole-discount-box mt-3 mb-1">
+                <div className="flex-between w-100">
+                  <div className="flex-align-center gap-1">
+                    <Percent size={13} className="text-primary" />
+                    <span className="font-weight-700 text-xs text-main">Promotional Price Discount (% Option)</span>
+                  </div>
+                  {parseFloat(priceDiscountPercent) > 0 && parseFloat(retailPrice) > 0 && (
+                    <span className="badge badge-warning text-xxs font-mono font-weight-700">
+                      -{priceDiscountPercent}% (-Rs. {Math.round(parseFloat(retailPrice) * (parseFloat(priceDiscountPercent) / 100)).toLocaleString()}) → Net Rs. {Math.round(parseFloat(retailPrice) * (1 - parseFloat(priceDiscountPercent) / 100)).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                <div className="discount-pills-row">
+                  {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
+                    const isActive = parseFloat(priceDiscountPercent) === pct;
+                    return (
+                      <button
+                        key={pct}
+                        type="button"
+                        className={`discount-pill-btn ${isActive ? 'active' : ''}`}
+                        onClick={() => setPriceDiscountPercent(String(pct))}
+                      >
+                        {pct === 0 ? 'Regular (0%)' : `${pct}%`}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

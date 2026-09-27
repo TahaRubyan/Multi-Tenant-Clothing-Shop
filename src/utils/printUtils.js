@@ -356,6 +356,8 @@ function executePrint(htmlContent, options = {}) {
     const epl = options?.epl;
     const escpos = options?.escpos;
 
+    const orientation = options?.orientation || 'x_axis';
+
     window.electronAPI.printDirect({
       html: htmlContent,
       zpl,
@@ -365,6 +367,7 @@ function executePrint(htmlContent, options = {}) {
       type,
       silent,
       pageSize,
+      orientation,
     }).catch(err => {
       console.warn('Electron direct print warning:', err);
       if (!silent) {
@@ -762,9 +765,10 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
  * Line 5: item code
  * Line 6: price
  */
-export function generateZplLabel(product, shopSettings = {}, count = 1) {
+export function generateZplLabel(product, shopSettings = {}, count = 1, options = {}) {
   if (!product) return '';
-  const shopName = (shopSettings?.shopName || 'TESSLO').toUpperCase().slice(0, 32);
+  const orientation = options?.orientation || shopSettings?.labelOrientation || 'x_axis';
+  const shopName = (shopSettings?.shopName || 'NOVA MEN AND WOMEN').toUpperCase().slice(0, 32);
   const baseItemName = product?.tagLabel || product?.fabricMaterial || product?.name || 'Garment Item';
   const color = product?.tagSubtitle || product?.fabricColor || product?.color || '';
   const itemNameWithColor = (color ? `${baseItemName} - ${color}` : baseItemName).slice(0, 32);
@@ -775,8 +779,17 @@ export function generateZplLabel(product, shopSettings = {}, count = 1) {
   const printMethod = shopSettings?.printMethod || 'thermal_transfer';
   const mediaTypeCmd = printMethod === 'direct_thermal' ? '^MTD' : '^MTT';
 
+  // Orientation commands:
+  // x_axis: Normal Horizontal orientation across 50mm width (^PON normal, ^FWN field orientation normal)
+  // y_axis: Vertical / Rotated 90° orientation (^FWR)
+  // inverted_180: Inverted bottom-up (^POI)
+  const orientationCmd = orientation === 'y_axis'
+    ? '^FWR'
+    : (orientation === 'inverted_180' ? '^POI' : '^PON\n^FWN');
+
   return `^XA
 ${mediaTypeCmd}
+${orientationCmd}
 ~SD22
 ^MD22
 ^PR3
@@ -805,8 +818,10 @@ ${mediaTypeCmd}
  * Line 5: item code
  * Line 6: price
  */
-export function generateEplLabel(product, shopSettings = {}, count = 1) {
+export function generateEplLabel(product, shopSettings = {}, count = 1, options = {}) {
   if (!product) return '';
+  const orientation = options?.orientation || shopSettings?.labelOrientation || 'x_axis';
+  const rot = orientation === 'y_axis' ? 1 : 0;
   const shopName = (shopSettings?.shopName || 'NOVA MEN AND WOMEN').toUpperCase().slice(0, 30);
   const baseItemName = product?.fabricMaterial || product?.name || 'Garment Item';
   const color = product?.fabricColor || product?.color || '';
@@ -842,13 +857,13 @@ export function generateEplLabel(product, shopSettings = {}, count = 1) {
     'q384',
     'Q240,24',
     'ZT',
-    `A${xShop},10,0,3,1,1,N,"${shopName.replace(/"/g, "'")}"`,
-    `A${xName},36,0,2,1,1,N,"${itemNameWithColor.replace(/"/g, "'")}"`,
-    `A${xType},60,0,2,1,1,N,"${clothType.replace(/"/g, "'")}"`,
-    `B${xBarcode},84,0,1,${narrowBar},${narrowBar * 2},42,N,"${itemCode.replace(/"/g, '')}"`,
-    `A${xCode},132,0,3,1,1,N,"${itemCode.replace(/"/g, "'")}"`,
+    `A${xShop},10,${rot},3,1,1,N,"${shopName.replace(/"/g, "'")}"`,
+    `A${xName},36,${rot},2,1,1,N,"${itemNameWithColor.replace(/"/g, "'")}"`,
+    `A${xType},60,${rot},2,1,1,N,"${clothType.replace(/"/g, "'")}"`,
+    `B${xBarcode},84,${rot},1,${narrowBar},${narrowBar * 2},42,N,"${itemCode.replace(/"/g, '')}"`,
+    `A${xCode},132,${rot},3,1,1,N,"${itemCode.replace(/"/g, "'")}"`,
     'LO15,158,354,2',
-    `A${xPrice},168,0,4,1,1,N,"${priceStr.replace(/"/g, "'")}"`,
+    `A${xPrice},168,${rot},4,1,1,N,"${priceStr.replace(/"/g, "'")}"`,
     `P${printQty}`,
     ''
   ].join('\n');
@@ -920,6 +935,11 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     `;
   }
 
+  const labelOrientation = options?.orientation || shopSettings?.labelOrientation || savedPrinterSettings?.labelOrientation || 'x_axis';
+  const isYAxis = labelOrientation === 'y_axis';
+  const isRotated90 = labelOrientation === 'rotated_90';
+  const pageOrientation = isYAxis ? '30mm 50mm portrait' : '50mm 30mm landscape';
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -927,12 +947,12 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   <title>Barcode Label - ${escapeHtml(itemCode)}</title>
   <style>
     @page {
-      size: 50mm 30mm;
+      size: ${pageOrientation};
       margin: 0mm !important;
     }
     @media print {
       @page {
-        size: 50mm 30mm;
+        size: ${pageOrientation};
         margin: 0mm !important;
       }
       *, *:before, *:after {
@@ -949,16 +969,17 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
         color: #000000 !important;
       }
       .sticker-label {
-        width: 48mm !important;
-        height: 26.5mm !important;
-        max-width: 48mm !important;
-        max-height: 26.5mm !important;
+        width: ${isYAxis ? '26.5mm' : '48mm'} !important;
+        height: ${isYAxis ? '48mm' : '26.5mm'} !important;
+        max-width: ${isYAxis ? '26.5mm' : '48mm'} !important;
+        max-height: ${isYAxis ? '48mm' : '26.5mm'} !important;
         margin: 0 auto !important;
         box-sizing: border-box !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         page-break-after: always !important;
         break-after: page !important;
+        ${isRotated90 ? 'transform: rotate(90deg); transform-origin: center center;' : ''}
       }
       .sticker-label:last-child {
         page-break-after: avoid !important;
@@ -986,10 +1007,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       shape-rendering: crispEdges !important;
     }
     .sticker-label {
-      width: 48mm;
-      height: 26.5mm;
-      max-width: 48mm;
-      max-height: 26.5mm;
+      width: ${isYAxis ? '26.5mm' : '48mm'};
+      height: ${isYAxis ? '48mm' : '26.5mm'};
+      max-width: ${isYAxis ? '26.5mm' : '48mm'};
+      max-height: ${isYAxis ? '48mm' : '26.5mm'};
       padding: 0.8mm 1.2mm;
       display: flex;
       flex-direction: column;
@@ -1004,6 +1025,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       break-after: page;
       overflow: hidden;
       border: 1px solid #000000;
+      ${isRotated90 ? 'transform: rotate(90deg); transform-origin: center center;' : ''}
     }
     .sticker-label:last-child {
       page-break-after: avoid !important;
@@ -1089,8 +1111,8 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
 </body>
 </html>`;
 
-  const zpl = generateZplLabel(product, shopSettings, count);
-  const epl = generateEplLabel(product, shopSettings, count);
+  const zpl = generateZplLabel(product, shopSettings, count, { orientation: labelOrientation });
+  const epl = generateEplLabel(product, shopSettings, count, { orientation: labelOrientation });
 
   executePrint(html, {
     deviceName,
@@ -1098,7 +1120,8 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     type: 'label',
     zpl,
     epl,
-    pageSize: { width: 50000, height: 30000 },
+    orientation: labelOrientation,
+    pageSize: isYAxis ? { width: 30000, height: 50000 } : { width: 50000, height: 30000 },
   });
 }
 

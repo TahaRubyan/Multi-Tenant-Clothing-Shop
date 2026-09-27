@@ -1336,6 +1336,51 @@
   font-size: 0.78rem;
 }
 
+.whole-discount-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: rgba(var(--primary-rgb, 14, 165, 233), 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  margin: 0.35rem 0;
+}
+
+.discount-pills-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.discount-pill-btn {
+  padding: 0.18rem 0.42rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border-radius: var(--radius-xs, 4px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.discount-pill-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--text-main);
+  background: var(--bg-surface);
+}
+
+.discount-pill-btn.active {
+  background: var(--primary-color);
+  color: #ffffff !important;
+  border-color: var(--primary-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
 .discount-input-field {
   display: flex;
   align-items: center;
