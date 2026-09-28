@@ -453,15 +453,15 @@ export const MakeSaleView = () => {
         });
       } catch (_) {}
 
-      // Automatically route print to thermal receipt printer without popup
-      printThermalReceipt(saleResult, shopSettings, { silent: true, type: 'receipt' });
-
-      // Automatically kick cash drawer solenoid if cash transaction
-      if (isCash) {
+      // Automatically route print to thermal receipt printer if auto-print is enabled
+      const isAutoPrint = printerSettings?.autoPrintReceipt !== false;
+      if (isAutoPrint) {
+        printThermalReceipt(saleResult, shopSettings, { silent: true, type: 'receipt' });
+      } else if (isCash) {
         triggerCashDrawerKick(shopSettings).catch(() => {});
       }
 
-      showToast(`Sale #${saleResult.receiptNumber} recorded & receipt printed!`, 'success');
+      showToast(`Sale #${saleResult.receiptNumber} recorded!`, 'success');
       setAmountReceived('');
       setIsDiscountPinUnlocked(false); // Automatically re-arms stealth PIN protection for next sale
       setCompletedSaleData(saleResult);
@@ -1329,33 +1329,72 @@ export const MakeSaleView = () => {
                 })()}
 
                 {/* Primary Action Buttons: PRINT & SAVE */}
-                <button
-                  type="button"
-                  className="btn btn-primary btn-receipt-action hover-lift"
-                  onClick={() => {
-                    printThermalReceipt(completedSaleData, shopSettings);
-                    const receiptDevName = shopSettings?.receiptPrinter || printerSettings?.receiptPrinter || 'BIXOLON SRP-Q302';
-                    showToast(`Printing 80mm receipt for #${completedSaleData.receiptNumber} to ${receiptDevName}...`, 'info');
-                    setCompletedSaleData(null);
-                  }}
-                  aria-label="Trigger Print Receipt"
-                >
-                  <Printer size={18} />
-                  <span>PRINT RECEIPT (80mm)</span>
-                </button>
+                {printerSettings?.autoPrintReceipt !== false ? (
+                  <>
+                    <div className="p-2 rounded mb-2 text-center" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      <span className="text-success font-weight-700 text-xs flex-align-center justify-center gap-1">
+                        <CheckCircle2 size={15} /> Receipt Printed to {shopSettings?.receiptPrinter || printerSettings?.receiptPrinter || 'BIXOLON SRP-Q302'}
+                      </span>
+                    </div>
 
-                <button
-                  type="button"
-                  className="btn btn-receipt-action btn-save-next hover-lift"
-                  onClick={() => {
-                    setCompletedSaleData(null);
-                    showToast(`Invoice #${completedSaleData.receiptNumber} saved to Analytics! Ready for next sale.`, 'success');
-                  }}
-                  aria-label="Done & Next Customer / Save & Move to Next"
-                >
-                  <ArrowRight size={18} />
-                  <span>SAVE &amp; MOVE TO NEXT</span>
-                </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-receipt-action hover-lift"
+                      onClick={() => {
+                        setCompletedSaleData(null);
+                        showToast(`Sale #${completedSaleData.receiptNumber} completed! Ready for next sale.`, 'success');
+                      }}
+                      aria-label="Done & Next Customer / Save & Move to Next"
+                    >
+                      <ArrowRight size={18} />
+                      <span>DONE &amp; MOVE TO NEXT</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-receipt-action mt-2 hover-lift"
+                      onClick={() => {
+                        printThermalReceipt(completedSaleData, shopSettings, { skipDrawerKick: true });
+                        const receiptDevName = shopSettings?.receiptPrinter || printerSettings?.receiptPrinter || 'BIXOLON SRP-Q302';
+                        showToast(`Re-printing receipt for #${completedSaleData.receiptNumber} to ${receiptDevName}...`, 'info');
+                      }}
+                      aria-label="Re-Print Receipt"
+                    >
+                      <Printer size={16} />
+                      <span>Re-Print Receipt (80mm)</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-receipt-action hover-lift"
+                      onClick={() => {
+                        printThermalReceipt(completedSaleData, shopSettings);
+                        const receiptDevName = shopSettings?.receiptPrinter || printerSettings?.receiptPrinter || 'BIXOLON SRP-Q302';
+                        showToast(`Printing 80mm receipt for #${completedSaleData.receiptNumber} to ${receiptDevName}...`, 'info');
+                        setCompletedSaleData(null);
+                      }}
+                      aria-label="Trigger Print Receipt"
+                    >
+                      <Printer size={18} />
+                      <span>PRINT RECEIPT (80mm)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-receipt-action btn-save-next hover-lift"
+                      onClick={() => {
+                        setCompletedSaleData(null);
+                        showToast(`Invoice #${completedSaleData.receiptNumber} saved! Ready for next sale.`, 'success');
+                      }}
+                      aria-label="Done & Next Customer / Save & Move to Next"
+                    >
+                      <ArrowRight size={18} />
+                      <span>SAVE &amp; MOVE TO NEXT</span>
+                    </button>
+                  </>
+                )}
 
                 <button
                   type="button"

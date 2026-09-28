@@ -234,8 +234,8 @@ describe('Sales, Stock Deduction, Analytics Sync & Receipt Modal Lifecycle', () 
 
     // Action buttons MUST be rendered and visible
     const cancelBtn = screen.getByRole('button', { name: /Cancel or Close Receipt/i });
-    const printBtn = screen.getByRole('button', { name: /Trigger Print Receipt/i });
-    const doneBtn = screen.getByRole('button', { name: /Done & Next Customer|Save & Move to Next/i });
+    const printBtn = screen.getByRole('button', { name: /Trigger Print Receipt|Re-Print Receipt/i });
+    const doneBtn = screen.getByRole('button', { name: /Done & Next Customer|Save & Move to Next|DONE & MOVE TO NEXT/i });
 
     expect(cancelBtn).toBeInTheDocument();
     expect(printBtn).toBeInTheDocument();

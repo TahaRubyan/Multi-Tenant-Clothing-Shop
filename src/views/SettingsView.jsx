@@ -1305,6 +1305,7 @@ export const SettingsView = () => {
                         <br/>👉 <strong>Make sure your front key is turned to the VERTICAL position.</strong>
                       </li>
                       <li><strong>Cable Connection:</strong> Plug the modular cable firmly into the printer's <strong>DK</strong> (Drawer Kick) port (marked with a cash drawer icon), NOT an Ethernet/LAN network jack.</li>
+                      <li><strong>Windows Driver Option:</strong> In Windows Settings &gt; Printers &gt; <strong>BIXOLON SRP-Q302</strong> &gt; Printing Preferences &gt; <em>Peripherals / Cash Drawer</em> &gt; select <strong>Open before printing</strong> or <strong>Open after printing</strong>. This gives 100% hardware-level pulse delivery.</li>
                     </ul>
                   </div>
                 </div>

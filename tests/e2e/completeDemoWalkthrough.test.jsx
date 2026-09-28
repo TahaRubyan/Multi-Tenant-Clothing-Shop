@@ -60,10 +60,10 @@ describe('End-to-End (E2E) Complete Demo Workflow Test', () => {
 
     // 8. Verify Printable Receipt Modal opens with store details and items
     expect(screen.getByText(/Order Saved & Printed/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Trigger Print/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Trigger Print Receipt|Re-Print Receipt/i })).toBeInTheDocument();
 
     // 9. Click Done & Next Customer to reset terminal
-    const nextCustomerBtn = screen.getByRole('button', { name: /Done & Next Customer/i });
+    const nextCustomerBtn = screen.getByRole('button', { name: /Done & Next Customer|DONE & MOVE TO NEXT|Save & Move to Next/i });
     fireEvent.click(nextCustomerBtn);
 
     // 10. Cart should be clean for next sale

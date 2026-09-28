@@ -31,13 +31,13 @@ describe('Usability & Demo Readiness Validation', () => {
     expect(result.current.vendors.length).toBe(0);
   });
 
-  it('validates demo staff logins and authority permissions are ready for presentation', () => {
-    expect(INITIAL_USERS.length).toBeGreaterThanOrEqual(4);
+  it('validates tenant staff logins and private credentials are ready for deployment', () => {
+    expect(INITIAL_USERS.length).toBeGreaterThanOrEqual(3);
 
     const usernames = INITIAL_USERS.map(u => u.username);
-    expect(usernames).toContain('Masteradmin');
-    expect(usernames).toContain('Nova.admin');
-    expect(usernames).toContain('Testing.admin');
+    expect(usernames).toContain('nova.admin');
+    expect(usernames).toContain('admin@testingportal.pk');
     expect(usernames).toContain('Cashier1');
+    expect(usernames).not.toContain('Masteradmin');
   });
 });

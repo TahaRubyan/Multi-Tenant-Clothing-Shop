@@ -13,7 +13,7 @@ describe('Security, Authorization & Multi-Tenant Isolation Tests', () => {
 
   it('enforces role-based permissions separating Cashier from Store Admin authority', () => {
     const cashierUser = INITIAL_USERS.find(u => u.username === 'Cashier1');
-    const adminUser = INITIAL_USERS.find(u => u.username === 'Nova.admin');
+    const adminUser = INITIAL_USERS.find(u => u.username.toLowerCase() === 'nova.admin');
 
     expect(cashierUser).toBeDefined();
     expect(adminUser).toBeDefined();

@@ -8,7 +8,7 @@ const os = require('os');
 let mainWindow;
 
 // Helper: Send raw printer command bytes directly via Windows spooler without string corruption
-function rawPrint(printerName, content, docName = 'POS Hardware Document') {
+function rawPrint(printerName, content, docName = 'POS Hardware Document', isControl = false) {
   return new Promise((resolve) => {
     try {
       const tempContentFile = path.join(os.tmpdir(), `raw_data_${Date.now()}_${Math.random().toString(36).slice(2)}.bin`);
@@ -68,10 +68,30 @@ public class RawPrinterBytes {
         }
         return ok;
     }
+
+    public static bool SendRawControlBytes(string printer, byte[] bytes, string doc) {
+        IntPtr hPrinter = IntPtr.Zero;
+        DOCINFOA di = new DOCINFOA();
+        bool ok = false;
+        di.pDocName = doc;
+        di.pDataType = "RAW";
+        if (OpenPrinter(printer, out hPrinter, IntPtr.Zero)) {
+            if (StartDocPrinter(hPrinter, 1, di)) {
+                IntPtr ptr = Marshal.AllocHGlobal(bytes.Length);
+                Marshal.Copy(bytes, 0, ptr, bytes.Length);
+                int written = 0;
+                ok = WritePrinter(hPrinter, ptr, bytes.Length, out written);
+                Marshal.FreeHGlobal(ptr);
+                EndDocPrinter(hPrinter);
+            }
+            ClosePrinter(hPrinter);
+        }
+        return ok;
+    }
 }
 "@
 $bytes = [System.IO.File]::ReadAllBytes('${tempContentFile.replace(/\\/g, '\\\\')}')
-$res = [RawPrinterBytes]::SendBytes('${printerName.replace(/'/g, "''")}', $bytes, '${docName.replace(/'/g, "''")}')
+$res = ${isControl ? '[RawPrinterBytes]::SendRawControlBytes' : '[RawPrinterBytes]::SendBytes'}('${printerName.replace(/'/g, "''")}', $bytes, '${docName.replace(/'/g, "''")}')
 Write-Output "SUCCESS:$res"
 `;
 
@@ -229,32 +249,34 @@ ipcMain.handle('kick-cash-drawer', async (event, printerName, options = {}) => {
     if (pin === 'pin5') {
       // Pin 5 targeted pulse (Special BPOVO configuration)
       kickBytes = Buffer.from([
-        0x10, 0x14, 0x01, 0x01, 0x02,       // DLE DC4 real-time immediate Pin 5 (200ms)
-        0x1b, 0x70, 0x01, 0x32, 0x32, 0x0a, // ESC p 1 (100ms on, 100ms off) + LF
-        0x1b, 0x70, 0x31, 0x32, 0x32, 0x0a, // ESC p '1' ASCII pin + LF
+        0x10, 0x14, 0x01, 0x01, 0x04,       // DLE DC4 real-time immediate Pin 5 (400ms)
+        0x1b, 0x70, 0x01, 0x32, 0xfa,       // ESC p 1 (100ms on, 500ms off)
+        0x1b, 0x70, 0x01, 0x64, 0xff,       // ESC p 1 (200ms on, heavy duty)
         0x07,                               // BEL
       ]);
     } else if (pin === 'pin2') {
       // Pin 2 targeted pulse (Standard POS drawer 1)
       kickBytes = Buffer.from([
-        0x10, 0x14, 0x01, 0x00, 0x02,       // DLE DC4 real-time immediate Pin 2 (200ms)
-        0x1b, 0x70, 0x00, 0x32, 0x32, 0x0a, // ESC p 0 (100ms on, 100ms off) + LF
-        0x1b, 0x70, 0x30, 0x32, 0x32, 0x0a, // ESC p '0' ASCII pin + LF
+        0x10, 0x14, 0x01, 0x00, 0x04,       // DLE DC4 real-time immediate Pin 2 (400ms)
+        0x1b, 0x70, 0x00, 0x32, 0xfa,       // ESC p 0 (100ms on, 500ms off)
+        0x1b, 0x70, 0x00, 0x64, 0xff,       // ESC p 0 (200ms on, heavy duty)
         0x07,                               // BEL
       ]);
     } else {
       // Universal Dual-Pin Kick (Fires Pin 5 [BPOVO] and Pin 2 [Standard])
       kickBytes = Buffer.from([
-        0x10, 0x14, 0x01, 0x01, 0x02,       // DLE DC4 Pin 5
-        0x10, 0x14, 0x01, 0x00, 0x02,       // DLE DC4 Pin 2
-        0x1b, 0x70, 0x01, 0x32, 0x32, 0x0a, // ESC p 1 + LF
-        0x1b, 0x70, 0x00, 0x32, 0x32, 0x0a, // ESC p 0 + LF
+        0x10, 0x14, 0x01, 0x01, 0x04,       // DLE DC4 Pin 5 400ms
+        0x10, 0x14, 0x01, 0x00, 0x04,       // DLE DC4 Pin 2 400ms
+        0x1b, 0x70, 0x01, 0x32, 0xfa,       // ESC p 1 100ms on
+        0x1b, 0x70, 0x00, 0x32, 0xfa,       // ESC p 0 100ms on
+        0x1b, 0x70, 0x01, 0x64, 0xff,       // ESC p 1 200ms on (high power)
+        0x1b, 0x70, 0x00, 0x64, 0xff,       // ESC p 0 200ms on (high power)
         0x07,                               // BEL
       ]);
     }
 
     console.log(`[Cash Drawer Bridge] Sending drawer kick (${pin}) to receipt printer: ${targetPrinter}`);
-    const res = await rawPrint(targetPrinter, kickBytes, 'Open Cash Drawer');
+    const res = await rawPrint(targetPrinter, kickBytes, 'Open Cash Drawer', true);
     return { success: res.success, printer: targetPrinter, pin };
   } catch (err) {
     console.error('Kick cash drawer error:', err);
@@ -282,9 +304,11 @@ ipcMain.handle('print-direct', async (event, { html, zpl, epl, escpos, deviceNam
     }
 
     // 2. Thermal Receipt Printing (Strictly BIXOLON SRP-Q302)
-    if (type === 'receipt' || escpos) {
+    // If HTML is provided, print high-resolution raster HTML for beautiful fonts and formatting!
+    // Only fall back to raw ESC/POS if type is specifically 'escpos-raw' or no html was passed.
+    if (type === 'escpos-raw' || (!html && escpos)) {
       const targetPrinter = resolvedDevice || 'BIXOLON SRP-Q302';
-      const payload = escpos || html || '';
+      const payload = escpos || '';
       console.log(`[Electron Hardware Bridge] Routing raw ESC/POS to receipt printer: ${targetPrinter}`);
       const rawRes = await rawPrint(targetPrinter, payload, 'Thermal POS Receipt');
       if (rawRes.success) {

@@ -764,8 +764,8 @@ export function printThermalReceipt(saleData, shopSettings = {}, options = {}) {
   const escpos = generateEscPosReceipt(saleData, shopSettings);
   executePrint(html, { deviceName, silent, type: 'receipt', escpos });
 
-  // If cash transaction, ensure physical cash drawer solenoid is kicked via DK port
-  if (saleData?.paymentMethod === 'Cash') {
+  // If cash transaction, ensure physical cash drawer solenoid is kicked via DK port (unless skipped)
+  if (saleData?.paymentMethod === 'Cash' && options?.skipDrawerKick !== true) {
     triggerCashDrawerKick(shopSettings, { deviceName }).catch(() => {});
   }
 }

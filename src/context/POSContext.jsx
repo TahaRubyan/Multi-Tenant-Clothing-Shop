@@ -28,7 +28,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v9.0_hardware_prod_release';
+const POS_DATA_VERSION = 'v11.0_clean_prod_final';
 
 // Clean one-time migration for legacy localStorage cache
 try {
@@ -40,6 +40,7 @@ try {
         'pos_currentTenant',
         'pos_roles',
         'pos_users',
+        'pos_currentUser',
         'pos_shopSettings',
         'pos_printer_settings',
         'pos_product_templates',

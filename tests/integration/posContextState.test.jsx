@@ -170,40 +170,39 @@ describe('POS Context Integration State Tests', () => {
     expect(updatedProduct.stock).toBe(initialMasterStock + 5);
   });
 
-  it('authenticates Masteradmin, Nova.admin, Testing.admin and Cashier1 successfully', () => {
+  it('authenticates nova.admin, admin@testingportal.pk, Cashier1 and rejects Masteradmin', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    // Masteradmin
+    // Nova.admin (case-insensitive test: nova.admin with admin123)
     let loginRes;
     act(() => {
-      loginRes = result.current.login('Masteradmin', 'Admin123');
+      loginRes = result.current.login('nova.admin', 'admin123');
     });
     expect(loginRes.success).toBe(true);
-    expect(result.current.currentUser.username).toBe('Masteradmin');
-    expect(result.current.activeTab).toBe('super-admin-portal');
-
-    // Nova.admin (case-insensitive test)
-    act(() => {
-      loginRes = result.current.login('nova.admin', 'Admin123');
-    });
-    expect(loginRes.success).toBe(true);
-    expect(result.current.currentUser.username).toBe('Nova.admin');
+    expect(result.current.currentUser.username).toBe('nova.admin');
     expect(result.current.currentTenant.id).toBe('tenant-nova-101');
+    expect(result.current.activeTab).toBe('dashboard');
 
-    // Testing.admin
+    // Testing Portal Admin: admin@testingportal.pk with admin123
     act(() => {
-      loginRes = result.current.login('testing.admin', 'Admin123');
+      loginRes = result.current.login('admin@testingportal.pk', 'admin123');
     });
     expect(loginRes.success).toBe(true);
-    expect(result.current.currentUser.username).toBe('Testing.admin');
+    expect(result.current.currentUser.username).toBe('admin@testingportal.pk');
     expect(result.current.currentTenant.id).toBe('tenant-testing-102');
 
-    // Cashier1
+    // Cashier1 with 1234
     act(() => {
       loginRes = result.current.login('Cashier1', '1234');
     });
     expect(loginRes.success).toBe(true);
     expect(result.current.currentUser.username).toBe('Cashier1');
+
+    // Masteradmin is completely removed from system
+    act(() => {
+      loginRes = result.current.login('Masteradmin', 'Admin123');
+    });
+    expect(loginRes.success).toBe(false);
   });
 
   it('supports custom % and Rs. discounts for both single line items and overall bill', () => {

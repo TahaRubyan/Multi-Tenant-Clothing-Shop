@@ -120,40 +120,29 @@ export const INITIAL_ROLES = [
 ];
 
 export const INITIAL_USERS = [
-  // 1. MASTER ADMIN (Platform Super Admin)
-  {
-    id: 'u-super',
-    username: 'Masteradmin',
-    password: 'Admin123',
-    fullName: 'Master Platform Admin',
-    role: 'Super Admin',
-    tenantIds: ['tenant-nova-101', 'tenant-testing-102'],
-    isSuperAdmin: true,
-  },
-
-  // 2. NOVA STORE ADMIN (NOVA MEN AND WOMEN)
+  // 1. NOVA MEN AND WOMEN (Owner: Adil Zaman)
   {
     id: 'u-nova',
-    username: 'Nova.admin',
-    password: 'Admin123',
-    fullName: 'NOVA Store Administrator',
+    username: 'nova.admin',
+    password: 'admin123',
+    fullName: 'Adil Zaman',
     role: 'Admin',
     tenantIds: ['tenant-nova-101'],
     isSuperAdmin: false,
   },
 
-  // 3. TESTING PORTAL ADMIN (Testing Sandbox)
+  // 2. TESTING PORTAL ADMIN
   {
     id: 'u-testing',
-    username: 'Testing.admin',
-    password: 'Admin123',
+    username: 'admin@testingportal.pk',
+    password: 'admin123',
     fullName: 'Testing Portal Administrator',
     role: 'Admin',
     tenantIds: ['tenant-testing-102'],
     isSuperAdmin: false,
   },
 
-  // 4. FRONT-DESK CASHIER TERMINAL
+  // 3. FRONT-DESK CASHIER TERMINAL
   {
     id: 'u-cashier',
     username: 'Cashier1',
