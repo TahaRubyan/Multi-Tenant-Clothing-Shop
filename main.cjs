@@ -7,15 +7,26 @@ const os = require('os');
 
 let mainWindow;
 
+// Strips control characters (incl. NUL) from values that get embedded into a
+// generated PowerShell script. The `'` -> `''` doubling below is PowerShell's
+// correct escaping for single-quoted literals, but control characters have
+// no legitimate place in a printer/document name, so we drop them outright
+// as defense-in-depth rather than trusting escaping alone.
+function sanitizePsLiteral(value) {
+  return String(value ?? '').replace(/[\x00-\x1f\x7f]/g, '');
+}
+
 // Helper: Send raw printer command bytes directly via Windows spooler without string corruption
 function rawPrint(printerName, content, docName = 'POS Hardware Document', isControl = false) {
   return new Promise((resolve) => {
     try {
+      const safePrinterName = sanitizePsLiteral(printerName);
+      const safeDocName = sanitizePsLiteral(docName);
       const tempContentFile = path.join(os.tmpdir(), `raw_data_${Date.now()}_${Math.random().toString(36).slice(2)}.bin`);
       const tempPs1File = path.join(os.tmpdir(), `raw_spool_${Date.now()}_${Math.random().toString(36).slice(2)}.ps1`);
-      
-      const buffer = Buffer.isBuffer(content) 
-        ? content 
+
+      const buffer = Buffer.isBuffer(content)
+        ? content
         : Buffer.from(content, typeof content === 'string' && content.startsWith('^XA') ? 'utf8' : 'latin1');
       fs.writeFileSync(tempContentFile, buffer);
 
@@ -91,7 +102,7 @@ public class RawPrinterBytes {
 }
 "@
 $bytes = [System.IO.File]::ReadAllBytes('${tempContentFile.replace(/\\/g, '\\\\')}')
-$res = ${isControl ? '[RawPrinterBytes]::SendRawControlBytes' : '[RawPrinterBytes]::SendBytes'}('${printerName.replace(/'/g, "''")}', $bytes, '${docName.replace(/'/g, "''")}')
+$res = ${isControl ? '[RawPrinterBytes]::SendRawControlBytes' : '[RawPrinterBytes]::SendBytes'}('${safePrinterName.replace(/'/g, "''")}', $bytes, '${safeDocName.replace(/'/g, "''")}')
 Write-Output "SUCCESS:$res"
 `;
 

@@ -182,16 +182,16 @@ export const DaySettlementModal = () => {
                 <h3 className="font-weight-700 text-main mb-1">Store Admin Authorization Required</h3>
                 <p className="text-xs text-muted mb-3">
                   Day-end drawer audit and register closing is restricted to Store Administrators.<br />
-                  Please enter Manager PIN (<strong className="text-primary font-mono">1234</strong>) or Admin Password to proceed.
+                  Please enter the configured Manager PIN (Settings &gt; Staff Access &amp; Security) to proceed.
                 </p>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    if (adminPinInput === '1234' || adminPinInput === 'Admin123') {
+                    if (adminPinInput && adminPinInput === shopSettings?.discountPin) {
                       setIsAdminPinAuthorized(true);
                       setPinError('');
                     } else {
-                      setPinError('Invalid Admin PIN. Please enter PIN 1234 or Admin Password.');
+                      setPinError('Invalid Admin PIN.');
                     }
                   }}
                 >

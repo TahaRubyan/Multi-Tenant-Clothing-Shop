@@ -225,8 +225,63 @@ CREATE TABLE IF NOT EXISTS printer_configurations (
 );
 
 -- ============================================================================
+-- 9b. SALES ORDERS (matches what the client app actually reads/writes via
+-- src/utils/supabaseClient.js — kept alongside the older `sales`/`sale_items`
+-- tables above rather than replacing them, since this file cannot confirm
+-- what the live deployed database currently contains).
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS sales_orders (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    receipt_number VARCHAR(100) DEFAULT '',
+    cashier_name VARCHAR(150) DEFAULT 'Cashier',
+    payment_method VARCHAR(50) DEFAULT 'Cash',
+    gross_total NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    net_total NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    amount_received NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    change_returned NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sales_orders_tenant ON sales_orders(tenant_id);
+
+-- ============================================================================
 -- 12. ROW LEVEL SECURITY (RLS) POLICIES
 -- Strict Isolation: Each tenant can strictly query and mutate only their own rows.
+--
+-- IMPORTANT / KNOWN LIMITATION (read before touching this section):
+-- Every policy below gates on current_setting('app.current_tenant_id', true)
+-- and current_setting('app.is_super_admin', true). Postgres only populates
+-- those custom GUCs when something explicitly calls set_config(...) for the
+-- current connection/request — normally done by a trusted backend after it
+-- has independently verified who the caller is (e.g. from a validated JWT).
+--
+-- This codebase has no such backend: the client (Electron/browser) talks to
+-- Supabase directly with the public anon key via src/utils/supabaseClient.js,
+-- and nothing anywhere ever sets these GUCs. That means these policies are
+-- NOT an effective tenant-isolation boundary under the app's current
+-- architecture — confirmed by live testing against the anon REST endpoint.
+--
+-- Do NOT "fix" this by enabling RLS with this same policy shape on more
+-- tables (e.g. `tenants`) expecting it to close the gap: since the GUCs are
+-- never set, USING(...) evaluates to false for every row for every anon
+-- request, which would make those tables unreadable/unwritable to the app
+-- and break tenant registration, product sync, and sales sync outright.
+--
+-- The real fix requires one of:
+--   (a) Supabase Auth: sign users in for real, issue a JWT carrying a
+--       tenant_id claim, and rewrite these policies against
+--       auth.jwt() ->> 'tenant_id' instead of custom session GUCs; or
+--   (b) A minimal trusted backend (see src/utils/apiService.js, which
+--       already anticipates `/api/*` routes but is not wired up) that holds
+--       the Supabase service-role key, verifies the caller itself, and only
+--       then queries Postgres with app.current_tenant_id set correctly.
+-- Either change also requires migrating the `users` table off ad-hoc
+-- client-side login (src/context/POSContext.jsx `login`) to real
+-- server-verified sessions. Track this as its own project — it changes the
+-- app's login flow and cannot be done as a side effect of a schema edit.
 -- ============================================================================
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;

@@ -1,6 +1,13 @@
 /**
  * NOVA POS - Multi-Tenant Backend API & Database Service Layer
  * Supports PostgreSQL / Neon Cloud Mesh with graceful offline local fallback
+ *
+ * NOT CURRENTLY WIRED UP: the app talks to Supabase directly via
+ * `src/utils/supabaseClient.js` instead of this module. There is no server
+ * implementing the `/api/*` routes referenced below anywhere in this repo.
+ * Keep this file only as scaffolding for a future real backend (needed to
+ * enforce auth/tenant isolation server-side) — do not assume these calls
+ * currently do anything.
  */
 
 const API_BASE_URL = typeof window !== 'undefined' && window.location 

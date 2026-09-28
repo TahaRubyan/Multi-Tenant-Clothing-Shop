@@ -4,6 +4,7 @@ import {
   LABEL_PRINTER_KEYWORD_REGEX,
   RECEIPT_PRINTER_KEYWORD_REGEX,
 } from '../utils/printUtils';
+import { hashPassword, verifyPassword } from '../utils/passwordUtils';
 import {
   syncSaleToCloud,
   syncProductToCloud,
@@ -559,6 +560,19 @@ export const POSProvider = ({ children }) => {
     return currentTenant.modules[moduleKey] !== false;
   };
 
+  // Finds a username/password match in a user list. Password comparison is
+  // exact-case only (no case-insensitive fallback). If the stored credential
+  // is still in the pre-hardening plaintext shape, `needsRehash` is set so
+  // the caller can transparently upgrade it to a real hash on this login.
+  const findCredentialMatch = (list, cleanUser, cleanPass) => {
+    for (const candidate of (list || [])) {
+      if ((candidate.username || '').trim().toLowerCase() !== cleanUser) continue;
+      const { valid, needsRehash } = verifyPassword(cleanPass, candidate.password);
+      if (valid) return { user: candidate, needsRehash };
+    }
+    return null;
+  };
+
   const login = (usernameInput, passwordInput) => {
     const cleanUser = (usernameInput || '').trim().toLowerCase();
     const cleanPass = (passwordInput || '').trim();
@@ -568,30 +582,29 @@ export const POSProvider = ({ children }) => {
     }
 
     // 1. Check in active users state
-    let user = (users || []).find(
-      u => (u.username || '').trim().toLowerCase() === cleanUser &&
-           ((u.password || '').trim() === cleanPass || (u.password || '').trim().toLowerCase() === cleanPass.toLowerCase())
-    );
+    let match = findCredentialMatch(users, cleanUser, cleanPass);
 
     // 2. Check localStorage in case users state was updated in current tick
-    if (!user) {
+    if (!match) {
       try {
         const stored = JSON.parse(localStorage.getItem('pos_users') || '[]');
-        user = (stored || []).find(
-          u => (u.username || '').trim().toLowerCase() === cleanUser &&
-               ((u.password || '').trim() === cleanPass || (u.password || '').trim().toLowerCase() === cleanPass.toLowerCase())
-        );
+        match = findCredentialMatch(stored, cleanUser, cleanPass);
       } catch (_) {}
     }
 
-    // 3. Resilient fallback for master admin if not in state yet
+    let user = match ? match.user : null;
+
+    // 3. Optional master-admin bootstrap for brand-new installs with no cloud
+    // connectivity yet. Only active when the deployer explicitly configures
+    // VITE_MASTER_ADMIN_PASSWORD in their own environment — there is no
+    // built-in default credential shipped in the app.
     if (!user && cleanUser === 'masteradmin') {
-      const defaultPass = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_MASTER_ADMIN_PASSWORD) || 'Admin123';
-      if (cleanPass === defaultPass) {
+      const defaultPass = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_MASTER_ADMIN_PASSWORD : undefined;
+      if (defaultPass && cleanPass === defaultPass) {
         user = {
           id: 'u-master-admin',
           username: 'Masteradmin',
-          password: cleanPass,
+          password: hashPassword(cleanPass),
           fullName: 'Master Platform Administrator',
           role: 'Super Admin',
           tenantIds: [],
@@ -599,6 +612,23 @@ export const POSProvider = ({ children }) => {
         };
         setUsers(prev => [user, ...(Array.isArray(prev) ? prev : [])]);
       }
+    }
+
+    // Silently upgrade a legacy plaintext credential to a real hash now that
+    // we know it's correct, so it never has to be stored/synced in the clear
+    // again.
+    if (user && match && match.needsRehash) {
+      user = { ...user, password: hashPassword(cleanPass) };
+      setUsers(prev => (Array.isArray(prev) ? prev.map(u => (u.id === user.id ? user : u)) : prev));
+      try {
+        const stored = JSON.parse(localStorage.getItem('pos_users') || '[]');
+        if (Array.isArray(stored)) {
+          localStorage.setItem('pos_users', JSON.stringify(stored.map(u => (u.id === user.id ? user : u))));
+        }
+      } catch (_) {}
+      syncUserToCloud(user).catch(err => {
+        console.warn('[TESSLO Cloud] Credential upgrade sync deferred:', err);
+      });
     }
 
     if (user) {
@@ -736,7 +766,7 @@ export const POSProvider = ({ children }) => {
       const newAdmin = {
         id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         username: tenantData.adminUsername,
-        password: tenantData.adminPassword,
+        password: hashPassword(tenantData.adminPassword),
         fullName: tenantData.ownerName || `${tenantData.name} Admin`,
         role: 'Admin',
         tenantIds: [newId],
@@ -762,11 +792,13 @@ export const POSProvider = ({ children }) => {
     const cleanPass = (newPassword || '').trim();
     if (!cleanPass) return { success: false, message: 'Password cannot be empty' };
 
+    const newHash = hashPassword(cleanPass);
+
     let targetUser = null;
     const currentUsersList = Array.isArray(users) ? [...users] : [];
     const updatedUsers = currentUsersList.map(u => {
       if (u.id === userId || (u.username || '').toLowerCase() === (userId || '').toLowerCase()) {
-        targetUser = { ...u, password: cleanPass };
+        targetUser = { ...u, password: newHash };
         return targetUser;
       }
       return u;
@@ -777,7 +809,7 @@ export const POSProvider = ({ children }) => {
         targetUser = {
           id: 'u-master-admin',
           username: 'Masteradmin',
-          password: cleanPass,
+          password: newHash,
           fullName: 'Master Platform Administrator',
           role: 'Super Admin',
           tenantIds: [],
@@ -1577,6 +1609,7 @@ export const POSProvider = ({ children }) => {
   const addUser = (userData) => {
     const newUser = {
       ...userData,
+      password: hashPassword(userData.password),
       id: `u-${Date.now()}`,
       tenantIds: [currentTenantId],
       isSuperAdmin: false,

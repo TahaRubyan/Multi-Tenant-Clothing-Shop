@@ -34,8 +34,10 @@ testing videos/
 .env
 .env.*
 !.env.example
+!.env.test
 *.pem
 *.key
 *.cert
 credentials.json
 .vercel
+.gstack/

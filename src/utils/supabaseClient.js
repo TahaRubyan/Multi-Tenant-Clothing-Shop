@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { hashPassword } from './passwordUtils';
 
 // TESSLO Fashion Retail ERP Cloud Environments (Dev & Prod)
 export const TESSLO_ENVIRONMENTS = {
@@ -162,10 +163,15 @@ export async function deleteTenantFromCloud(tenantId) {
  * Sync Staff User / Tenant Admin to Supabase Cloud
  */
 export async function syncUserToCloud(userData) {
+  // Callers are expected to have already hashed userData.password via
+  // hashPassword() before reaching this point. The fallback below only
+  // fires if a caller forgets to set a password at all — it generates an
+  // unguessable, unusable placeholder hash instead of shipping a known
+  // default credential.
   const row = {
     id: userData.id || `u-${Date.now()}`,
     username: userData.username,
-    password_hash: userData.password || userData.password_hash || 'Admin123',
+    password_hash: userData.password || userData.password_hash || hashPassword(`unset-${Date.now()}-${Math.random()}`),
     full_name: userData.fullName || userData.full_name || userData.username,
     role: userData.role || 'Admin',
     tenant_ids: userData.tenantIds || userData.tenant_ids || [],
