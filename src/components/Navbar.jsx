@@ -53,11 +53,11 @@ export const Navbar = () => {
 
   const activeShopTitle = isMasterAdmin
     ? (activeTab === 'super-admin-portal' ? 'PLATFORM SAAS CONTROLLER' : `${currentTenant?.name || 'Shop Terminal'} (Master View)`)
-    : (shopSettings.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN');
+    : (shopSettings.shopName || currentTenant?.name || 'TESSLO Fashion Retail');
 
   const activeShopLocation = isMasterAdmin
     ? (activeTab === 'super-admin-portal' ? 'Master Multi-Tenant Cloud Mesh • Platform Admin Scope' : `${currentTenant?.city || 'Pakistan'} • Master Terminal Inspection`)
-    : (shopSettings.shopLocation || currentTenant?.city || 'Jalal Pur Jattan, Gujrat');
+    : (shopSettings.shopLocation || currentTenant?.city || 'Pakistan');
 
   return (
     <header className="navbar-container">

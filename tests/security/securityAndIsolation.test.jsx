@@ -11,20 +11,19 @@ describe('Security, Authorization & Multi-Tenant Isolation Tests', () => {
 
   const wrapper = ({ children }) => <POSProvider>{children}</POSProvider>;
 
-  it('enforces role-based permissions separating Cashier from Store Admin authority', () => {
-    const cashierUser = INITIAL_USERS.find(u => u.username === 'Cashier1');
-    const adminUser = INITIAL_USERS.find(u => u.username.toLowerCase() === 'nova.admin');
+  it('enforces role-based permissions separating Super Admin, Admin, and Salesman authority', () => {
+    const masterAdmin = INITIAL_USERS.find(u => u.isSuperAdmin);
+    expect(masterAdmin).toBeDefined();
 
-    expect(cashierUser).toBeDefined();
-    expect(adminUser).toBeDefined();
-
-    const salesmanRole = INITIAL_ROLES.find(r => r.roleName === 'Salesman');
+    const superRole = INITIAL_ROLES.find(r => r.roleName === 'Super Admin');
     const adminRole = INITIAL_ROLES.find(r => r.roleName === 'Admin');
+    const salesmanRole = INITIAL_ROLES.find(r => r.roleName === 'Salesman');
 
-    expect(salesmanRole).toBeDefined();
+    expect(superRole).toBeDefined();
     expect(adminRole).toBeDefined();
+    expect(salesmanRole).toBeDefined();
 
-    // Cashier/Salesman can only access POS checkout and stock lookup
+    // Salesman can only access POS checkout and stock lookup
     expect(salesmanRole.permissions).toEqual(['make_sale', 'check_stock']);
     expect(salesmanRole.permissions).not.toContain('settings');
     expect(salesmanRole.permissions).not.toContain('discounts');
@@ -39,6 +38,9 @@ describe('Security, Authorization & Multi-Tenant Isolation Tests', () => {
     expect(adminRole.permissions).toContain('discounts');
     expect(adminRole.permissions).toContain('analytics');
     expect(adminRole.permissions).toContain('settings');
+
+    // Super Admin has universal cross-tenant platform oversight
+    expect(superRole.permissions).toContain('super_admin');
   });
 
   it('validates manager authorization PIN for discount overrides and rejects invalid PINs', () => {
@@ -57,32 +59,55 @@ describe('Security, Authorization & Multi-Tenant Isolation Tests', () => {
     expect(result.current.validateDiscountPin('1234')).toBe(true);
   });
 
-  it('preserves multi-tenant boundaries between NOVA store and testing portal', () => {
+  it('preserves multi-tenant boundaries between distinct registered stores', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    // Active tenant is tenant-nova-101
-    expect(result.current.currentTenant.id).toBe('tenant-nova-101');
+    let t1, t2;
+    act(() => {
+      t1 = result.current.addTenant({
+        name: 'Store Alpha',
+        city: 'Lahore',
+        ownerName: 'Alpha Owner',
+        adminUsername: 'alpha.admin',
+        adminPassword: 'alpha123',
+      });
+      t2 = result.current.addTenant({
+        name: 'Store Beta',
+        city: 'Karachi',
+        ownerName: 'Beta Owner',
+        adminUsername: 'beta.admin',
+        adminPassword: 'beta123',
+      });
+    });
+
+    expect(t1.id).not.toBe(t2.id);
+
+    // Switch to t1
+    act(() => {
+      result.current.switchTenant(t1.id);
+    });
 
     act(() => {
       result.current.addProduct({
-        barcode: 'NOVA-101',
-        fabricMaterial: 'NOVA Lawn',
+        barcode: 'ALPHA-101',
+        fabricMaterial: 'Alpha Lawn',
         retailPrice: 2000,
         stock: 10,
       });
     });
 
-    // All active products belong to tenant-nova-101
-    const novaProducts = result.current.products.filter(p => p.tenantId === 'tenant-nova-101');
-    expect(novaProducts.length).toBe(1);
-    novaProducts.forEach(p => {
-      expect(p.tenantId).toBe('tenant-nova-101');
-    });
+    // Products in t1 should only be tagged with t1.id
+    const t1Products = result.current.products.filter(p => p.tenantId === t1.id);
+    expect(t1Products.length).toBe(1);
+    expect(t1Products[0].barcode).toBe('ALPHA-101');
 
-    // Sales logs belong to tenant-nova-101
-    result.current.salesLogs.forEach(log => {
-      expect(log.tenantId).toBe('tenant-nova-101');
+    // Switch to t2
+    act(() => {
+      result.current.switchTenant(t2.id);
     });
+    // In t2 context, t1's product is not in t2's product catalog
+    const t2Products = result.current.products.filter(p => p.tenantId === t2.id);
+    expect(t2Products.length).toBe(0);
   });
 
   it('prevents checkout with an empty cart or invalid negative amounts', () => {

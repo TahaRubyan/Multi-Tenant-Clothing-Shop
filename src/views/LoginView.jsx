@@ -14,7 +14,7 @@ export const LoginView = () => {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const currentShopName = shopSettings?.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN';
+  const currentShopName = shopSettings?.shopName || currentTenant?.name || 'TESSLO Fashion Retail';
 
   const handleSubmit = (e) => {
     e.preventDefault();

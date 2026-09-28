@@ -170,37 +170,45 @@ describe('POS Context Integration State Tests', () => {
     expect(updatedProduct.stock).toBe(initialMasterStock + 5);
   });
 
-  it('authenticates nova.admin, admin@testingportal.pk, Cashier1 and rejects Masteradmin', () => {
+  it('authenticates Masteradmin to super-admin-portal and dynamically created tenant admin to store dashboard', () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    // Nova.admin (case-insensitive test: nova.admin with admin123)
+    // 1. Authenticate Master Platform Admin
     let loginRes;
+    act(() => {
+      loginRes = result.current.login('Masteradmin', 'Admin123');
+    });
+    expect(loginRes.success).toBe(true);
+    expect(result.current.currentUser.username).toBe('Masteradmin');
+    expect(result.current.currentUser.isSuperAdmin).toBe(true);
+    expect(result.current.activeTab).toBe('super-admin-portal');
+
+    // 2. Master Admin creates a new client shop
+    let createdTenant;
+    act(() => {
+      createdTenant = result.current.addTenant({
+        name: 'NOVA MEN AND WOMEN',
+        city: 'Jalal Pur Jattan',
+        ownerName: 'Adil Zaman',
+        adminUsername: 'nova.admin',
+        adminPassword: 'admin123',
+      });
+    });
+    expect(createdTenant).toBeDefined();
+    expect(createdTenant.name).toBe('NOVA MEN AND WOMEN');
+
+    // 3. Authenticate the newly registered shop admin
     act(() => {
       loginRes = result.current.login('nova.admin', 'admin123');
     });
     expect(loginRes.success).toBe(true);
     expect(result.current.currentUser.username).toBe('nova.admin');
-    expect(result.current.currentTenant.id).toBe('tenant-nova-101');
+    expect(result.current.currentTenant.id).toBe(createdTenant.id);
     expect(result.current.activeTab).toBe('dashboard');
 
-    // Testing Portal Admin: admin@testingportal.pk with admin123
+    // 4. Reject invalid login credentials
     act(() => {
-      loginRes = result.current.login('admin@testingportal.pk', 'admin123');
-    });
-    expect(loginRes.success).toBe(true);
-    expect(result.current.currentUser.username).toBe('admin@testingportal.pk');
-    expect(result.current.currentTenant.id).toBe('tenant-testing-102');
-
-    // Cashier1 with 1234
-    act(() => {
-      loginRes = result.current.login('Cashier1', '1234');
-    });
-    expect(loginRes.success).toBe(true);
-    expect(result.current.currentUser.username).toBe('Cashier1');
-
-    // Masteradmin is completely removed from system
-    act(() => {
-      loginRes = result.current.login('Masteradmin', 'Admin123');
+      loginRes = result.current.login('unknown.user', 'wrongpass');
     });
     expect(loginRes.success).toBe(false);
   });

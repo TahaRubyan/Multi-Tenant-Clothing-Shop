@@ -8,6 +8,11 @@ import {
   syncSaleToCloud,
   syncProductToCloud,
   syncSettlementToCloud,
+  syncTenantToCloud,
+  deleteTenantFromCloud,
+  syncUserToCloud,
+  fetchTenantsFromCloud,
+  fetchUsersFromCloud,
   flushOfflineQueue,
 } from '../utils/supabaseClient';
 import {
@@ -28,7 +33,7 @@ import {
 
 const POSContext = createContext();
 
-const POS_DATA_VERSION = 'v11.0_clean_prod_final';
+const POS_DATA_VERSION = 'v12.0_master_tenant_prod';
 
 // Clean one-time migration for legacy localStorage cache
 try {
@@ -105,7 +110,7 @@ export const POSProvider = ({ children }) => {
   const [tenants, setTenants] = useState(() => getStoredOrDefault('pos_tenants', INITIAL_TENANTS));
   const [currentTenant, setCurrentTenant] = useState(() => {
     const saved = getStoredOrDefault('pos_currentTenant', null);
-    return saved || INITIAL_TENANTS[0];
+    return saved || INITIAL_TENANTS[0] || null;
   });
   const [showShopSwitcher, setShowShopSwitcher] = useState(false);
 
@@ -113,6 +118,31 @@ export const POSProvider = ({ children }) => {
   const [roles, setRoles] = useState(() => getStoredOrDefault('pos_roles', INITIAL_ROLES));
   const [users, setUsers] = useState(() => getStoredOrDefault('pos_users', INITIAL_USERS));
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Hydrate Tenants and Users from Supabase on mount
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      fetchTenantsFromCloud().then((cloudTenants) => {
+        if (Array.isArray(cloudTenants) && cloudTenants.length > 0) {
+          setTenants(cloudTenants);
+          setCurrentTenant((prev) => prev || cloudTenants[0]);
+        }
+      }).catch(() => {});
+
+      fetchUsersFromCloud().then((cloudUsers) => {
+        if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+          setUsers((prev) => {
+            const master = INITIAL_USERS.find((u) => u.isSuperAdmin);
+            const list = Array.isArray(cloudUsers) ? cloudUsers : [];
+            if (master && !list.some((u) => (u.username || '').toLowerCase() === master.username.toLowerCase())) {
+              return [master, ...list];
+            }
+            return list;
+          });
+        }
+      }).catch(() => {});
+    }
+  }, []);
 
   // Shop Settings
   const [shopSettings, setShopSettings] = useState(() => {
@@ -509,7 +539,18 @@ export const POSProvider = ({ children }) => {
            ((u.password || '').trim() === cleanPass || (u.password || '').trim().toLowerCase() === cleanPass.toLowerCase())
     );
 
-    // 2. Resilient fallback to INITIAL_USERS if state had stale persisted data
+    // 2. Check localStorage in case users state was updated in current tick
+    if (!user) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('pos_users') || '[]');
+        user = (stored || []).find(
+          u => (u.username || '').trim().toLowerCase() === cleanUser &&
+               ((u.password || '').trim() === cleanPass || (u.password || '').trim().toLowerCase() === cleanPass.toLowerCase())
+        );
+      } catch (_) {}
+    }
+
+    // 3. Resilient fallback to INITIAL_USERS if state had stale persisted data
     if (!user) {
       user = INITIAL_USERS.find(
         u => (u.username || '').trim().toLowerCase() === cleanUser &&
@@ -630,6 +671,14 @@ export const POSProvider = ({ children }) => {
     };
 
     setTenants(prev => [...prev, newTenant]);
+    if (!currentTenant) {
+      setCurrentTenant(newTenant);
+    }
+
+    // Persist Tenant to Supabase Cloud
+    syncTenantToCloud(newTenant).catch(err => {
+      console.warn('[TESSLO Cloud] Tenant creation sync deferred:', err);
+    });
 
     // Create Initial Admin User for this new tenant
     if (tenantData.adminUsername && tenantData.adminPassword) {
@@ -642,7 +691,17 @@ export const POSProvider = ({ children }) => {
         tenantIds: [newId],
         isSuperAdmin: false,
       };
-      setUsers(prev => [...prev, newAdmin]);
+      try {
+        const existingUsers = JSON.parse(localStorage.getItem('pos_users') || '[]');
+        const updatedUsers = [...(Array.isArray(existingUsers) ? existingUsers : []), newAdmin];
+        localStorage.setItem('pos_users', JSON.stringify(updatedUsers));
+      } catch (_) {}
+      setUsers(prev => [...(Array.isArray(prev) ? prev : []), newAdmin]);
+
+      // Persist Admin User to Supabase Cloud
+      syncUserToCloud(newAdmin).catch(err => {
+        console.warn('[TESSLO Cloud] Tenant admin creation sync deferred:', err);
+      });
     }
 
     return newTenant;
@@ -650,7 +709,14 @@ export const POSProvider = ({ children }) => {
 
   const toggleTenantStatus = (tenantId) => {
     setTenants(prev =>
-      prev.map(t => (t.id === tenantId ? { ...t, status: t.status === 'active' ? 'inactive' : 'active' } : t))
+      prev.map(t => {
+        if (t.id === tenantId) {
+          const toggled = { ...t, status: t.status === 'active' ? 'suspended' : 'active' };
+          syncTenantToCloud(toggled).catch(() => {});
+          return toggled;
+        }
+        return t;
+      })
     );
   };
 
@@ -660,6 +726,10 @@ export const POSProvider = ({ children }) => {
       const fallback = tenants.find(t => t.id !== tenantId) || null;
       setCurrentTenant(fallback);
     }
+    deleteTenantFromCloud(tenantId).catch(err => {
+      console.warn('[TESSLO Cloud] Tenant cloud deletion failed:', err);
+    });
+    showToast('Tenant removed from system and cloud database', 'info');
   };
 
   // Helper for formatted date & time in DD-MM-YYYY format

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePOS } from '../context/POSContext';
+import { currentEnvironmentName, TESSLO_ENVIRONMENTS } from '../utils/supabaseClient';
 import {
   ShieldCheck,
   Building2,
@@ -245,13 +246,16 @@ export const SuperAdminPortalView = () => {
           </div>
           <div>
             <div className="flex-align-center gap-2">
-              <h4 className="text-xs font-weight-700 text-main mb-0">PostgreSQL / Neon Cloud Mesh Connection</h4>
+              <h4 className="text-xs font-weight-700 text-main mb-0">PostgreSQL / Supabase Cloud Mesh Connection</h4>
               <span className="badge badge-success text-xxs">● Live Synchronized</span>
-              <span className="badge badge-amber text-xxs font-mono">RLS Tenant Partitioning Active</span>
+              <span className={`badge ${currentEnvironmentName === 'tesslo-prod' ? 'badge-primary' : 'badge-amber'} text-xxs font-mono font-weight-700`}>
+                {currentEnvironmentName === 'tesslo-prod' ? 'TESSLO Prod (Live Mesh)' : 'TESSLO Dev (Sandbox)'}
+              </span>
+              <span className="badge badge-sage text-xxs font-mono">RLS Tenant Partitioning</span>
             </div>
             <p className="text-xxs text-muted mb-0 mt-0.5">
-              Serverless Cluster: <strong className="text-main">neon-mesh-us-east.aws</strong> &nbsp;|&nbsp; 
-              Catalog Pool: <strong className="text-main">{allProducts.length} Total SKUs</strong> &nbsp;|&nbsp; 
+              Active Database: <strong className="text-main">{currentEnvironmentName === 'tesslo-prod' ? 'clnpagwuriteqhvyrupx.supabase.co' : 'hkfcgggenblephpcrmkp.supabase.co'}</strong> &nbsp;|&nbsp; 
+              Registered Tenants: <strong className="text-main">{tenants.length} Active Stores</strong> &nbsp;|&nbsp; 
               Transactions: <strong className="text-main">{allSalesLogs.length} Logged Sales</strong>
             </p>
           </div>

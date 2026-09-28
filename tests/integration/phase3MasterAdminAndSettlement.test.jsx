@@ -24,7 +24,7 @@ describe('Phase 3: Master Admin, Tenant Isolation & Cash Settlement Enforcement'
     expect(contextVal.currentUser).toBeNull();
   });
 
-  it('rejects Masteradmin because Master Admin has been completely decommissioned', () => {
+  it('authenticates Master Admin and routes directly to super-admin-portal', () => {
     let contextVal;
     function TestComponent() {
       contextVal = usePOS();
@@ -34,53 +34,57 @@ describe('Phase 3: Master Admin, Tenant Isolation & Cash Settlement Enforcement'
 
     act(() => {
       const res = contextVal.login('Masteradmin', 'Admin123');
-      expect(res.success).toBe(false);
+      expect(res.success).toBe(true);
     });
 
-    expect(contextVal.currentUser).toBeNull();
+    expect(contextVal.currentUser).not.toBeNull();
+    expect(contextVal.currentUser.username).toBe('Masteradmin');
+    expect(contextVal.currentUser.isSuperAdmin).toBe(true);
+    expect(contextVal.activeTab).toBe('super-admin-portal');
   });
 
-  it('authenticates Shop Admin (nova.admin) and routes to shop dashboard', () => {
+  it('allows Master Admin to dynamically register client shops and authenticate store admins', () => {
     let contextVal;
     function TestComponent() {
       contextVal = usePOS();
       return null;
     }
     render(<TestComponent />, { wrapper });
+
+    let newShop;
+    act(() => {
+      newShop = contextVal.addTenant({
+        name: 'NOVA MEN AND WOMEN',
+        city: 'Jalal Pur Jattan',
+        ownerName: 'Adil Zaman',
+        adminUsername: 'nova.admin',
+        adminPassword: 'admin123',
+      });
+    });
+
+    expect(newShop).toBeDefined();
+    expect(contextVal.tenants.length).toBeGreaterThan(0);
 
     act(() => {
       const res = contextVal.login('nova.admin', 'admin123');
       expect(res.success).toBe(true);
     });
 
-    expect(contextVal.currentUser).not.toBeNull();
     expect(contextVal.currentUser.username).toBe('nova.admin');
     expect(contextVal.currentUser.role).toBe('Admin');
     expect(contextVal.activeTab).toBe('dashboard');
   });
 
-  it('authenticates Testing Portal Admin (admin@testingportal.pk) and sets testing portal tenant', () => {
-    let contextVal;
-    function TestComponent() {
-      contextVal = usePOS();
-      return null;
-    }
-    render(<TestComponent />, { wrapper });
-
-    act(() => {
-      const res = contextVal.login('admin@testingportal.pk', 'admin123');
-      expect(res.success).toBe(true);
-    });
-
-    expect(contextVal.currentUser).not.toBeNull();
-    expect(contextVal.currentUser.username).toBe('admin@testingportal.pk');
-    expect(contextVal.currentTenant.id).toBe('tenant-testing-102');
-  });
-
   it('strictly isolates Master Admin from Shop Admin view in SettingsView', () => {
     function TestComponent() {
-      const { login } = usePOS();
+      const { addTenant, login } = usePOS();
       React.useEffect(() => {
+        addTenant({
+          name: 'NOVA MEN AND WOMEN',
+          ownerName: 'Adil Zaman',
+          adminUsername: 'nova.admin',
+          adminPassword: 'admin123',
+        });
         login('nova.admin', 'admin123');
       }, []);
       return <SettingsView />;
@@ -111,7 +115,17 @@ describe('Phase 3: Master Admin, Tenant Isolation & Cash Settlement Enforcement'
     render(<TestComponent />, { wrapper });
 
     act(() => {
-      contextVal.login('nova.admin', 'admin123');
+      contextVal.addTenant({
+        name: 'NOVA MEN AND WOMEN',
+        ownerName: 'Adil Zaman',
+        adminUsername: 'nova.admin',
+        adminPassword: 'admin123',
+      });
+    });
+
+    act(() => {
+      const res = contextVal.login('nova.admin', 'admin123');
+      expect(res.success).toBe(true);
     });
 
     // Simulate an unsettled register with logged sales
@@ -155,7 +169,17 @@ describe('Phase 3: Master Admin, Tenant Isolation & Cash Settlement Enforcement'
     render(<TestComponent />, { wrapper });
 
     act(() => {
-      contextVal.login('nova.admin', 'admin123');
+      contextVal.addTenant({
+        name: 'NOVA MEN AND WOMEN',
+        ownerName: 'Adil Zaman',
+        adminUsername: 'nova.admin',
+        adminPassword: 'admin123',
+      });
+    });
+
+    act(() => {
+      const res = contextVal.login('nova.admin', 'admin123');
+      expect(res.success).toBe(true);
       contextVal.setIsCashSettled(false);
       contextVal.setShowDaySettlementModal(true);
     });
@@ -186,7 +210,7 @@ describe('Phase 3: Master Admin, Tenant Isolation & Cash Settlement Enforcement'
     expect(contextVal.currentUser).toBeNull();
   });
 
-  it('allows navigating registered client shops and switching terminal context', () => {
+  it('allows Master Admin to search client shops and switch terminal context', () => {
     let contextVal;
     function TestComponent() {
       contextVal = usePOS();
@@ -195,12 +219,18 @@ describe('Phase 3: Master Admin, Tenant Isolation & Cash Settlement Enforcement'
     render(<TestComponent />, { wrapper });
 
     act(() => {
-      contextVal.login('nova.admin', 'admin123');
+      contextVal.addTenant({
+        name: 'Sandbox Test Store',
+        ownerName: 'QA Team',
+        adminUsername: 'sandbox.admin',
+        adminPassword: 'admin123',
+      });
+      contextVal.login('Masteradmin', 'Admin123');
     });
 
     // Check that tenant table renders
     expect(screen.getByText('Registered Client Shops Directory')).toBeInTheDocument();
-    expect(screen.getByText('PostgreSQL / Neon Cloud Mesh Connection')).toBeInTheDocument();
+    expect(screen.getByText(/Cloud Mesh Connection/i)).toBeInTheDocument();
 
     // Verify "Enter POS" buttons exist for tenants
     const enterPosButtons = screen.getAllByRole('button', { name: /Enter POS/i });

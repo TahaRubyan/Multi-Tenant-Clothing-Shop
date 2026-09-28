@@ -1,11 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Dedicated TESSLO Clothing ERP Supabase Cloud Configuration
-const DEFAULT_SUPABASE_URL = 'https://hkfcgggenblephpcrmkp.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrZmNnZ2dlbmJsZXBocGNybWtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1MjI0ODIsImV4cCI6MjEwNjA5ODQ4Mn0.50Q7lxZ7Fzkpx3D5EB8YYkPdmzNVyUFAz1t_--tHmgc';
+// TESSLO Fashion Retail ERP Cloud Environments (Dev & Prod)
+export const TESSLO_ENVIRONMENTS = {
+  DEV: {
+    id: 'tesslo-dev',
+    name: 'TESSLO Dev (Sandbox)',
+    url: 'https://hkfcgggenblephpcrmkp.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrZmNnZ2dlbmJsZXBocGNybWtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1MjI0ODIsImV4cCI6MjEwNjA5ODQ4Mn0.50Q7lxZ7Fzkpx3D5EB8YYkPdmzNVyUFAz1t_--tHmgc',
+  },
+  PROD: {
+    id: 'tesslo-prod',
+    name: 'TESSLO Prod (Live Production Mesh)',
+    url: 'https://clnpagwuriteqhvyrupx.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbnBhZ3d1cml0ZXFodnlydXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MDYxMzMsImV4cCI6MjEwNjE4MjEzM30.egORoQSjbksZqIT7Tep19S9kWGOM6JDMx6Em7ndncqU',
+  },
+};
 
-const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || DEFAULT_SUPABASE_URL;
-const supabaseKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || DEFAULT_SUPABASE_KEY;
+const defaultEnv = TESSLO_ENVIRONMENTS.DEV;
+
+export const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || defaultEnv.url;
+export const supabaseKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || defaultEnv.anonKey;
+export const currentEnvironmentName = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ENV_NAME) ||
+  (supabaseUrl.includes('clnpagwuriteqhvyrupx') ? 'tesslo-prod' : 'tesslo-dev');
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -65,6 +81,15 @@ export async function flushOfflineQueue() {
       } else if (item.actionType === 'SETTLEMENT') {
         const { error } = await supabase.from('day_settlements').upsert([item.payload], { onConflict: 'id' });
         if (error) throw error;
+      } else if (item.actionType === 'TENANT') {
+        const { error } = await supabase.from('tenants').upsert([item.payload], { onConflict: 'id' });
+        if (error) throw error;
+      } else if (item.actionType === 'USER') {
+        const { error } = await supabase.from('users').upsert([item.payload], { onConflict: 'id' });
+        if (error) throw error;
+      } else if (item.actionType === 'DELETE_TENANT') {
+        const { error } = await supabase.from('tenants').delete().eq('id', item.payload.id);
+        if (error) throw error;
       }
       flushedCount++;
     } catch (err) {
@@ -78,12 +103,150 @@ export async function flushOfflineQueue() {
 }
 
 /**
+ * Sync Tenant registration / update to Supabase Cloud
+ */
+export async function syncTenantToCloud(tenantData) {
+  const row = {
+    id: tenantData.id,
+    name: tenantData.name,
+    tagline: tenantData.tagline || '',
+    city: tenantData.city || 'Pakistan',
+    address: tenantData.address || '',
+    phone: tenantData.phone || '',
+    shop_type: tenantData.shopType || 'mixed_garments',
+    owner_name: tenantData.ownerName || '',
+    modules: tenantData.modules || {},
+    status: tenantData.status || 'active',
+    created_at: tenantData.createdAt && !isNaN(new Date(tenantData.createdAt).getTime())
+      ? new Date(tenantData.createdAt).toISOString()
+      : new Date().toISOString(),
+  };
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    addToPendingQueue('TENANT', row);
+    return { success: true, offline: true };
+  }
+
+  try {
+    const { error } = await supabase.from('tenants').upsert([row], { onConflict: 'id' });
+    if (error) throw error;
+    return { success: true, offline: false };
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Tenant sync deferred, queuing locally:', err);
+    addToPendingQueue('TENANT', row);
+    return { success: true, offline: true };
+  }
+}
+
+/**
+ * Delete Tenant from Supabase Cloud
+ */
+export async function deleteTenantFromCloud(tenantId) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    addToPendingQueue('DELETE_TENANT', { id: tenantId });
+    return { success: true, offline: true };
+  }
+
+  try {
+    const { error } = await supabase.from('tenants').delete().eq('id', tenantId);
+    if (error) throw error;
+    return { success: true, offline: false };
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Tenant deletion deferred:', err);
+    addToPendingQueue('DELETE_TENANT', { id: tenantId });
+    return { success: true, offline: true };
+  }
+}
+
+/**
+ * Sync Staff User / Tenant Admin to Supabase Cloud
+ */
+export async function syncUserToCloud(userData) {
+  const row = {
+    id: userData.id || `u-${Date.now()}`,
+    username: userData.username,
+    password_hash: userData.password || userData.password_hash || 'Admin123',
+    full_name: userData.fullName || userData.full_name || userData.username,
+    role: userData.role || 'Admin',
+    tenant_ids: userData.tenantIds || userData.tenant_ids || [],
+    is_super_admin: Boolean(userData.isSuperAdmin || userData.is_super_admin),
+    created_at: new Date().toISOString(),
+  };
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    addToPendingQueue('USER', row);
+    return { success: true, offline: true };
+  }
+
+  try {
+    const { error } = await supabase.from('users').upsert([row], { onConflict: 'id' });
+    if (error) throw error;
+    return { success: true, offline: false };
+  } catch (err) {
+    console.warn('[TESSLO Cloud] User sync deferred, queuing locally:', err);
+    addToPendingQueue('USER', row);
+    return { success: true, offline: true };
+  }
+}
+
+/**
+ * Fetch all registered Tenants from Supabase Cloud
+ */
+export async function fetchTenantsFromCloud() {
+  try {
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      tagline: t.tagline || '',
+      city: t.city || 'Pakistan',
+      address: t.address || '',
+      phone: t.phone || '',
+      shopType: t.shop_type || 'mixed_garments',
+      ownerName: t.owner_name || '',
+      modules: t.modules || {},
+      status: t.status || 'active',
+      createdAt: t.created_at,
+    }));
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Could not fetch tenants from cloud:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch all Users from Supabase Cloud
+ */
+export async function fetchUsersFromCloud() {
+  try {
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) throw error;
+    return (data || []).map((u) => ({
+      id: u.id,
+      username: u.username,
+      password: u.password_hash,
+      fullName: u.full_name,
+      role: u.role,
+      tenantIds: u.tenant_ids || [],
+      isSuperAdmin: Boolean(u.is_super_admin),
+    }));
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Could not fetch users from cloud:', err);
+    return null;
+  }
+}
+
+/**
  * Save sale order with automatic offline fallback.
  */
 export async function syncSaleToCloud(saleData, tenantId) {
   const row = {
     id: saleData.id || `ord-${Date.now()}`,
-    tenant_id: tenantId || 'tenant-nova-101',
+    tenant_id: tenantId || 'tenant-default',
     receipt_number: saleData.receiptNumber,
     cashier_name: saleData.salesman || 'Cashier',
     payment_method: saleData.paymentMethod || 'Cash',
@@ -118,7 +281,7 @@ export async function syncSaleToCloud(saleData, tenantId) {
 export async function syncSettlementToCloud(settlementData, tenantId) {
   const row = {
     id: settlementData.id || `set-${Date.now()}`,
-    tenant_id: tenantId || 'tenant-nova-101',
+    tenant_id: tenantId || 'tenant-default',
     closed_at: settlementData.closedAt || new Date().toISOString(),
     total_sales: settlementData.totalSales || 0,
     total_cash: settlementData.totalCash || 0,
@@ -151,7 +314,7 @@ export async function syncSettlementToCloud(settlementData, tenantId) {
 export async function syncProductToCloud(product, tenantId) {
   const row = {
     id: product.id,
-    tenant_id: tenantId || product.tenantId || 'tenant-nova-101',
+    tenant_id: tenantId || product.tenantId || 'tenant-default',
     barcode: product.barcode || '',
     name: product.fabricMaterial || product.name || product.itemName || 'Garment Item',
     department: product.department || 'Gents Wear',

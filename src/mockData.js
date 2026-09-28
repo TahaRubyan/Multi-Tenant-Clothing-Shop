@@ -1,53 +1,7 @@
-// mockData.js - Comprehensive Pakistani Retail Dataset for Shop NOVA (NOVA MEN AND WOMEN)
+// mockData.js - TESSLO Multi-Tenant Fashion Retail ERP Platform
+// Clean slate initialization: Tenants are registered dynamically by Master Admin and stored in Supabase
 
-export const INITIAL_TENANTS = [
-  {
-    id: 'tenant-nova-101',
-    name: 'NOVA MEN AND WOMEN',
-    tagline: 'Exclusive Men & Women Ready-to-Wear, Suits & Accessories',
-    city: 'Jalal Pur Jattan, Gujrat',
-    address: 'Main Bazar, Jalal Pur Jattan, Gujrat, Pakistan',
-    phone: '+92 300 1234567',
-    shopType: 'mixed_garments',
-    ownerName: 'Adil Zaman',
-    modules: {
-      ladies_suits: true,
-      gents_suits: true,
-      cloth_meters: false, // Confirmed: Shop NOVA does not sell cloth in meters
-      ready_made_apparel: true,
-      unstitched_fabric: false, // Confirmed: Shop NOVA sells ready-to-wear, stitched & packaged suits
-      pin_protected_discounts: true,
-      vendor_ledger: true,
-      promotional_engine: true,
-      analytics: true,
-    },
-    status: 'active',
-    createdAt: '01-06-2026',
-  },
-  {
-    id: 'tenant-testing-102',
-    name: 'Testing Portal',
-    tagline: 'Ladies & Gents Retail Testing Sandbox & Verification Outlet',
-    city: 'Lahore, Pakistan',
-    address: 'Suite #4, Model Town Commercial Area, Lahore, Pakistan',
-    phone: '+92 321 8899001',
-    shopType: 'mixed_garments',
-    ownerName: 'QA & Testing Administrator',
-    modules: {
-      ladies_suits: true,
-      gents_suits: true,
-      cloth_meters: false,
-      ready_made_apparel: true,
-      unstitched_fabric: false,
-      pin_protected_discounts: true,
-      vendor_ledger: true,
-      promotional_engine: true,
-      analytics: true,
-    },
-    status: 'active',
-    createdAt: '2026-07-15',
-  },
-];
+export const INITIAL_TENANTS = [];
 
 export const INITIAL_PRODUCTS = [];
 
@@ -120,37 +74,15 @@ export const INITIAL_ROLES = [
 ];
 
 export const INITIAL_USERS = [
-  // 1. NOVA MEN AND WOMEN (Owner: Adil Zaman)
+  // Master Platform SaaS Administrator (Creates & oversees all store tenants)
   {
-    id: 'u-nova',
-    username: 'nova.admin',
-    password: 'admin123',
-    fullName: 'Adil Zaman',
-    role: 'Admin',
-    tenantIds: ['tenant-nova-101'],
-    isSuperAdmin: false,
-  },
-
-  // 2. TESTING PORTAL ADMIN
-  {
-    id: 'u-testing',
-    username: 'admin@testingportal.pk',
-    password: 'admin123',
-    fullName: 'Testing Portal Administrator',
-    role: 'Admin',
-    tenantIds: ['tenant-testing-102'],
-    isSuperAdmin: false,
-  },
-
-  // 3. FRONT-DESK CASHIER TERMINAL
-  {
-    id: 'u-cashier',
-    username: 'Cashier1',
-    password: '1234',
-    fullName: 'Front-Desk Terminal Cashier',
-    role: 'Salesman',
-    tenantIds: ['tenant-nova-101', 'tenant-testing-102'],
-    isSuperAdmin: false,
+    id: 'u-master-admin',
+    username: 'Masteradmin',
+    password: 'Admin123',
+    fullName: 'Master Platform Administrator',
+    role: 'Super Admin',
+    tenantIds: [],
+    isSuperAdmin: true,
   },
 ];
 

@@ -5,6 +5,8 @@ import {
   syncSaleToCloud,
   syncProductToCloud,
   syncSettlementToCloud,
+  syncTenantToCloud,
+  syncUserToCloud,
   flushOfflineQueue,
 } from '../../src/utils/supabaseClient';
 
@@ -79,5 +81,46 @@ describe('supabaseClient offline & online synchronization engine', () => {
     expect(queue.length).toBe(1);
     expect(queue[0].actionType).toBe('SETTLEMENT');
     expect(queue[0].payload.total_sales).toBe(45000);
+  });
+
+  it('queues offline tenant registration when network is unavailable', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+    const tenant = {
+      id: 'tenant-test-dyn-1',
+      name: 'Dynamic Test Store',
+      city: 'Islamabad',
+      ownerName: 'Test Owner',
+    };
+
+    const res = await syncTenantToCloud(tenant);
+    expect(res.success).toBe(true);
+    expect(res.offline).toBe(true);
+
+    const queue = getPendingQueue();
+    expect(queue.length).toBe(1);
+    expect(queue[0].actionType).toBe('TENANT');
+    expect(queue[0].payload.name).toBe('Dynamic Test Store');
+  });
+
+  it('queues offline staff user when network is unavailable', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+    const user = {
+      id: 'u-test-staff-1',
+      username: 'store.admin',
+      password: 'password123',
+      role: 'Admin',
+      tenantIds: ['tenant-test-dyn-1'],
+    };
+
+    const res = await syncUserToCloud(user);
+    expect(res.success).toBe(true);
+    expect(res.offline).toBe(true);
+
+    const queue = getPendingQueue();
+    expect(queue.length).toBe(1);
+    expect(queue[0].actionType).toBe('USER');
+    expect(queue[0].payload.username).toBe('store.admin');
   });
 });
