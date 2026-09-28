@@ -3785,11 +3785,11 @@
 .tbl-barcode-box,
 .tbl-barcode-svg-wrapper {
   width: 95%;
-  height: 36px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0.15rem auto;
+  margin: 0.1rem auto;
   overflow: hidden;
   background: #ffffff;
 }
@@ -3806,23 +3806,24 @@
 .tbl-item-code,
 .tbl-sku-code {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   color: #000000 !important;
-  line-height: 1;
+  line-height: 1.1;
+  margin: 0.1rem 0;
 }
 
 /* Line 6: Price */
 .tbl-price,
 .tbl-footer-price {
   font-family: var(--font-mono);
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   font-weight: 900;
   border-top: 2px solid #000000;
-  padding-top: 0.2rem;
+  padding-top: 0.15rem;
   color: #000000 !important;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   width: 100%;
   line-height: 1.2;
 }

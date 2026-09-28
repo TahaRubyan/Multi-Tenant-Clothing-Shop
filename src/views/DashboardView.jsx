@@ -54,44 +54,35 @@ export const DashboardView = () => {
   const formattedToday = `${da}-${mo}-${yr}`;
   const isoToday = now.toISOString().split('T')[0];
 
-  // Match today's sales or fall back to recent sales session for demo
-  const todaysSales = salesLogs.filter((s) => s.dateTime.startsWith(formattedToday) || s.dateTime.startsWith(isoToday));
-  const sessionSales = todaysSales.length > 0 ? todaysSales : salesLogs;
+  // Match today's sales strictly
+  const todaysSales = salesLogs.filter((s) => s.dateTime && (s.dateTime.startsWith(formattedToday) || s.dateTime.startsWith(isoToday)));
 
-  const totalOrders = sessionSales.length;
-  const todaysRevenue = sessionSales.reduce((acc, curr) => acc + curr.netTotal, 0);
-  const todaysCashSales = sessionSales
+  const totalOrders = todaysSales.length;
+  const todaysRevenue = todaysSales.reduce((acc, curr) => acc + (curr.netTotal || 0), 0);
+  const todaysCashSales = todaysSales
     .filter((s) => s.paymentMethod === 'Cash')
-    .reduce((acc, curr) => acc + curr.netTotal, 0);
-  const todaysDigitalSales = sessionSales
+    .reduce((acc, curr) => acc + (curr.netTotal || 0), 0);
+  const todaysDigitalSales = todaysSales
     .filter((s) => s.paymentMethod === 'Card' || s.paymentMethod === 'Mobile Banking')
-    .reduce((acc, curr) => acc + curr.netTotal, 0);
-  const totalGrossProfit = sessionSales.reduce((acc, curr) => acc + curr.grossProfit, 0);
+    .reduce((acc, curr) => acc + (curr.netTotal || 0), 0);
+  const totalGrossProfit = todaysSales.reduce((acc, curr) => acc + (curr.grossProfit || 0), 0);
 
   const lowStockProducts = products.filter((p) => p.stock <= p.reorderLimit);
 
-  const displayShopName = shopSettings?.shopName || currentTenant?.name || 'NOVA MEN AND WOMEN';
-  const displayShopLocation = shopSettings?.shopLocation || currentTenant?.address || currentTenant?.city || 'Main Bazar, Jalal Pur Jattan, Gujrat';
+  const displayShopName = shopSettings?.shopName || currentTenant?.name || 'TESSLO Fashion Retail';
+  const displayShopLocation = shopSettings?.shopLocation || currentTenant?.address || currentTenant?.city || 'Retail Store Location';
 
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
 
-  // Calculate Last 7 Days Performance for the 7-Day Revenue Bar Chart with natural retail ups and downs
+  // Calculate Last 7 Days Performance for the 7-Day Revenue Curve directly from salesLogs
   const last7DaysData = React.useMemo(() => {
     const days = [];
     const now = new Date();
-    // Typical weekly retail fluctuations for garment & boutique sales
-    // Sun: 1.18, Mon: 0.72, Tue: 0.60, Wed: 0.82, Thu: 0.94, Fri: 1.30, Sat: 1.48
-    const weeklyPatternMap = [1.18, 0.72, 0.60, 0.82, 0.94, 1.30, 1.48];
-
-    const totalHistoricalRev = salesLogs.reduce((sum, s) => sum + s.netTotal, 0) || 56000;
-    const baseDailyVolume = Math.round(totalHistoricalRev / 7);
 
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const dayName = d.toLocaleDateString([], { weekday: 'short' });
-      const dayOfWeek = d.getDay(); // 0-6
-      const patternFactor = weeklyPatternMap[dayOfWeek] || 1.0;
 
       const yr = d.getFullYear();
       const mo = String(d.getMonth() + 1).padStart(2, '0');
@@ -100,21 +91,16 @@ export const DashboardView = () => {
       const isoStr = d.toISOString().split('T')[0];
 
       const daySales = salesLogs.filter(
-        (s) => s.dateTime.startsWith(dateStr) || s.dateTime.startsWith(isoStr)
+        (s) => s.dateTime && (s.dateTime.startsWith(dateStr) || s.dateTime.startsWith(isoStr))
       );
-      const dayRevenueFromLogs = daySales.reduce((sum, s) => sum + s.netTotal, 0);
-
-      // Baseline variance gives realistic boutique ups and downs across the week
-      const syntheticBase = Math.round(baseDailyVolume * patternFactor);
-      const revenue = dayRevenueFromLogs > 0 ? dayRevenueFromLogs : syntheticBase;
-      const orderCount = daySales.length > 0 ? daySales.length : Math.max(1, Math.round(patternFactor * 3));
+      const dayRevenueFromLogs = daySales.reduce((sum, s) => sum + (s.netTotal || 0), 0);
 
       days.push({
         label: dayName,
         date: `${da}/${mo}`,
         fullDate: dateStr,
-        revenue,
-        orderCount,
+        revenue: dayRevenueFromLogs,
+        orderCount: daySales.length,
       });
     }
 
@@ -122,12 +108,11 @@ export const DashboardView = () => {
   }, [salesLogs]);
 
   const total7DayTurnover = last7DaysData.reduce((sum, d) => sum + d.revenue, 0);
-  const maxRevenueIn7Days = Math.max(...last7DaysData.map((d) => d.revenue), 10000);
-  const avg7DayRevenue = Math.round(total7DayTurnover / 7);
-  const peakDayObj = last7DaysData.reduce(
-    (max, d) => (d.revenue > max.revenue ? d : max),
-    last7DaysData[0] || { label: 'N/A', date: '', revenue: 0 }
-  );
+  const maxRevenueIn7Days = Math.max(...last7DaysData.map((d) => d.revenue), 0);
+  const avg7DayRevenue = total7DayTurnover > 0 ? Math.round(total7DayTurnover / 7) : 0;
+  const peakDayObj = total7DayTurnover > 0
+    ? last7DaysData.reduce((max, d) => (d.revenue > max.revenue ? d : max), last7DaysData[0])
+    : { label: 'None', date: '', revenue: 0 };
 
   // SVG Area Curve Coordinates (viewBox: 0 0 760 210)
   const svgWidth = 760;
@@ -377,8 +362,12 @@ export const DashboardView = () => {
               zIndex: 2,
             }}
           >
-            <span className="font-mono text-xxs text-muted">Rs. {Math.round(maxRevenueIn7Days / 1000)}k</span>
-            <span className="font-mono text-xxs text-muted">Rs. {Math.round(maxRevenueIn7Days / 2000)}k</span>
+            <span className="font-mono text-xxs text-muted">
+              Rs. {maxRevenueIn7Days > 0 ? (maxRevenueIn7Days >= 1000 ? `${Math.round(maxRevenueIn7Days / 1000)}k` : maxRevenueIn7Days) : '5k'}
+            </span>
+            <span className="font-mono text-xxs text-muted">
+              Rs. {maxRevenueIn7Days > 0 ? (maxRevenueIn7Days >= 2000 ? `${Math.round(maxRevenueIn7Days / 2000)}k` : Math.round(maxRevenueIn7Days / 2)) : '2.5k'}
+            </span>
             <span className="font-mono text-xxs text-muted">Rs. 0</span>
           </div>
 

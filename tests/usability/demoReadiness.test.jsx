@@ -37,6 +37,8 @@ describe('Usability & Demo Readiness Validation', () => {
     const masterAdmin = INITIAL_USERS.find(u => u.isSuperAdmin);
     expect(masterAdmin).toBeDefined();
     expect(masterAdmin.username).toBe('Masteradmin');
-    expect(masterAdmin.password).toBe('Admin123');
+    expect(masterAdmin.isSuperAdmin).toBe(true);
+    // Master admin credentials are not exposed as plaintext mock data
+    expect(masterAdmin.password).not.toBe('Admin123');
   });
 });

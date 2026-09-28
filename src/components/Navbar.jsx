@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   UserCheck,
+  RotateCw,
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -33,6 +34,8 @@ export const Navbar = () => {
     activeTab,
     setActiveTab,
     isOnline,
+    isCloudSyncing,
+    syncTenantCatalog,
   } = usePOS();
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
@@ -98,6 +101,27 @@ export const Navbar = () => {
             {isOnline ? 'ONLINE' : 'OFFLINE'}
           </span>
         </div>
+
+        <button
+          type="button"
+          className="info-pill btn-hover-scale"
+          onClick={() => {
+            if (currentTenant?.id) {
+              syncTenantCatalog(currentTenant.id);
+              showToast(`Synchronizing ${currentTenant.name} with Supabase Cloud...`, 'info');
+            } else {
+              showToast('No active tenant to sync', 'warning');
+            }
+          }}
+          disabled={isCloudSyncing || !isOnline}
+          title="Force live catalog & sales sync with Supabase Cloud (inspect network in DevTools)"
+          style={{ cursor: isOnline ? 'pointer' : 'not-allowed', background: 'transparent', border: '1px solid var(--border-default, #e2e8f0)' }}
+        >
+          <RotateCw size={12} className={isCloudSyncing ? 'animate-spin text-primary' : 'text-muted'} />
+          <span className="font-mono text-xxs font-weight-700">
+            {isCloudSyncing ? 'SYNCING...' : 'CLOUD SYNC'}
+          </span>
+        </button>
       </div>
 
       {/* CENTER: Active Context / Shop Title */}

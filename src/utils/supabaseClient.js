@@ -347,3 +347,84 @@ export async function syncProductToCloud(product, tenantId) {
     return { success: true, offline: true };
   }
 }
+
+export function mapCloudProductToLocal(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    barcode: row.barcode,
+    fabricMaterial: row.name || row.fabric,
+    name: row.name,
+    department: row.department,
+    fabricType: row.category,
+    apparelCategory: row.category,
+    fabricFit: row.fit,
+    fabricSize: row.size,
+    fabricColor: row.color,
+    wholesalePrice: row.cost_price,
+    retailPrice: row.retail_price,
+    stock: row.stock_qty,
+    reorderLimit: row.min_stock_alert,
+    vendor: row.vendor_name,
+    rackLocation: row.rack_location,
+    isActive: row.is_active,
+  };
+}
+
+export function mapCloudSaleToLocal(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    receiptNumber: row.receipt_number,
+    salesman: row.cashier_name,
+    paymentMethod: row.payment_method,
+    subtotal: row.gross_total,
+    storewideDiscount: row.discount_amount,
+    wholeSaleDiscount: 0,
+    netTotal: row.net_total,
+    amountReceived: row.amount_received,
+    changeReturned: row.change_returned,
+    items: row.items || [],
+    dateTime: row.created_at ? new Date(row.created_at).toLocaleString() : new Date().toLocaleString(),
+    grossProfit: (row.net_total || 0) - (row.items || []).reduce((sum, item) => sum + ((item.costPrice || 0) * (item.quantity || 1)), 0),
+  };
+}
+
+/**
+ * Fetch all Products for a specific tenant from Supabase Cloud
+ */
+export async function fetchProductsFromCloud(tenantId) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return null;
+  try {
+    let query = supabase.from('products').select('*');
+    if (tenantId) {
+      query = query.eq('tenant_id', tenantId);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(mapCloudProductToLocal);
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Could not fetch products from cloud:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch all Sales Orders for a specific tenant from Supabase Cloud
+ */
+export async function fetchSalesFromCloud(tenantId) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return null;
+  try {
+    let query = supabase.from('sales_orders').select('*').order('created_at', { ascending: false });
+    if (tenantId) {
+      query = query.eq('tenant_id', tenantId);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(mapCloudSaleToLocal);
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Could not fetch sales from cloud:', err);
+    return null;
+  }
+}
+

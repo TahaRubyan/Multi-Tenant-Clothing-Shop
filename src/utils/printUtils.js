@@ -855,15 +855,15 @@ ${orientationCmd}
 ^MD22
 ^PR3
 ^PW384
-^LL230
+^LL240
 ^LH0,0
-^FO10,8^FB364,1,0,C^A0N,22,22^FD${shopName}^FS
-^FO10,32^FB364,1,0,C^A0N,20,20^FD${itemNameWithColor}^FS
-^FO10,54^FB364,1,0,C^A0N,18,18^FD${clothType}^FS
-^FO20,74^BY2,3,40^BCN,40,N,N,N^FD${itemCode}^FS
-^FO10,120^FB364,1,0,C^A0N,19,19^FD${itemCode}^FS
-^FO10,142^GB364,2,2^FS
-^FO10,148^FB364,1,0,C^A0N,26,26^FDPRICE: Rs. ${price}^FS
+^FO10,8^FB364,1,0,C^A0N,20,20^FD${shopName}^FS
+^FO10,30^FB364,1,0,C^A0N,18,18^FD${itemNameWithColor}^FS
+^FO10,50^FB364,1,0,C^A0N,16,16^FD${clothType}^FS
+^FO20,68^BY2,3,32^BCN,32,N,N,N^FD${itemCode}^FS
+^FO10,104^FB364,1,0,C^A0N,20,20^FD${itemCode}^FS
+^FO15,126^GB354,2,2^FS
+^FO10,132^FB364,1,0,C^A0N,26,26^FDPRICE: Rs. ${price}^FS
 ^PQ${printQty}
 ^XZ`;
 }
@@ -918,13 +918,13 @@ export function generateEplLabel(product, shopSettings = {}, count = 1, options 
     'q384',
     'Q240,24',
     'ZT',
-    `A${xShop},10,${rot},3,1,1,N,"${shopName.replace(/"/g, "'")}"`,
-    `A${xName},36,${rot},2,1,1,N,"${itemNameWithColor.replace(/"/g, "'")}"`,
-    `A${xType},60,${rot},2,1,1,N,"${clothType.replace(/"/g, "'")}"`,
-    `B${xBarcode},84,${rot},1,${narrowBar},${narrowBar * 2},42,N,"${itemCode.replace(/"/g, '')}"`,
-    `A${xCode},132,${rot},3,1,1,N,"${itemCode.replace(/"/g, "'")}"`,
-    'LO15,158,354,2',
-    `A${xPrice},168,${rot},4,1,1,N,"${priceStr.replace(/"/g, "'")}"`,
+    `A${xShop},8,${rot},2,1,1,N,"${shopName.replace(/"/g, "'")}"`,
+    `A${xName},30,${rot},2,1,1,N,"${itemNameWithColor.replace(/"/g, "'")}"`,
+    `A${xType},50,${rot},1,1,1,N,"${clothType.replace(/"/g, "'")}"`,
+    `B${xBarcode},68,${rot},1,${narrowBar},${narrowBar * 2},32,N,"${itemCode.replace(/"/g, '')}"`,
+    `A${xCode},104,${rot},3,1,1,N,"${itemCode.replace(/"/g, "'")}"`,
+    'LO15,128,354,2',
+    `A${xPrice},134,${rot},3,1,1,N,"${priceStr.replace(/"/g, "'")}"`,
     `P${printQty}`,
     ''
   ].join('\n');
@@ -975,7 +975,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
 
   // Line 4: barcode & Line 5: item code
   const itemCode = String(product.barcode || product.sku || '000000000000').trim();
-  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 38, moduleWidth: 2 });
+  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 28, moduleWidth: 2 });
 
   // Line 6: price
   const price = (product.retailPrice || 0).toLocaleString();
@@ -1030,16 +1030,18 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
         color: #000000 !important;
       }
       .sticker-label {
-        width: ${isYAxis ? '26.5mm' : '48mm'} !important;
-        height: ${isYAxis ? '48mm' : '26.5mm'} !important;
-        max-width: ${isYAxis ? '26.5mm' : '48mm'} !important;
-        max-height: ${isYAxis ? '48mm' : '26.5mm'} !important;
+        width: ${isYAxis ? '27mm' : '48mm'} !important;
+        height: ${isYAxis ? '48mm' : '27.5mm'} !important;
+        max-width: ${isYAxis ? '27mm' : '48mm'} !important;
+        max-height: ${isYAxis ? '48mm' : '27.5mm'} !important;
         margin: 0 auto !important;
+        padding: 0.4mm 1mm !important;
         box-sizing: border-box !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         page-break-after: always !important;
         break-after: page !important;
+        overflow: visible !important;
         ${isRotated90 ? 'transform: rotate(90deg); transform-origin: center center;' : ''}
       }
       .sticker-label:last-child {
@@ -1068,11 +1070,11 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       shape-rendering: crispEdges !important;
     }
     .sticker-label {
-      width: ${isYAxis ? '26.5mm' : '48mm'};
-      height: ${isYAxis ? '48mm' : '26.5mm'};
-      max-width: ${isYAxis ? '26.5mm' : '48mm'};
-      max-height: ${isYAxis ? '48mm' : '26.5mm'};
-      padding: 0.8mm 1.2mm;
+      width: ${isYAxis ? '27mm' : '48mm'};
+      height: ${isYAxis ? '48mm' : '27.5mm'};
+      max-width: ${isYAxis ? '27mm' : '48mm'};
+      max-height: ${isYAxis ? '48mm' : '27.5mm'};
+      padding: 0.4mm 1mm;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -1084,7 +1086,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       break-inside: avoid;
       page-break-after: always;
       break-after: page;
-      overflow: hidden;
+      overflow: visible;
       border: 1px solid #000000;
       ${isRotated90 ? 'transform: rotate(90deg); transform-origin: center center;' : ''}
     }
@@ -1093,10 +1095,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       break-after: avoid !important;
     }
     .lbl-shop-name {
-      font-size: 8px;
+      font-size: 8.5px;
       font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1127,11 +1129,13 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       width: 100%;
       color: #000000 !important;
       line-height: 1;
+      margin-top: 1px;
     }
     .lbl-barcode-box {
       width: 96%;
-      height: 9.5mm;
-      min-height: 9.5mm;
+      height: 7.5mm;
+      min-height: 7.5mm;
+      max-height: 7.5mm;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1149,21 +1153,24 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     }
     .lbl-item-code {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 8.5px;
+      font-size: 9px;
       font-weight: 900;
-      letter-spacing: 2px;
+      letter-spacing: 1.5px;
       color: #000000 !important;
-      line-height: 1;
+      line-height: 1.1;
+      margin: 1px 0;
+      overflow: visible;
     }
     .lbl-price {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 900;
       border-top: 1.5px solid #000000;
       width: 100%;
       padding-top: 1px;
       letter-spacing: 0.5px;
       color: #000000 !important;
-      line-height: 1.1;
+      line-height: 1.15;
+      overflow: visible;
     }
   </style>
 </head>

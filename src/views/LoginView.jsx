@@ -14,7 +14,15 @@ export const LoginView = () => {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const currentShopName = shopSettings?.shopName || currentTenant?.name || 'TESSLO Fashion Retail';
+  const savedShopName = typeof localStorage !== 'undefined'
+    ? localStorage.getItem('pos_last_active_shop_name')
+    : null;
+
+  const isFirstVisit = !savedShopName;
+  const currentShopName = savedShopName || (currentTenant ? currentTenant.name : 'TESSLO Fashion Retail ERP');
+  const loginSubtitle = isFirstVisit
+    ? 'Cloud Multi-Tenant Garment & Apparel Management System'
+    : 'Fashion Retail POS Terminal & Inventory Management';
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -49,11 +57,11 @@ export const LoginView = () => {
                 letterSpacing: '0.08em',
               }}
             >
-              TESSLO
+              TESSLO {isFirstVisit ? 'PLATFORM' : 'STORE POS'}
             </span>
           </div>
           <h2 className="login-brand-title">{currentShopName}</h2>
-          <p className="login-subtitle">Fashion Retail ERP &amp; Cloud Multi-Tenant POS Terminal</p>
+          <p className="login-subtitle">{loginSubtitle}</p>
         </div>
 
         {/* Credentials Form */}

@@ -28,6 +28,9 @@ import {
   Search,
   Activity,
   Wifi,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export const SuperAdminPortalView = () => {
@@ -42,11 +45,22 @@ export const SuperAdminPortalView = () => {
     currentTenant,
     allProducts = [],
     allSalesLogs = [],
+    users = [],
+    currentUser,
+    resetUserPassword,
   } = usePOS();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'suspended'
+
+  // Master & Staff Password Reset State
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [resetTargetUserId, setResetTargetUserId] = useState('');
+  const [newPasswordVal, setNewPasswordVal] = useState('');
+  const [confirmPasswordVal, setConfirmPasswordVal] = useState('');
+  const [showPlainPassword, setShowPlainPassword] = useState(false);
+  const [isResettingPass, setIsResettingPass] = useState(false);
 
   // New Tenant Form State
   const [shopName, setShopName] = useState('');
@@ -57,7 +71,7 @@ export const SuperAdminPortalView = () => {
   const [address, setAddress] = useState('');
   const [shopType, setShopType] = useState('mixed_garments');
   const [adminUsername, setAdminUsername] = useState('');
-  const [adminPassword, setAdminPassword] = useState('Admin123');
+  const [adminPassword, setAdminPassword] = useState('');
 
   // Modular Capability Checkboxes
   const [modules, setModules] = useState({
@@ -161,7 +175,50 @@ export const SuperAdminPortalView = () => {
     setPhone('');
     setAddress('');
     setAdminUsername('');
-    setAdminPassword('Admin123');
+    setAdminPassword('');
+  };
+
+  const handleOpenPasswordReset = (userId = '') => {
+    const masterUser = (users || []).find(u => u.isSuperAdmin || (u.username || '').toLowerCase() === 'masteradmin');
+    const defaultId = userId || currentUser?.id || masterUser?.id || 'u-master-admin';
+    setResetTargetUserId(defaultId);
+    setNewPasswordVal('');
+    setConfirmPasswordVal('');
+    setShowPlainPassword(false);
+    setShowPasswordResetModal(true);
+  };
+
+  const handlePasswordResetSubmit = async (e) => {
+    e.preventDefault();
+    if (!newPasswordVal) {
+      showToast('Please enter a new password', 'warning');
+      return;
+    }
+    if (newPasswordVal.length < 6) {
+      showToast('Password must be at least 6 characters long', 'warning');
+      return;
+    }
+    if (newPasswordVal !== confirmPasswordVal) {
+      showToast('Passwords do not match', 'danger');
+      return;
+    }
+
+    setIsResettingPass(true);
+    try {
+      const res = await resetUserPassword(resetTargetUserId, newPasswordVal);
+      if (res && res.success) {
+        showToast(`Password for ${res.user.username} successfully updated and synced to Supabase Cloud!`, 'success');
+        setShowPasswordResetModal(false);
+        setNewPasswordVal('');
+        setConfirmPasswordVal('');
+      } else {
+        showToast(res?.message || 'Failed to update password', 'danger');
+      }
+    } catch (err) {
+      showToast('Error syncing password to cloud', 'danger');
+    } finally {
+      setIsResettingPass(false);
+    }
   };
 
   const filteredTenants = (tenants || []).filter((t) => {
@@ -196,6 +253,14 @@ export const SuperAdminPortalView = () => {
           </p>
         </div>
         <div className="flex-align-center gap-2">
+          <button
+            type="button"
+            className="btn btn-outline-primary flex-align-center gap-1"
+            onClick={() => handleOpenPasswordReset()}
+            title="Reset Master Platform Admin or Client Admin Password"
+          >
+            <KeyRound size={15} /> Reset Password
+          </button>
           <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
             <Plus size={16} /> Onboard New Client Shop
           </button>
@@ -736,6 +801,130 @@ export const SuperAdminPortalView = () => {
                 </button>
                 <button type="submit" className="btn btn-primary btn-lg">
                   <CheckCircle2 size={16} /> Create &amp; Launch Shop Tenant
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PASSWORD RESET MODAL WITH EYE INSPECT */}
+      {showPasswordResetModal && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-md glass-card">
+            <div className="modal-header">
+              <div className="modal-title">
+                <KeyRound size={22} className="text-primary" />
+                <div>
+                  <h3 className="mb-0">Reset Account Password</h3>
+                  <small className="text-muted">Master Platform Admin &amp; Store Admin Access Key</small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowPasswordResetModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordResetSubmit} className="modal-body">
+              <div className="form-group mb-3">
+                <label className="form-label font-weight-700">Select Target User Account *</label>
+                <select
+                  className="form-select font-mono"
+                  value={resetTargetUserId}
+                  onChange={(e) => setResetTargetUserId(e.target.value)}
+                  required
+                >
+                  <option value="u-master-admin">Master Platform Administrator (Masteradmin)</option>
+                  {(users || [])
+                    .filter((u) => u.id !== 'u-master-admin' && (u.username || '').toLowerCase() !== 'masteradmin')
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.fullName || u.username} ({u.username} • {u.role})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="form-group mb-3">
+                <label className="form-label font-weight-700">New Secure Password *</label>
+                <div className="input-with-icon" style={{ position: 'relative' }}>
+                  <Lock size={16} className="input-icon" />
+                  <input
+                    type={showPlainPassword ? 'text' : 'password'}
+                    className="form-input font-mono"
+                    placeholder="Enter at least 6 characters"
+                    value={newPasswordVal}
+                    onChange={(e) => setNewPasswordVal(e.target.value)}
+                    required
+                    minLength={6}
+                    style={{ paddingRight: '40px' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-icon"
+                    onClick={() => setShowPlainPassword(!showPlainPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '6px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-muted, #64748b)',
+                      cursor: 'pointer',
+                      padding: '4px',
+                    }}
+                    title={showPlainPassword ? 'Hide password' : 'Inspect password'}
+                  >
+                    {showPlainPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <small className="text-muted text-xxs mt-1 block">
+                  Click the eye icon to view and verify plaintext characters before saving.
+                </small>
+              </div>
+
+              <div className="form-group mb-4">
+                <label className="form-label font-weight-700">Confirm New Password *</label>
+                <div className="input-with-icon" style={{ position: 'relative' }}>
+                  <Lock size={16} className="input-icon" />
+                  <input
+                    type={showPlainPassword ? 'text' : 'password'}
+                    className="form-input font-mono"
+                    placeholder="Re-type new password"
+                    value={confirmPasswordVal}
+                    onChange={(e) => setConfirmPasswordVal(e.target.value)}
+                    required
+                    minLength={6}
+                    style={{ paddingRight: '40px' }}
+                  />
+                </div>
+                {confirmPasswordVal && newPasswordVal !== confirmPasswordVal && (
+                  <span className="text-danger text-xxs font-weight-600 mt-1 block">
+                    Passwords do not match
+                  </span>
+                )}
+              </div>
+
+              <div className="modal-actions flex-between pt-2">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowPasswordResetModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary flex-align-center gap-1"
+                  disabled={isResettingPass || !newPasswordVal || newPasswordVal !== confirmPasswordVal}
+                >
+                  <KeyRound size={15} />
+                  {isResettingPass ? 'Saving & Syncing...' : 'Save & Sync Password'}
                 </button>
               </div>
             </form>

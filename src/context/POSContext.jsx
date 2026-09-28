@@ -13,6 +13,8 @@ import {
   syncUserToCloud,
   fetchTenantsFromCloud,
   fetchUsersFromCloud,
+  fetchProductsFromCloud,
+  fetchSalesFromCloud,
   flushOfflineQueue,
 } from '../utils/supabaseClient';
 import {
@@ -165,6 +167,43 @@ export const POSProvider = ({ children }) => {
 
   // Online / Offline Status & Cloud Auto-Sync
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+
+  const syncTenantCatalog = async (tenantId) => {
+    const targetId = tenantId || currentTenant?.id;
+    if (!targetId || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
+    setIsCloudSyncing(true);
+    try {
+      const [cloudProducts, cloudSales] = await Promise.all([
+        fetchProductsFromCloud(targetId),
+        fetchSalesFromCloud(targetId),
+      ]);
+      if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+        setAllProducts(prev => {
+          const others = prev.filter(p => p.tenantId && p.tenantId !== targetId);
+          return [...others, ...cloudProducts];
+        });
+      }
+      if (Array.isArray(cloudSales) && cloudSales.length > 0) {
+        setAllSalesLogs(prev => {
+          const others = prev.filter(s => s.tenantId && s.tenantId !== targetId);
+          return [...others, ...cloudSales];
+        });
+      }
+      setLastSyncTime(new Date());
+    } catch (err) {
+      console.warn('[TESSLO Cloud Sync] Error syncing tenant catalog:', err);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentTenant?.id) {
+      syncTenantCatalog(currentTenant.id);
+    }
+  }, [currentTenant?.id]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -175,6 +214,9 @@ export const POSProvider = ({ children }) => {
           showToast(`Synchronized ${flushed} offline records to TESSLO cloud!`, 'success');
         }
       }).catch(() => {});
+      if (currentTenant?.id) {
+        syncTenantCatalog(currentTenant.id);
+      }
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -373,14 +415,6 @@ export const POSProvider = ({ children }) => {
     showToast('Deleted product template', 'info');
   };
 
-  // Staff Password Reset
-  const resetUserPassword = (userId, newPassword) => {
-    setUsers(prev =>
-      prev.map(u => (u.id === userId ? { ...u, password: newPassword } : u))
-    );
-    showToast('Password updated successfully', 'success');
-  };
-
   // Day-End Cash Register Settlement
   const recordDaySettlement = (settlementData) => {
     const now = new Date();
@@ -550,18 +584,20 @@ export const POSProvider = ({ children }) => {
       } catch (_) {}
     }
 
-    // 3. Resilient fallback to INITIAL_USERS if state had stale persisted data
-    if (!user) {
-      user = INITIAL_USERS.find(
-        u => (u.username || '').trim().toLowerCase() === cleanUser &&
-             ((u.password || '').trim() === cleanPass || (u.password || '').trim().toLowerCase() === cleanPass.toLowerCase())
-      );
-      if (user) {
-        setUsers(prev => {
-          const list = Array.isArray(prev) ? prev : [];
-          const exists = list.some(u => (u.username || '').trim().toLowerCase() === cleanUser);
-          return exists ? list.map(u => (u.username || '').trim().toLowerCase() === cleanUser ? user : u) : [...list, user];
-        });
+    // 3. Resilient fallback for master admin if not in state yet
+    if (!user && cleanUser === 'masteradmin') {
+      const defaultPass = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_MASTER_ADMIN_PASSWORD) || 'Admin123';
+      if (cleanPass === defaultPass) {
+        user = {
+          id: 'u-master-admin',
+          username: 'Masteradmin',
+          password: cleanPass,
+          fullName: 'Master Platform Administrator',
+          role: 'Super Admin',
+          tenantIds: [],
+          isSuperAdmin: true,
+        };
+        setUsers(prev => [user, ...(Array.isArray(prev) ? prev : [])]);
       }
     }
 
@@ -575,10 +611,20 @@ export const POSProvider = ({ children }) => {
 
       // Check user tenant assignments
       const userTenants = (tenants || []).filter(t => user.tenantIds && user.tenantIds.includes(t.id));
+      let assignedTenant = null;
       if (userTenants.length > 0) {
-        setCurrentTenant(userTenants[0]);
+        assignedTenant = userTenants[0];
       } else if (tenants && tenants.length > 0) {
-        setCurrentTenant(tenants[0]);
+        assignedTenant = tenants[0];
+      }
+
+      if (assignedTenant) {
+        setCurrentTenant(assignedTenant);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('pos_currentTenant', JSON.stringify(assignedTenant));
+          localStorage.setItem('pos_last_active_shop_name', assignedTenant.name);
+        }
+        syncTenantCatalog(assignedTenant.id);
       }
 
       setActiveTab('dashboard');
@@ -639,13 +685,18 @@ export const POSProvider = ({ children }) => {
       setCurrentTenant(target);
       setShowShopSwitcher(false);
       clearCart();
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('pos_currentTenant', JSON.stringify(target));
+        localStorage.setItem('pos_last_active_shop_name', target.name);
+      }
       showToast(`Switched terminal context to: ${target.name}`, 'info');
+      syncTenantCatalog(target.id);
     }
   };
 
   // Super Admin Tenant Operations
   const addTenant = (tenantData) => {
-    const newId = `tenant-${Date.now()}`;
+    const newId = `tenant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const newTenant = {
       id: newId,
       name: tenantData.name,
@@ -683,7 +734,7 @@ export const POSProvider = ({ children }) => {
     // Create Initial Admin User for this new tenant
     if (tenantData.adminUsername && tenantData.adminPassword) {
       const newAdmin = {
-        id: `u-${Date.now()}`,
+        id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         username: tenantData.adminUsername,
         password: tenantData.adminPassword,
         fullName: tenantData.ownerName || `${tenantData.name} Admin`,
@@ -705,6 +756,54 @@ export const POSProvider = ({ children }) => {
     }
 
     return newTenant;
+  };
+
+  const resetUserPassword = async (userId, newPassword) => {
+    const cleanPass = (newPassword || '').trim();
+    if (!cleanPass) return { success: false, message: 'Password cannot be empty' };
+
+    let targetUser = null;
+    const currentUsersList = Array.isArray(users) ? [...users] : [];
+    const updatedUsers = currentUsersList.map(u => {
+      if (u.id === userId || (u.username || '').toLowerCase() === (userId || '').toLowerCase()) {
+        targetUser = { ...u, password: cleanPass };
+        return targetUser;
+      }
+      return u;
+    });
+
+    if (!targetUser) {
+      if (userId === 'u-master-admin' || (userId || '').toLowerCase() === 'masteradmin') {
+        targetUser = {
+          id: 'u-master-admin',
+          username: 'Masteradmin',
+          password: cleanPass,
+          fullName: 'Master Platform Administrator',
+          role: 'Super Admin',
+          tenantIds: [],
+          isSuperAdmin: true,
+        };
+        updatedUsers.push(targetUser);
+      } else {
+        return { success: false, message: 'User account not found' };
+      }
+    }
+
+    setUsers(updatedUsers);
+    try {
+      localStorage.setItem('pos_users', JSON.stringify(updatedUsers));
+    } catch (_) {}
+
+    if (currentUser && (currentUser.id === targetUser.id || currentUser.username.toLowerCase() === targetUser.username.toLowerCase())) {
+      setCurrentUser(targetUser);
+    }
+
+    // Sync to Supabase Cloud
+    await syncUserToCloud(targetUser).catch(err => {
+      console.warn('[TESSLO Cloud] User password sync deferred:', err);
+    });
+
+    return { success: true, user: targetUser };
   };
 
   const toggleTenantStatus = (tenantId) => {
@@ -1599,6 +1698,9 @@ export const POSProvider = ({ children }) => {
         availablePrinters,
         refreshPrinters,
         isOnline,
+        isCloudSyncing,
+        lastSyncTime,
+        syncTenantCatalog,
       }}
     >
       {children}

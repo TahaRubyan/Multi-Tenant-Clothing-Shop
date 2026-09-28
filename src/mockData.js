@@ -74,11 +74,11 @@ export const INITIAL_ROLES = [
 ];
 
 export const INITIAL_USERS = [
-  // Master Platform SaaS Administrator (Creates & oversees all store tenants)
+  // Master Platform SaaS Administrator (Credentials managed dynamically via Supabase Cloud users table / Auth)
   {
     id: 'u-master-admin',
     username: 'Masteradmin',
-    password: 'Admin123',
+    password: '',
     fullName: 'Master Platform Administrator',
     role: 'Super Admin',
     tenantIds: [],

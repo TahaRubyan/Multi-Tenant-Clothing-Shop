@@ -31,7 +31,7 @@ export default function BarcodeLabelPreview({
   const formattedPrice = (parseFloat(price) || 0).toLocaleString();
 
   const barcodeSvgHtml = useMemo(() => {
-    return generateBarcodeSvg(cleanBarcode, { height: 38, moduleWidth: 2 });
+    return generateBarcodeSvg(cleanBarcode, { height: 28, moduleWidth: 2 });
   }, [cleanBarcode]);
 
   return (

@@ -181,7 +181,7 @@ describe('Print Utilities Unit Tests', () => {
       // 5. Item code
       expect(epl).toContain('"890123456789"');
       // Divider
-      expect(epl).toContain('LO15,158,354,2');
+      expect(epl).toContain('LO15,128,354,2');
       // 6. Price
       expect(epl).toContain('"PRICE: Rs. 8,500"');
       // Label print count
