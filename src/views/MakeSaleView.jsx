@@ -40,6 +40,7 @@ export const MakeSaleView = () => {
     addToCart,
     updateCartQty,
     toggleCartReturn,
+    setItemDiscount,
     setItemDiscountPercent,
     removeFromCart,
     clearCart,
@@ -166,11 +167,15 @@ export const MakeSaleView = () => {
   }, [selectedIndex]);
 
   // Stealth PIN: Request PIN for item discount or bill discount if not unlocked
-  const handleItemDiscountChange = (cartItemId, val, isReturn = false) => {
+  const handleItemDiscountChange = (cartItemId, val, isReturn = false, mode = 'percent') => {
+    if (val === '' || val === 0 || val === '0') {
+      setItemDiscount(cartItemId, mode, 0, isReturn);
+      return;
+    }
     if (isDiscountPinUnlocked) {
-      setItemDiscountPercent(cartItemId, val, isReturn);
+      setItemDiscount(cartItemId, mode, val, isReturn);
     } else {
-      setPendingDiscountAction({ type: 'item', cartItemId, val, isReturn });
+      setPendingDiscountAction({ type: 'item', cartItemId, val, isReturn, mode });
       setEnteredPin('');
       setPinError('');
       setShowPinPromptModal(true);
@@ -202,9 +207,11 @@ export const MakeSaleView = () => {
         const defaultVal = targetMode === 'rupees' ? '100' : '10';
         setWholeSaleDiscount(targetMode, pendingDiscountAction.val || defaultVal);
       } else if (pendingDiscountAction?.type === 'item') {
-        setItemDiscountPercent(
+        const itemMode = pendingDiscountAction.mode || 'percent';
+        setItemDiscount(
           pendingDiscountAction.cartItemId,
-          pendingDiscountAction.val || '10',
+          itemMode,
+          pendingDiscountAction.val || (itemMode === 'rupees' ? '50' : '10'),
           pendingDiscountAction.isReturn
         );
       }
@@ -664,7 +671,7 @@ export const MakeSaleView = () => {
                     <th style={{ width: '135px' }}>Barcode / SKU</th>
                     <th style={{ width: '95px' }}>Rate</th>
                     <th style={{ width: '105px' }} className="text-center">Qty</th>
-                    <th style={{ width: '75px' }} className="text-center">Disc%</th>
+                    <th style={{ width: '130px' }} className="text-center">Discount</th>
                     <th style={{ width: '75px' }} className="text-center">Mode</th>
                     <th style={{ width: '110px' }} className="text-right">Line Total</th>
                     <th style={{ width: '36px' }} className="text-center"></th>
@@ -729,18 +736,69 @@ export const MakeSaleView = () => {
                           </div>
                         </td>
                         <td className="text-center">
-                          <div className="item-disc-compact">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={item.itemDiscountPercent || ''}
-                              onChange={(e) => handleItemDiscountChange(item.cartItemId, e.target.value, item.isReturn)}
-                              placeholder="0"
-                              disabled={item.isReturn}
-                              className="disc-input-compact font-mono"
-                            />
-                            <span className="disc-pct-lbl">%</span>
+                          <div className="item-disc-widget">
+                            <div className="item-disc-mode-btns">
+                              <button
+                                type="button"
+                                className={`item-disc-mode-btn ${(item.itemDiscountMode || 'percent') === 'percent' ? 'active' : ''}`}
+                                onClick={() => {
+                                  if ((item.itemDiscountMode || 'percent') !== 'percent') {
+                                    handleItemDiscountChange(item.cartItemId, item.itemDiscountPercent || '', item.isReturn, 'percent');
+                                  }
+                                }}
+                                disabled={item.isReturn}
+                                title="Discount by Percentage (%)"
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`item-disc-mode-btn ${item.itemDiscountMode === 'rupees' ? 'active' : ''}`}
+                                onClick={() => {
+                                  if (item.itemDiscountMode !== 'rupees') {
+                                    handleItemDiscountChange(item.cartItemId, item.itemDiscount || '', item.isReturn, 'rupees');
+                                  }
+                                }}
+                                disabled={item.isReturn}
+                                title="Discount by Flat Rupees (Rs.)"
+                              >
+                                Rs
+                              </button>
+                            </div>
+                            <div className="item-disc-input-wrap">
+                              <input
+                                type="number"
+                                min="0"
+                                max={(item.itemDiscountMode || 'percent') === 'rupees' ? lineGross : 100}
+                                value={
+                                  (item.itemDiscountMode || 'percent') === 'rupees'
+                                    ? (item.itemDiscountAmount !== undefined && item.itemDiscountAmount !== null ? item.itemDiscountAmount : (item.itemDiscount || ''))
+                                    : (item.itemDiscountPercent !== undefined && item.itemDiscountPercent !== null ? item.itemDiscountPercent : '')
+                                }
+                                onChange={(e) =>
+                                  handleItemDiscountChange(
+                                    item.cartItemId,
+                                    e.target.value,
+                                    item.isReturn,
+                                    item.itemDiscountMode || 'percent'
+                                  )
+                                }
+                                placeholder="0"
+                                disabled={item.isReturn}
+                                className="disc-input-compact font-mono"
+                                aria-label="Item Discount"
+                              />
+                              <span className="disc-pct-lbl">
+                                {(item.itemDiscountMode || 'percent') === 'rupees' ? 'Rs' : '%'}
+                              </span>
+                            </div>
+                            {item.itemDiscount > 0 && (
+                              <div className="item-disc-subtext font-mono">
+                                {(item.itemDiscountMode || 'percent') === 'rupees'
+                                  ? `(${item.itemDiscountPercent}% off)`
+                                  : `-Rs. ${item.itemDiscount}`}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="text-center">
@@ -1116,8 +1174,10 @@ export const MakeSaleView = () => {
                             <td className="text-center font-mono" style={{ verticalAlign: 'top', whiteSpace: 'nowrap' }}>{it.qty}</td>
                             <td className="text-right font-mono" style={{ verticalAlign: 'top', whiteSpace: 'nowrap' }}>Rs. {it.unitPrice.toLocaleString()}</td>
                             <td className="text-right font-mono" style={{ verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                              {itemDiscPercent > 0 ? (
-                                <span className="item-disc-badge">{itemDiscPercent}%</span>
+                              {itemDiscAmt > 0 ? (
+                                <span className="item-disc-badge">
+                                  {it.itemDiscountMode === 'rupees' ? `Rs.${itemDiscAmt}` : `${itemDiscPercent}%`}
+                                </span>
                               ) : (
                                 <span className="text-muted">-</span>
                               )}
@@ -1153,7 +1213,7 @@ export const MakeSaleView = () => {
                         )}
                         {modalBillDiscount > 0 && (
                           <div className="r-row text-success">
-                            <span>Discount on Whole Bill{completedSaleData.wholeSaleDiscountPercent > 0 ? ` (${completedSaleData.wholeSaleDiscountPercent}%)` : ''}:</span>
+                            <span>Discount on Whole Bill{completedSaleData.wholeSaleDiscountPercent > 0 ? ` (${completedSaleData.wholeSaleDiscountPercent}%)` : (completedSaleData.wholeSaleDiscountAmount > 0 ? ` (Rs. ${completedSaleData.wholeSaleDiscountAmount})` : '')}:</span>
                             <span>-Rs. {modalBillDiscount.toLocaleString()}</span>
                           </div>
                         )}

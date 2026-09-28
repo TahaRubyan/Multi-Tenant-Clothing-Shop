@@ -214,32 +214,48 @@ ipcMain.handle('close-app', () => {
   return { success: true };
 });
 
-ipcMain.handle('kick-cash-drawer', async (event, printerName) => {
+ipcMain.handle('kick-cash-drawer', async (event, printerName, options = {}) => {
   try {
-    const targetPrinter = await resolvePrinterName(printerName, 'receipt');
-    // Multi-Standard Universal Cash Drawer Solenoid Kick Pulses:
-    // 1. ESC p 0 25 250 (Pin 2 standard 25ms pulse)
-    // 2. ESC p 1 25 250 (Pin 5 standard 25ms pulse)
-    // 3. ESC p 0 50 255 (Pin 2 extended 24V 50ms pulse for heavy-duty drawers)
-    // 4. ESC p 1 50 255 (Pin 5 extended 24V 50ms pulse for heavy-duty drawers)
-    // 5. ESC p '0' 25 250 / ESC p '1' 25 250 (ASCII pin representation)
-    // 6. DLE DC4 real-time kick commands (immediate solenoid pulse for BIXOLON SRP-Q302 / Epson TM)
-    // 7. Star Line Mode / Citizen BEL drawer pulse (0x07, ESC BEL)
-    const kickBytes = Buffer.from([
-      0x1b, 0x70, 0x00, 0x19, 0xfa,
-      0x1b, 0x70, 0x01, 0x19, 0xfa,
-      0x1b, 0x70, 0x00, 0x32, 0xff,
-      0x1b, 0x70, 0x01, 0x32, 0xff,
-      0x1b, 0x70, 0x30, 0x19, 0xfa,
-      0x1b, 0x70, 0x31, 0x19, 0xfa,
-      0x10, 0x14, 0x01, 0x00, 0x05,
-      0x10, 0x14, 0x01, 0x01, 0x05,
-      0x07,
-      0x1b, 0x07, 0x0b, 0x37,
-    ]);
-    console.log(`[Cash Drawer Bridge] Sending universal drawer kick pulse to receipt printer: ${targetPrinter}`);
+    const printerToUse = (typeof printerName === 'object' && printerName !== null)
+      ? (printerName.printer || printerName.deviceName)
+      : printerName;
+    const pin = (typeof printerName === 'object' && printerName !== null)
+      ? (printerName.pin || 'all')
+      : (options?.pin || 'all');
+
+    const targetPrinter = await resolvePrinterName(printerToUse, 'receipt');
+
+    let kickBytes;
+    if (pin === 'pin5') {
+      // Pin 5 targeted pulse (Special BPOVO configuration)
+      kickBytes = Buffer.from([
+        0x10, 0x14, 0x01, 0x01, 0x02,       // DLE DC4 real-time immediate Pin 5 (200ms)
+        0x1b, 0x70, 0x01, 0x32, 0x32, 0x0a, // ESC p 1 (100ms on, 100ms off) + LF
+        0x1b, 0x70, 0x31, 0x32, 0x32, 0x0a, // ESC p '1' ASCII pin + LF
+        0x07,                               // BEL
+      ]);
+    } else if (pin === 'pin2') {
+      // Pin 2 targeted pulse (Standard POS drawer 1)
+      kickBytes = Buffer.from([
+        0x10, 0x14, 0x01, 0x00, 0x02,       // DLE DC4 real-time immediate Pin 2 (200ms)
+        0x1b, 0x70, 0x00, 0x32, 0x32, 0x0a, // ESC p 0 (100ms on, 100ms off) + LF
+        0x1b, 0x70, 0x30, 0x32, 0x32, 0x0a, // ESC p '0' ASCII pin + LF
+        0x07,                               // BEL
+      ]);
+    } else {
+      // Universal Dual-Pin Kick (Fires Pin 5 [BPOVO] and Pin 2 [Standard])
+      kickBytes = Buffer.from([
+        0x10, 0x14, 0x01, 0x01, 0x02,       // DLE DC4 Pin 5
+        0x10, 0x14, 0x01, 0x00, 0x02,       // DLE DC4 Pin 2
+        0x1b, 0x70, 0x01, 0x32, 0x32, 0x0a, // ESC p 1 + LF
+        0x1b, 0x70, 0x00, 0x32, 0x32, 0x0a, // ESC p 0 + LF
+        0x07,                               // BEL
+      ]);
+    }
+
+    console.log(`[Cash Drawer Bridge] Sending drawer kick (${pin}) to receipt printer: ${targetPrinter}`);
     const res = await rawPrint(targetPrinter, kickBytes, 'Open Cash Drawer');
-    return { success: res.success, printer: targetPrinter };
+    return { success: res.success, printer: targetPrinter, pin };
   } catch (err) {
     console.error('Kick cash drawer error:', err);
     return { success: false, error: err.message };

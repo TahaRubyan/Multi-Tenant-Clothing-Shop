@@ -30,6 +30,7 @@ import {
   DollarSign,
   Sliders,
   Cpu,
+  Zap,
 } from 'lucide-react';
 import {
   testPrintThermalReceipt,
@@ -224,7 +225,8 @@ export const SettingsView = () => {
     showToast('Hardware and printer configurations saved successfully', 'success');
   };
 
-  const handleTestCashDrawerKick = async () => {
+  const handleTestCashDrawerKick = async (overridePin) => {
+    const pinToUse = typeof overridePin === 'string' ? overridePin : (cashDrawerPin || 'all');
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = ctx.createOscillator();
@@ -240,11 +242,11 @@ export const SettingsView = () => {
       osc.stop(ctx.currentTime + 0.2);
     } catch (_) {}
 
-    const res = await triggerCashDrawerKick(shopSettings, { deviceName: receiptPrinter });
+    const res = await triggerCashDrawerKick(shopSettings, { deviceName: receiptPrinter, pin: pinToUse });
     if (res && res.success === false && res.error) {
       showToast(`Drawer kick warning: ${res.error}. Ensure receipt printer is on and connected via USB.`, 'warning');
     } else {
-      showToast(`Cash drawer kick pulse (${cashDrawerPulse}, RJ11 ${cashDrawerPin.toUpperCase()}) sent to ${receiptPrinter}!`, 'success');
+      showToast(`Cash drawer kick pulse (${cashDrawerPulse}, RJ11 ${pinToUse.toUpperCase()}) sent to ${receiptPrinter}!`, 'success');
     }
   };
 
@@ -935,7 +937,7 @@ export const SettingsView = () => {
                     autoCutReceipt: true,
                     cashDrawerAutoKick: true,
                     cashDrawerPulse: '100ms',
-                    cashDrawerPin: 'pin2',
+                    cashDrawerPin: 'all',
                   });
                 }}
                 title="Restore verified hardware mapping: Receipt -> BIXOLON (USB003), Label -> Zebra Thermal Transfer (USB004)"
@@ -1224,11 +1226,12 @@ export const SettingsView = () => {
                         value={cashDrawerPin}
                         onChange={(e) => setCashDrawerPin(e.target.value)}
                       >
+                        <option value="all">Universal Dual-Kick (Pin 2 + Pin 5 - Recommended for BPOVO)</option>
+                        <option value="pin5">Pin 5 (BPOVO &amp; Secondary Solenoids)</option>
                         <option value="pin2">Pin 2 (Standard EPSON / Star / Bixolon)</option>
-                        <option value="pin5">Pin 5 (Secondary Solenoid Drawer)</option>
                       </select>
                       <small className="text-muted text-xxs mt-0.5 block">
-                        RJ11 cable plugs into receipt printer back panel.
+                        RJ11/RJ12 cable plugs into receipt printer DK port.
                       </small>
                     </div>
 
@@ -1262,28 +1265,47 @@ export const SettingsView = () => {
                       <div>
                         <strong className="text-main block">Auto-Kick Cash Drawer on Cash Tendered</strong>
                         <span className="text-muted text-xxs">
-                          Sends ESC p 0 25 250 kick signal to receipt printer whenever cash payment is settled.
+                          Sends instant kick signal to receipt printer DK port whenever cash payment is settled.
                         </span>
                       </div>
                     </label>
                   </div>
 
-                  <div>
+                  <div className="flex-align-center gap-2">
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm flex-align-center justify-center gap-1 width-full"
+                      className="btn btn-primary btn-sm flex-align-center justify-center gap-1 flex-1"
                       style={{ height: '36px' }}
-                      onClick={handleTestCashDrawerKick}
-                      title="Send test pulse to attached cash drawer"
+                      onClick={() => handleTestCashDrawerKick('all')}
+                      title="Send universal dual pulse (Pin 2 + Pin 5) to attached cash drawer"
                     >
-                      <DollarSign size={13} className="text-primary" /> Test Open Cash Drawer
+                      <DollarSign size={13} /> Test Universal Kick
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm flex-align-center justify-center gap-1 flex-1"
+                      style={{ height: '36px' }}
+                      onClick={() => handleTestCashDrawerKick('pin5')}
+                      title="Send targeted Pin 5 pulse specifically for BPOVO cash drawer"
+                    >
+                      <Zap size={13} className="text-warning" /> Test BPOVO (Pin 5)
                     </button>
                   </div>
 
-                  <div className="p-2 rounded mt-2" style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                    <p className="text-xxs text-main mb-0" style={{ lineHeight: '1.4' }}>
-                      <strong>Hardware Tip:</strong> Cash drawers do not require separate Windows drivers. The drawer connects via RJ11/RJ12 cable into the receipt printer DK port. Ensure the physical key is in the <strong>vertical (unlocked)</strong> position.
+                  <div className="p-2.5 rounded mt-3" style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                    <p className="text-xxs text-main font-weight-700 mb-1" style={{ lineHeight: '1.4' }}>
+                      Hardware Guide for BPOVO Cash Drawer:
                     </p>
+                    <ul className="text-xxs text-muted mb-0 pl-3" style={{ lineHeight: '1.45' }}>
+                      <li><strong>No Separate Drivers Needed:</strong> Cash drawers are passive 24V solenoids. Windows does not need a cash drawer driver; your <strong>BIXOLON SRP-Q302</strong> receipt printer energizes the drawer coil directly through its DK port.</li>
+                      <li><strong>Front Key Lock Position:</strong> BPOVO drawers have a 3-position lock on the front:
+                        <br/>• <em>Horizontal:</em> Locked (solenoid CANNOT open it).
+                        <br/>• <em>Vertical:</em> <strong>Online / Electronic Solenoid Open (REQUIRED for auto-kick)</strong>.
+                        <br/>• <em>Turn Right 45°:</em> Manual emergency spring release.
+                        <br/>👉 <strong>Make sure your front key is turned to the VERTICAL position.</strong>
+                      </li>
+                      <li><strong>Cable Connection:</strong> Plug the modular cable firmly into the printer's <strong>DK</strong> (Drawer Kick) port (marked with a cash drawer icon), NOT an Ethernet/LAN network jack.</li>
+                    </ul>
                   </div>
                 </div>
               </div>

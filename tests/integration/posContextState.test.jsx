@@ -205,4 +205,69 @@ describe('POS Context Integration State Tests', () => {
     expect(loginRes.success).toBe(true);
     expect(result.current.currentUser.username).toBe('Cashier1');
   });
+
+  it('supports custom % and Rs. discounts for both single line items and overall bill', () => {
+    const { result } = renderHook(() => usePOS(), { wrapper });
+
+    let p1;
+    act(() => {
+      p1 = result.current.addProduct({
+        barcode: 'DISC-TEST-01',
+        fabricMaterial: 'Designer Silk Kameez',
+        retailPrice: 5000,
+        stock: 10,
+      });
+    });
+
+    act(() => {
+      result.current.addToCart(p1, 2); // 2 * 5000 = 10,000 gross
+    });
+
+    expect(result.current.cart.length).toBe(1);
+    expect(result.current.cart[0].qty).toBe(2);
+
+    // 1. Line item discount in percentage mode: 10% off 10,000 = 1,000
+    act(() => {
+      result.current.setItemDiscount(result.current.cart[0].cartItemId, 'percent', 10);
+    });
+
+    expect(result.current.cart[0].itemDiscountMode).toBe('percent');
+    expect(result.current.cart[0].itemDiscountPercent).toBe(10);
+    expect(result.current.cart[0].itemDiscount).toBe(1000);
+
+    // 2. Line item discount in rupees mode: Rs. 1500 off
+    act(() => {
+      result.current.setItemDiscount(result.current.cart[0].cartItemId, 'rupees', 1500);
+    });
+
+    expect(result.current.cart[0].itemDiscountMode).toBe('rupees');
+    expect(result.current.cart[0].itemDiscountAmount).toBe(1500);
+    expect(result.current.cart[0].itemDiscount).toBe(1500);
+    expect(result.current.cart[0].itemDiscountPercent).toBe(15); // (1500 / 10000) * 100 = 15%
+
+    // 3. Whole bill discount in rupees mode: Rs. 500 off
+    act(() => {
+      result.current.setWholeSaleDiscount('rupees', 500);
+    });
+
+    expect(result.current.wholeSaleDiscountMode).toBe('rupees');
+    expect(result.current.wholeSaleDiscountAmount).toBe(500);
+
+    // Checkout with completeSale
+    let saleRes;
+    act(() => {
+      saleRes = result.current.completeSale('Cash', 10000);
+    });
+
+    expect(saleRes).not.toBeNull();
+    // Gross: 10000, Line item discount: 1500 => Subtotal: 8500
+    expect(saleRes.subtotal).toBe(8500);
+    // Whole bill discount: Rs. 500 => Net total: 8000
+    expect(saleRes.wholeSaleDiscount).toBe(500);
+    expect(saleRes.netTotal).toBe(8000);
+    expect(saleRes.amountReceived).toBe(10000);
+    expect(saleRes.changeReturned).toBe(2000);
+    expect(saleRes.items[0].itemDiscountMode).toBe('rupees');
+    expect(saleRes.items[0].itemDiscount).toBe(1500);
+  });
 });

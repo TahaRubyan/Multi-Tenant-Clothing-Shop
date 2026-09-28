@@ -292,7 +292,9 @@ export function generateEscPosReceipt(saleData, shopSettings = {}) {
     rawSubtotal += ((it.unitPrice || 0) * (it.qty || 1));
     const lineTotal = it.total !== undefined ? it.total : ((it.unitPrice || 0) * (it.qty || 1)) - itemDiscAmt;
     const tStr = lineTotal.toLocaleString().padStart(9);
-    const dStr = itemDiscPercent > 0 ? `${itemDiscPercent}%`.padStart(6) : '-'.padStart(6);
+    const dStr = itemDiscAmt > 0
+      ? (it.itemDiscountMode === 'rupees' ? `Rs${itemDiscAmt}` : `${itemDiscPercent}%`).padStart(6)
+      : '-'.padStart(6);
 
     const firstChunk = (nameChunks[0] || '').padEnd(16);
     lines.push(`${firstChunk} ${qStr} ${pStr} ${dStr}  ${tStr}\n`);
@@ -472,7 +474,7 @@ export function generateThermalReceiptHtml(saleData, shopSettings = {}) {
           Rs. ${unitPrice}
         </td>
         <td style="padding: 4px 1px; border-bottom: 1px dotted #ccc; font-size: 10px; text-align: right; vertical-align: top; white-space: nowrap;">
-          ${itemDiscPercent > 0 ? `${itemDiscPercent}%` : '-'}
+          ${itemDiscAmt > 0 ? (it.itemDiscountMode === 'rupees' ? `Rs. ${itemDiscAmt}` : `${itemDiscPercent}%`) : (itemDiscPercent > 0 ? `${itemDiscPercent}%` : '-')}
         </td>
         <td style="padding: 4px 1px; border-bottom: 1px dotted #ccc; font-size: 10.5px; text-align: right; vertical-align: top; font-weight: bold; white-space: nowrap;">
           Rs. ${lineTotal}
@@ -786,10 +788,12 @@ export async function triggerCashDrawerKick(shopSettings = {}, options = {}) {
     ? 'BIXOLON SRP-Q302'
     : rawDevice;
 
+  const pin = options?.pin || shopSettings?.drawerPin || savedPrinterSettings?.drawerPin || 'all';
+
   if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.kickCashDrawer === 'function') {
     try {
-      const res = await window.electronAPI.kickCashDrawer(targetPrinter);
-      console.log(`[Cash Drawer] Solenoid kick pulse dispatched to: ${targetPrinter}`, res);
+      const res = await window.electronAPI.kickCashDrawer(targetPrinter, { pin });
+      console.log(`[Cash Drawer] Solenoid kick pulse dispatched to: ${targetPrinter} (pin: ${pin})`, res);
       return res;
     } catch (err) {
       console.warn('[Cash Drawer] Electron kick error:', err);

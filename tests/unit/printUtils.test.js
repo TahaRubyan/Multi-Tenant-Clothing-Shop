@@ -371,17 +371,24 @@ describe('Print Utilities Unit Tests', () => {
   });
 
   describe('triggerCashDrawerKick', () => {
+    afterEach(() => {
+      delete window.electronAPI;
+    });
+
     it('triggers electron kick if electronAPI is present', async () => {
       window.electronAPI = {
         kickCashDrawer: vi.fn().mockResolvedValue({ success: true, printer: 'BIXOLON SRP-Q302' }),
       };
       const res = await triggerCashDrawerKick({ receiptPrinter: 'BIXOLON SRP-Q302' });
-      expect(window.electronAPI.kickCashDrawer).toHaveBeenCalledWith('BIXOLON SRP-Q302');
+      expect(window.electronAPI.kickCashDrawer).toHaveBeenCalledWith(
+        'BIXOLON SRP-Q302',
+        expect.objectContaining({ pin: 'all' })
+      );
       expect(res.success).toBe(true);
-      delete window.electronAPI;
     });
 
     it('returns simulated success in web environment without error', async () => {
+      delete window.electronAPI;
       const res = await triggerCashDrawerKick();
       expect(res.success).toBe(true);
       expect(res.simulated).toBe(true);

@@ -1085,8 +1085,17 @@ export const POSProvider = ({ children }) => {
             const newQty = item.qty + delta;
             if (newQty <= 0) return null;
             const lineVal = item.unitPrice * newQty;
-            const discAmt = Math.round(lineVal * ((item.itemDiscountPercent || 0) / 100));
-            return { ...item, qty: newQty, itemDiscount: discAmt };
+            let discAmt = 0;
+            let discPct = 0;
+            if (item.itemDiscountMode === 'rupees') {
+              const flatAmt = Math.max(0, parseFloat(item.itemDiscountAmount) || 0);
+              discAmt = Math.min(lineVal, flatAmt);
+              discPct = lineVal > 0 ? parseFloat(((discAmt / lineVal) * 100).toFixed(1)) : 0;
+            } else {
+              discPct = item.itemDiscountPercent || 0;
+              discAmt = Math.round(lineVal * (discPct / 100));
+            }
+            return { ...item, qty: newQty, itemDiscount: discAmt, itemDiscountPercent: discPct };
           }
           return item;
         })
@@ -1106,8 +1115,17 @@ export const POSProvider = ({ children }) => {
             if (totalMeters <= 0) return null;
             const newQty = parseFloat(totalMeters.toFixed(4));
             const lineVal = item.unitPrice * newQty;
-            const discAmt = Math.round(lineVal * ((item.itemDiscountPercent || 0) / 100));
-            return { ...item, qty: newQty, itemDiscount: discAmt };
+            let discAmt = 0;
+            let discPct = 0;
+            if (item.itemDiscountMode === 'rupees') {
+              const flatAmt = Math.max(0, parseFloat(item.itemDiscountAmount) || 0);
+              discAmt = Math.min(lineVal, flatAmt);
+              discPct = lineVal > 0 ? parseFloat(((discAmt / lineVal) * 100).toFixed(1)) : 0;
+            } else {
+              discPct = item.itemDiscountPercent || 0;
+              discAmt = Math.round(lineVal * (discPct / 100));
+            }
+            return { ...item, qty: newQty, itemDiscount: discAmt, itemDiscountPercent: discPct };
           }
           return item;
         })
@@ -1126,23 +1144,40 @@ export const POSProvider = ({ children }) => {
     );
   };
 
-  // Set line-item discount in percentage (%)
-  const setItemDiscountPercent = (cartItemId, percentVal, isReturn = false) => {
-    const p = Math.max(0, Math.min(100, parseFloat(percentVal) || 0));
+  // Set line-item discount with automatic mode detection ('percent' or 'rupees')
+  const setItemDiscount = (cartItemId, mode = 'percent', val = 0, isReturn = false) => {
     setCart(prev =>
       prev.map(item => {
         if (item.cartItemId === cartItemId && item.isReturn === isReturn) {
           const lineVal = item.unitPrice * item.qty;
-          const calculatedDiscAmt = Math.round(lineVal * (p / 100));
+          let calculatedDiscAmt = 0;
+          let calculatedDiscPct = 0;
+          const rawVal = parseFloat(val) || 0;
+
+          if (mode === 'rupees') {
+            calculatedDiscAmt = Math.min(lineVal, Math.max(0, rawVal));
+            calculatedDiscPct = lineVal > 0 ? parseFloat(((calculatedDiscAmt / lineVal) * 100).toFixed(1)) : 0;
+          } else {
+            calculatedDiscPct = Math.max(0, Math.min(100, rawVal));
+            calculatedDiscAmt = Math.round(lineVal * (calculatedDiscPct / 100));
+          }
+
           return {
             ...item,
-            itemDiscountPercent: p,
+            itemDiscountMode: mode,
+            itemDiscountAmount: val === '' ? '' : rawVal,
+            itemDiscountPercent: calculatedDiscPct,
             itemDiscount: calculatedDiscAmt,
           };
         }
         return item;
       })
     );
+  };
+
+  // Backward-compatible wrapper for percentage-based line item discounts
+  const setItemDiscountPercent = (cartItemId, percentVal, isReturn = false) => {
+    setItemDiscount(cartItemId, 'percent', percentVal, isReturn);
   };
 
   const removeFromCart = (cartItemId, isReturn = false) => {
@@ -1293,6 +1328,8 @@ export const POSProvider = ({ children }) => {
         wholesalePrice: i.wholesalePrice,
         itemDiscountPercent: i.itemDiscountPercent || 0,
         itemDiscount: i.itemDiscount || 0,
+        itemDiscountMode: i.itemDiscountMode || 'percent',
+        itemDiscountAmount: i.itemDiscountAmount || 0,
         total: (i.unitPrice * i.qty) - (i.itemDiscount || 0),
         isReturn: i.isReturn,
       })),
@@ -1452,6 +1489,7 @@ export const POSProvider = ({ children }) => {
         updateCartQty,
         setCartItemMetersAndInches,
         toggleCartReturn,
+        setItemDiscount,
         setItemDiscountPercent,
         removeFromCart,
         clearCart,
