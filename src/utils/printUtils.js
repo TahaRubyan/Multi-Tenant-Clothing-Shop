@@ -39,7 +39,7 @@ const CODE128_PATTERNS = [
  */
 export function generateBarcodeSvg(code = '000000000000', options = {}) {
   const cleanCode = String(code || '000000000000').trim() || '000000000000';
-  const height = options.height || 36;
+  const height = options.height || 48;
   const moduleWidth = options.moduleWidth || 2;
   const quietZoneModules = options.quietZoneModules || 14;
 
@@ -99,7 +99,7 @@ export function generateBarcodeSvg(code = '000000000000', options = {}) {
 
   const totalWidth = currentX + (quietZoneModules * moduleWidth);
 
-  return `<svg viewBox="0 0 ${totalWidth} ${height}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" style="width: 100%; height: 100%; display: block; margin: 0 auto; shape-rendering: crispEdges;">
+  return `<svg viewBox="0 0 ${totalWidth} ${height}" preserveAspectRatio="none" shape-rendering="crispEdges" style="width: 100%; height: 100%; display: block; margin: 0 auto; shape-rendering: crispEdges;">
     <rect x="0" y="0" width="${totalWidth}" height="${height}" fill="#ffffff" shape-rendering="crispEdges" />
     ${rects.join('')}
   </svg>`;
@@ -413,20 +413,13 @@ function executePrint(htmlContent, options = {}) {
   }
 
   // 2. Web / Browser / Vercel Mode:
-  // Browsers cannot access raw USB hardware directly without the print dialog.
-  // Trigger clean print dialog in browser/Vercel mode so physical paper prints successfully.
   const isBrowser = typeof window !== 'undefined' && !window.electronAPI;
-  const shouldPopup = isBrowser ? true : (options?.silent === false);
-  fallbackIframePrint(htmlContent, shouldPopup);
-
-  // Optional background bridge dispatch for local workstation printing
-  const isHttpEnv = typeof window !== 'undefined' &&
+  const isTest = typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.VITEST);
+  const isLocalWorkstation = !isTest && typeof window !== 'undefined' &&
     window.location &&
-    window.location.protocol &&
-    window.location.protocol.startsWith('http') &&
-    !(typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.VITEST));
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  if (isHttpEnv && typeof fetch === 'function') {
+  if (isLocalWorkstation && typeof fetch === 'function' && (options?.zpl || options?.epl || options?.escpos)) {
     const payload = JSON.stringify({
       html: htmlContent,
       zpl: options.zpl,
@@ -438,13 +431,24 @@ function executePrint(htmlContent, options = {}) {
       pageSize: options.pageSize,
     });
 
-    // Fire-and-forget probe local workstation bridge if present
     fetch('/api/print-direct', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload,
-    }).catch(() => {});
+    }).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!data.success) {
+        fallbackIframePrint(htmlContent, true);
+      }
+    }).catch(() => {
+      fallbackIframePrint(htmlContent, true);
+    });
+    return;
   }
+
+  // Cloud / Vercel / Standard Browser Mode:
+  const shouldPopup = isBrowser ? true : (options?.silent === false);
+  fallbackIframePrint(htmlContent, shouldPopup);
 }
 
 /**
@@ -884,15 +888,15 @@ ${orientationCmd}
 ^PW384
 ^LL240
 ^LH0,0
-^FO10,6^GB364,228,2,B,3^FS
-^FO15,10^FB354,1,0,C^A0N,18,18^FD${shopName}^FS
-^FO15,28^GB354,1,1^FS
-^FO15,32^FB354,1,0,C^A0N,16,16^FD${itemName.slice(0, 34)}^FS
-^FO15,50^FB354,1,0,C^A0N,14,14^FD${itemType}^FS
-^FO20,66^BY2,3,34^BCN,34,N,N,N^FD>:${itemCode}^FS
-^FO15,103^FB354,1,0,C^A0N,18,18^FD${itemCode}^FS
-^FO15,123^GB354,1,1^FS
-^FO15,127^FB354,1,0,C^A0N,22,22^FDPRICE: Rs. ${price}^FS
+^FO10,8^GB364,224,2,B,3^FS
+^FO15,14^FB354,1,0,C^A0N,20,20^FD${shopName}^FS
+^FO15,36^GB354,1,1^FS
+^FO15,41^FB354,1,0,C^A0N,18,18^FD${itemName.slice(0, 34)}^FS
+^FO15,61^FB354,1,0,C^A0N,15,15^FD${itemType}^FS
+^FO20,79^BY2,3,65^BCN,65,N,N,N^FD>:${itemCode}^FS
+^FO15,148^FB354,1,0,C^A0N,18,18^FD${itemCode}^FS
+^FO15,170^GB354,1,1^FS
+^FO15,176^FB354,1,0,C^A0N,26,26^FDPRICE: Rs. ${price}^FS
 ^PQ${printQty}
 ^XZ`;
 }
@@ -947,13 +951,15 @@ export function generateEplLabel(product, shopSettings = {}, count = 1, options 
     'q384',
     'Q240,24',
     'ZT',
-    `A${xShop},8,${rot},2,1,1,N,"${shopName.replace(/"/g, "'")}"`,
-    `A${xName},30,${rot},2,1,1,N,"${itemNameWithColor.replace(/"/g, "'")}"`,
-    `A${xType},50,${rot},1,1,1,N,"${clothType.replace(/"/g, "'")}"`,
-    `B${xBarcode},68,${rot},1,${narrowBar},${narrowBar * 2},32,N,"${itemCode.replace(/"/g, '')}"`,
-    `A${xCode},104,${rot},3,1,1,N,"${itemCode.replace(/"/g, "'")}"`,
-    'LO15,128,354,2',
-    `A${xPrice},134,${rot},3,1,1,N,"${priceStr.replace(/"/g, "'")}"`,
+    'X10,8,2,374,232',
+    `A${xShop},14,${rot},2,1,1,N,"${shopName.replace(/"/g, "'")}"`,
+    'LO15,36,354,1',
+    `A${xName},41,${rot},2,1,1,N,"${itemNameWithColor.replace(/"/g, "'")}"`,
+    `A${xType},61,${rot},1,1,1,N,"${clothType.replace(/"/g, "'")}"`,
+    `B${xBarcode},79,${rot},1,${narrowBar},${narrowBar * 2},65,N,"${itemCode.replace(/"/g, '')}"`,
+    `A${xCode},148,${rot},3,1,1,N,"${itemCode.replace(/"/g, "'")}"`,
+    'LO15,170,354,1',
+    `A${xPrice},176,${rot},3,1,1,N,"${priceStr.replace(/"/g, "'")}"`,
     `P${printQty}`,
     ''
   ].join('\n');
@@ -1011,26 +1017,17 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
 
   // Line 4: barcode & Line 5: item code
   const itemCode = String(product.barcode || product.sku || '000000000000').trim();
-  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 32, moduleWidth: 2, quietZoneModules: 14 });
+  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 48, moduleWidth: 2, quietZoneModules: 14 });
 
   // Line 6: price
   const price = (product.retailPrice || 0).toLocaleString();
 
   let labelsHtml = '';
   for (let i = 0; i < labelCount; i++) {
-    labelsHtml += `
-      <div class="sticker-label">
-        <div class="lbl-shop-name">${escapeHtml(shopName)}</div>
-        <div class="lbl-item-name">${escapeHtml(itemName)}</div>
-        <div class="lbl-item-type">${escapeHtml(itemType)}</div>
-        <div class="lbl-barcode-box">
-          ${barcodeSvg}
-        </div>
-        <div class="lbl-item-code">${escapeHtml(itemCode)}</div>
-        <div class="lbl-price">PRICE: Rs. ${price}</div>
-      </div>
-    `;
+    labelsHtml += `<div class="sticker-label"><div class="lbl-shop-name">${escapeHtml(shopName)}</div><div class="lbl-item-name">${escapeHtml(itemName)}</div><div class="lbl-item-type">${escapeHtml(itemType)}</div><div class="lbl-barcode-box">${barcodeSvg}</div><div class="lbl-item-code">${escapeHtml(itemCode)}</div><div class="lbl-price">PRICE: Rs. ${price}</div></div>`;
   }
+
+  const isSingle = labelCount === 1;
 
   const html = `<!DOCTYPE html>
 <html>
@@ -1039,13 +1036,13 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   <title>Barcode Label - ${escapeHtml(itemCode)}</title>
   <style>
     @page {
-      size: 50mm 30mm landscape;
-      margin: 0mm !important;
+      size: 50mm 30mm;
+      margin: 0 !important;
     }
     @media print {
       @page {
-        size: 50mm 30mm landscape;
-        margin: 0mm !important;
+        size: 50mm 30mm;
+        margin: 0 !important;
       }
       *, *:before, *:after {
         -webkit-print-color-adjust: exact !important;
@@ -1053,37 +1050,37 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
         color-adjust: exact !important;
       }
       html, body {
-        width: 100% !important;
-        height: auto !important;
-        margin: 0mm !important;
-        padding: 0mm !important;
+        width: 50mm !important;
+        ${isSingle ? 'height: 30mm !important; max-height: 30mm !important; overflow: hidden !important;' : 'height: auto !important;'}
+        margin: 0 !important;
+        padding: 0 !important;
         background: #ffffff !important;
         color: #000000 !important;
       }
       .sticker-label {
-        width: 46.5mm !important;
-        height: 24mm !important;
-        max-width: 46.5mm !important;
-        max-height: 24.5mm !important;
-        margin: 0.5mm auto !important;
-        padding: 0.4mm 1mm !important;
+        width: 47mm !important;
+        height: 27mm !important;
+        max-width: 47mm !important;
+        max-height: 27mm !important;
+        margin: 1.5mm auto !important;
+        padding: 0.8mm 1.5mm !important;
         box-sizing: border-box !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        page-break-after: always !important;
-        break-after: page !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
         overflow: hidden !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
         align-items: center !important;
         text-align: center !important;
-        border: 1.2px solid #000000 !important;
-        border-radius: 3px !important;
+        border: 1.5px solid #000000 !important;
+        border-radius: 4px !important;
       }
-      .sticker-label:last-child {
-        page-break-after: avoid !important;
-        break-after: avoid !important;
+      .sticker-label:not(:last-child) {
+        page-break-after: always !important;
+        break-after: page !important;
       }
     }
     * {
@@ -1095,8 +1092,8 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       color-adjust: exact !important;
     }
     html, body {
-      width: 100%;
-      height: auto;
+      width: 50mm;
+      ${isSingle ? 'height: 30mm; max-height: 30mm; overflow: hidden;' : 'height: auto;'}
       margin: 0;
       padding: 0;
       background: #ffffff !important;
@@ -1107,12 +1104,12 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       shape-rendering: crispEdges !important;
     }
     .sticker-label {
-      width: 46.5mm;
-      height: 24mm;
-      max-width: 46.5mm;
-      max-height: 24.5mm;
-      margin: 0.5mm auto;
-      padding: 0.4mm 1mm;
+      width: 47mm;
+      height: 27mm;
+      max-width: 47mm;
+      max-height: 27mm;
+      margin: 1.5mm auto;
+      padding: 0.8mm 1.5mm;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -1122,19 +1119,19 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       color: #000000 !important;
       page-break-inside: avoid;
       break-inside: avoid;
-      page-break-after: always;
-      break-after: page;
+      page-break-after: auto;
+      break-after: auto;
       overflow: hidden;
-      border: 1.2px solid #000000;
-      border-radius: 3px;
+      border: 1.5px solid #000000;
+      border-radius: 4px;
       box-sizing: border-box;
     }
-    .sticker-label:last-child {
-      page-break-after: avoid !important;
-      break-after: avoid !important;
+    .sticker-label:not(:last-child) {
+      page-break-after: always !important;
+      break-after: page !important;
     }
     .lbl-shop-name {
-      font-size: 8px;
+      font-size: 8.5px;
       font-weight: 900;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -1145,10 +1142,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       color: #000000 !important;
       line-height: 1.1;
       border-bottom: 1px solid #000000;
-      padding-bottom: 0.5px;
+      padding-bottom: 0.8px;
     }
     .lbl-item-name {
-      font-size: 7.5px;
+      font-size: 8px;
       font-weight: 800;
       white-space: nowrap;
       overflow: hidden;
@@ -1156,10 +1153,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       width: 100%;
       color: #000000 !important;
       line-height: 1.15;
-      margin-top: 0.5px;
+      margin-top: 0.3px;
     }
     .lbl-item-type {
-      font-size: 6.5px;
+      font-size: 7px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -1169,18 +1166,19 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       width: 100%;
       color: #000000 !important;
       line-height: 1;
-      margin-top: 0.5px;
+      margin-top: 0.2px;
     }
     .lbl-barcode-box {
-      width: 96%;
-      height: 7.5mm;
-      min-height: 7.5mm;
-      max-height: 7.5mm;
+      width: 98%;
+      height: 11.5mm;
+      min-height: 11.5mm;
+      max-height: 11.5mm;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0.5px auto;
       overflow: hidden;
+      background: #ffffff !important;
     }
     .lbl-barcode-box svg {
       width: 100%;
@@ -1193,33 +1191,32 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       shape-rendering: crispEdges !important;
     }
     .lbl-item-code {
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 8px;
-      font-weight: 900;
-      letter-spacing: 1px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
       color: #000000 !important;
       line-height: 1;
-      margin: 0.5px 0;
+      margin: 0.3px 0;
       overflow: visible;
       border-bottom: 1px solid #000000;
       width: 100%;
-      padding-bottom: 0.5px;
+      padding-bottom: 0.8px;
     }
     .lbl-price {
-      font-size: 9.5px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 10.5px;
       font-weight: 900;
       width: 100%;
       padding-top: 0.5px;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.5px;
       color: #000000 !important;
       line-height: 1.1;
       overflow: visible;
     }
   </style>
 </head>
-<body>
-  ${labelsHtml}
-</body>
+<body>${labelsHtml}</body>
 </html>`;
 
   const zpl = generateZplLabel(product, shopSettings, count);

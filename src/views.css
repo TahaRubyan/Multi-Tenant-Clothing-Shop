@@ -3785,11 +3785,11 @@
 .tbl-barcode-box,
 .tbl-barcode-svg-wrapper {
   width: 95%;
-  height: 28px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0.1rem auto;
+  margin: 0.15rem auto;
   overflow: hidden;
   background: #ffffff;
 }
@@ -3805,13 +3805,16 @@
 /* Line 5: Item Code */
 .tbl-item-code,
 .tbl-sku-code {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.82rem;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.84rem;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   color: #000000 !important;
   line-height: 1.1;
   margin: 0.1rem 0;
+  border-bottom: 1.5px solid #000000;
+  width: 100%;
+  padding-bottom: 0.15rem;
 }
 
 /* Line 6: Price */
@@ -3820,8 +3823,7 @@
   font-family: var(--font-mono);
   font-size: 0.95rem;
   font-weight: 900;
-  border-top: 2px solid #000000;
-  padding-top: 0.15rem;
+  padding-top: 0.1rem;
   color: #000000 !important;
   letter-spacing: 0.04em;
   width: 100%;
