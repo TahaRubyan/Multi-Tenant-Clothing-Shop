@@ -1101,7 +1101,12 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   // the barcode renders at a native integer module width instead of being
   // stretched/shrunk to fit (see generateBarcodeSvg's comment on why that
   // breaks scanning).
-  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 42, targetWidthPx: 170, quietZoneModules: 14 });
+  // .lbl-barcode-box is a fixed 9.5mm (~36px) tall with overflow:hidden.
+  // Now that the SVG renders at its own native height instead of being
+  // CSS-stretched to fit, a mismatched height here gets the top/bottom of
+  // the barcode silently clipped by that overflow - which is exactly the
+  // kind of thing that can make a barcode fail to scan intermittently.
+  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 36, targetWidthPx: 170, quietZoneModules: 14 });
 
   // Line 6: price
   const price = (product.retailPrice || 0).toLocaleString();
@@ -1172,6 +1177,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
+        gap: 0.3mm !important;
         align-items: center !important;
         text-align: center !important;
         border: 1.2px solid #000000 !important;
@@ -1212,6 +1218,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      gap: 0.3mm;
       align-items: center;
       text-align: center;
       background: #ffffff !important;
