@@ -1097,15 +1097,11 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
 
   // Line 4: barcode & Line 5: item code
   const itemCode = String(product.barcode || product.sku || '000000000000').trim();
-  // .lbl-barcode-box is 98% of the 46mm sticker width - matches that here so
-  // the barcode renders at a native integer module width instead of being
-  // stretched/shrunk to fit (see generateBarcodeSvg's comment on why that
-  // breaks scanning).
-  // .lbl-barcode-box is a fixed 9.5mm (~36px) tall with overflow:hidden.
-  // Now that the SVG renders at its own native height instead of being
-  // CSS-stretched to fit, a mismatched height here gets the top/bottom of
-  // the barcode silently clipped by that overflow - which is exactly the
-  // kind of thing that can make a barcode fail to scan intermittently.
+  // .lbl-barcode-box is 98% of the 46mm sticker width and a fixed 9.5mm
+  // (~36px) tall with overflow:hidden - both matched here exactly. The SVG
+  // renders at its own native size now instead of being CSS-stretched to
+  // fit, so a mismatch on either dimension would distort bar ratios or get
+  // silently clipped by that overflow - either way, a barcode that won't scan.
   const barcodeSvg = generateBarcodeSvg(itemCode, { height: 36, targetWidthPx: 170, quietZoneModules: 14 });
 
   // Line 6: price
