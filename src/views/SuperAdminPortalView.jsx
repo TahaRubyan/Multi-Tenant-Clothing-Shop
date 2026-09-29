@@ -48,9 +48,16 @@ export const SuperAdminPortalView = () => {
     users = [],
     currentUser,
     resetUserPassword,
+    addAdminToTenant,
+    deleteUser,
   } = usePOS();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [adminTenantId, setAdminTenantId] = useState('');
+  const [newAdminUsername, setNewAdminUsername] = useState('');
+  const [newAdminFullName, setNewAdminFullName] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'suspended'
 
@@ -154,7 +161,7 @@ export const SuperAdminPortalView = () => {
       return;
     }
 
-    addTenant({
+    const newTenant = addTenant({
       name: shopName.trim(),
       tagline: tagline.trim(),
       ownerName: ownerName.trim(),
@@ -166,6 +173,11 @@ export const SuperAdminPortalView = () => {
       adminUsername: adminUsername.trim(),
       adminPassword: adminPassword.trim(),
     });
+
+    if (!newTenant) {
+      // addTenant already showed the specific reason (e.g. duplicate admin username).
+      return;
+    }
 
     showToast(`Successfully registered new client shop: ${shopName}`, 'success');
     setShowAddModal(false);
@@ -221,6 +233,53 @@ export const SuperAdminPortalView = () => {
     }
   };
 
+  const admins = (users || []).filter((u) => u.role === 'Admin' && !u.isSuperAdmin);
+
+  const handleOpenAddAdmin = () => {
+    setAdminTenantId(tenants?.[0]?.id || '');
+    setNewAdminUsername('');
+    setNewAdminFullName('');
+    setNewAdminPassword('');
+    setShowAddAdminModal(true);
+  };
+
+  const handleAddAdminSubmit = async (e) => {
+    e.preventDefault();
+    if (!adminTenantId || !newAdminUsername.trim() || !newAdminFullName.trim() || !newAdminPassword.trim()) {
+      showToast('Please fill in all admin fields', 'warning');
+      return;
+    }
+    if (newAdminPassword.trim().length < 6) {
+      showToast('Password must be at least 6 characters long', 'warning');
+      return;
+    }
+
+    const res = await addAdminToTenant(adminTenantId, {
+      username: newAdminUsername.trim(),
+      fullName: newAdminFullName.trim(),
+      password: newAdminPassword.trim(),
+    });
+
+    if (!res.success) {
+      showToast(res.message || 'Failed to create admin account', 'danger');
+      return;
+    }
+
+    showToast(`Created admin account: ${newAdminFullName}`, 'success');
+    setShowAddAdminModal(false);
+  };
+
+  const handleDeleteAdmin = (adminUser) => {
+    if (adminUser.id === currentUser?.id) {
+      showToast('Cannot delete currently logged in account', 'warning');
+      return;
+    }
+    if (window.confirm(`Delete admin "${adminUser.fullName || adminUser.username}"?`)) {
+      deleteUser(adminUser.id);
+      showToast(`Deleted admin: ${adminUser.fullName || adminUser.username}`, 'danger');
+    }
+  };
+
   const filteredTenants = (tenants || []).filter((t) => {
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -257,9 +316,9 @@ export const SuperAdminPortalView = () => {
             type="button"
             className="btn btn-outline-primary flex-align-center gap-1"
             onClick={() => handleOpenPasswordReset()}
-            title="Reset Master Platform Admin or Client Admin Password"
+            title="Change your own account password"
           >
-            <KeyRound size={15} /> Reset Password
+            <KeyRound size={15} /> Change My Password
           </button>
           <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
             <Plus size={16} /> Onboard New Client Shop
@@ -481,6 +540,156 @@ export const SuperAdminPortalView = () => {
           </table>
         </div>
       </div>
+
+      {/* SHOP ADMINISTRATORS - Master Admin can create / delete Admin accounts */}
+      <div className="glass-card mt-3">
+        <div className="flex-between mb-2 p-3 pb-0">
+          <div>
+            <h3 className="mb-0">Shop Administrators</h3>
+            <p className="view-subtitle mb-0">Create or remove Admin accounts for any client shop.</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary flex-align-center gap-1"
+            onClick={handleOpenAddAdmin}
+            disabled={!tenants || tenants.length === 0}
+            title={!tenants || tenants.length === 0 ? 'Onboard a shop first' : 'Create Admin'}
+          >
+            <Plus size={16} /> Create Admin
+          </button>
+        </div>
+
+        <div className="table-responsive">
+          <table className="clean-ledger-table">
+            <thead>
+              <tr>
+                <th style={{ width: '26%' }}>Admin</th>
+                <th style={{ width: '26%' }}>Username</th>
+                <th style={{ width: '30%' }}>Assigned Shop</th>
+                <th style={{ width: '18%' }} className="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {admins.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="text-center py-4 text-muted">
+                    No shop admins yet. Onboarding a new shop creates its first admin automatically, or use "Create Admin" above.
+                  </td>
+                </tr>
+              ) : (
+                admins.map((u) => {
+                  const assignedTenants = (tenants || []).filter((t) => (u.tenantIds || []).includes(t.id));
+                  return (
+                    <tr key={u.id}>
+                      <td><span className="font-weight-600">{u.fullName || u.username}</span></td>
+                      <td><span className="font-mono">{u.username}</span></td>
+                      <td>
+                        {assignedTenants.length > 0
+                          ? assignedTenants.map((t) => t.name).join(', ')
+                          : <span className="text-muted">Unassigned</span>}
+                      </td>
+                      <td className="text-right">
+                        <div className="flex-align-center justify-end gap-1">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger btn-icon"
+                            onClick={() => handleDeleteAdmin(u)}
+                            title="Delete Admin"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* CREATE ADMIN MODAL */}
+      {showAddAdminModal && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-md glass-card">
+            <div className="modal-header">
+              <div className="modal-title">
+                <Users size={22} className="text-primary" />
+                <div>
+                  <h3 className="mb-0">Create Shop Admin</h3>
+                  <small className="text-muted">Grants full Admin authority over one shop's terminal</small>
+                </div>
+              </div>
+              <button type="button" className="btn-close" onClick={() => setShowAddAdminModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddAdminSubmit} className="modal-body">
+              <div className="form-group mb-3">
+                <label className="form-label font-weight-700">Assign to Shop *</label>
+                <select
+                  className="form-select font-mono"
+                  value={adminTenantId}
+                  onChange={(e) => setAdminTenantId(e.target.value)}
+                  required
+                >
+                  {(tenants || []).map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group mb-3">
+                <label className="form-label font-weight-700">Full Name *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newAdminFullName}
+                  onChange={(e) => setNewAdminFullName(e.target.value)}
+                  placeholder="Admin's full name"
+                  required
+                />
+              </div>
+
+              <div className="form-group mb-3">
+                <label className="form-label font-weight-700">Username *</label>
+                <input
+                  type="text"
+                  className="form-input font-mono"
+                  value={newAdminUsername}
+                  onChange={(e) => setNewAdminUsername(e.target.value)}
+                  placeholder="Login username"
+                  required
+                />
+              </div>
+
+              <div className="form-group mb-4">
+                <label className="form-label font-weight-700">Password *</label>
+                <input
+                  type="password"
+                  className="form-input font-mono"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  placeholder="Enter at least 6 characters"
+                  minLength={6}
+                  required
+                />
+              </div>
+
+              <div className="modal-actions flex-between pt-2">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddAdminModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary flex-align-center gap-1">
+                  <Plus size={15} /> Create Admin
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* HIGH-WIDTH ONBOARD NEW TENANT MODAL */}
       {showAddModal && (
@@ -816,8 +1025,10 @@ export const SuperAdminPortalView = () => {
               <div className="modal-title">
                 <KeyRound size={22} className="text-primary" />
                 <div>
-                  <h3 className="mb-0">Reset Account Password</h3>
-                  <small className="text-muted">Master Platform Admin &amp; Store Admin Access Key</small>
+                  <h3 className="mb-0">Change My Password</h3>
+                  <small className="text-muted">
+                    Signed in as {currentUser?.fullName || currentUser?.username} ({currentUser?.username})
+                  </small>
                 </div>
               </div>
               <button
@@ -830,24 +1041,11 @@ export const SuperAdminPortalView = () => {
             </div>
 
             <form onSubmit={handlePasswordResetSubmit} className="modal-body">
-              <div className="form-group mb-3">
-                <label className="form-label font-weight-700">Select Target User Account *</label>
-                <select
-                  className="form-select font-mono"
-                  value={resetTargetUserId}
-                  onChange={(e) => setResetTargetUserId(e.target.value)}
-                  required
-                >
-                  <option value="u-master-admin">Master Platform Administrator (Masteradmin)</option>
-                  {(users || [])
-                    .filter((u) => u.id !== 'u-master-admin' && (u.username || '').toLowerCase() !== 'masteradmin')
-                    .map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.fullName || u.username} ({u.username} • {u.role})
-                      </option>
-                    ))}
-                </select>
-              </div>
+              <p className="text-muted text-xxs mb-3">
+                This only changes your own password. Another account's password can't be reset
+                from here without that account signing in themselves - a real backend service
+                would be needed to do it on their behalf.
+              </p>
 
               <div className="form-group mb-3">
                 <label className="form-label font-weight-700">New Secure Password *</label>

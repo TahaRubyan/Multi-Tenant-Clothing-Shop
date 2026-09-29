@@ -5,32 +5,30 @@ import {
   Lock,
   User,
   ArrowRight,
-  ShieldCheck,
 } from 'lucide-react';
 
 export const LoginView = () => {
-  const { login, shopSettings, currentTenant } = usePOS();
+  const { login, currentTenant } = usePOS();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Prefer the live tenant record (kept fresh from Supabase on mount) over the
+  // cached name string, so a rename in the database shows up immediately
+  // instead of being shadowed by a stale localStorage value.
   const savedShopName = typeof localStorage !== 'undefined'
     ? localStorage.getItem('pos_last_active_shop_name')
     : null;
 
-  const isFirstVisit = !savedShopName;
-  const currentShopName = savedShopName || (currentTenant ? currentTenant.name : 'TESSLO Fashion Retail ERP');
-  const loginSubtitle = isFirstVisit
-    ? 'Cloud Multi-Tenant Garment & Apparel Management System'
-    : 'Fashion Retail POS Terminal & Inventory Management';
+  const currentShopName = currentTenant?.name || savedShopName || 'Tesslo Clothing Erp';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password) {
       setErrorMsg('Please enter both username and password');
       return;
     }
-    const result = login(username.trim(), password);
+    const result = await login(username.trim(), password);
     if (!result.success) {
       setErrorMsg(result.message || 'Invalid username or password');
     }
@@ -46,30 +44,11 @@ export const LoginView = () => {
           <div className="login-brand-icon mx-auto mb-2">
             <Scissors size={28} />
           </div>
-          <div className="flex-align-center justify-center gap-2 mb-1">
-            <span
-              className="badge font-mono font-weight-800 text-xs"
-              style={{
-                background: '#0f172a',
-                color: '#f8fafc',
-                padding: '0.2rem 0.6rem',
-                borderRadius: '4px',
-                letterSpacing: '0.08em',
-              }}
-            >
-              TESSLO {isFirstVisit ? 'PLATFORM' : 'STORE POS'}
-            </span>
-          </div>
           <h2 className="login-brand-title">{currentShopName}</h2>
-          <p className="login-subtitle">{loginSubtitle}</p>
         </div>
 
         {/* Credentials Form */}
         <div className="login-form-side">
-          <h4 className="login-form-heading mb-3">
-            <Lock size={16} className="text-primary" /> Sign In to POS Terminal / Platform
-          </h4>
-
           <form onSubmit={handleSubmit} className="login-form">
             {errorMsg && <div className="login-error-badge mb-3">{errorMsg}</div>}
 

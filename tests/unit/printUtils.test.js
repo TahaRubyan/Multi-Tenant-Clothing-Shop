@@ -181,7 +181,7 @@ describe('Print Utilities Unit Tests', () => {
         retailPrice: 8500,
       };
 
-      const epl = generateEplLabel(mockProduct, { shopName: 'NOVA LUXURY' }, 2);
+      const epl = generateEplLabel(mockProduct, { shopName: 'NOVA LUXURY', printMethod: 'thermal_transfer' }, 2);
 
       // Verify core EPL2 printer controls
       expect(epl).toContain('N\n'); // Clear buffer

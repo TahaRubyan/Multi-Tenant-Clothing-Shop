@@ -1,4 +1,15 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+import { createFakeSupabaseClient } from './mocks/supabaseMock';
+
+// CRITICAL: tests must never make a real network call to any Supabase
+// project (prod or dev). A prior incident had the live test suite hitting
+// production directly and littering it with dozens of throwaway
+// tenants/accounts. This replaces the real client factory with an in-memory
+// fake for every test file, regardless of what's configured in .env.
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: () => createFakeSupabaseClient(),
+}));
 
 // Mock localStorage
 const localStorageMock = (function () {

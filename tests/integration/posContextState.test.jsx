@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { POSProvider, usePOS } from '../../src/context/POSContext';
 
 describe('POS Context Integration State Tests', () => {
@@ -170,45 +170,48 @@ describe('POS Context Integration State Tests', () => {
     expect(updatedProduct.stock).toBe(initialMasterStock + 5);
   });
 
-  it('authenticates Masteradmin to super-admin-portal and dynamically created tenant admin to store dashboard', () => {
+  // Login is real Supabase Auth now (see POSContext.jsx `login()`), so there's
+  // no local Masteradmin bootstrap credential to test against - Super Admin
+  // accounts can't be created client-side by design (only tenant-scoped
+  // Admin/staff, closing the privilege-escalation bug from earlier work).
+  // This exercises the tenant-admin flow end to end against the real,
+  // live Supabase project instead.
+  it('dynamically creates a tenant admin and authenticates them to the store dashboard', async () => {
     const { result } = renderHook(() => usePOS(), { wrapper });
 
-    // 1. Authenticate Master Platform Admin
-    let loginRes;
-    act(() => {
-      loginRes = result.current.login('Masteradmin', 'Admin123');
-    });
-    expect(loginRes.success).toBe(true);
-    expect(result.current.currentUser.username).toBe('Masteradmin');
-    expect(result.current.currentUser.isSuperAdmin).toBe(true);
-    expect(result.current.activeTab).toBe('super-admin-portal');
-
-    // 2. Master Admin creates a new client shop
+    const username = `nova.admin.${Date.now()}`;
     let createdTenant;
     act(() => {
       createdTenant = result.current.addTenant({
         name: 'NOVA MEN AND WOMEN',
         city: 'Jalal Pur Jattan',
         ownerName: 'Adil Zaman',
-        adminUsername: 'nova.admin',
-        adminPassword: 'admin123',
+        adminUsername: username,
+        adminPassword: 'admin12345',
       });
     });
     expect(createdTenant).toBeDefined();
     expect(createdTenant.name).toBe('NOVA MEN AND WOMEN');
 
-    // 3. Authenticate the newly registered shop admin
-    act(() => {
-      loginRes = result.current.login('nova.admin', 'admin123');
+    // The bundled admin's Supabase Auth signup runs in the background so
+    // addTenant itself stays synchronous - wait for it to actually land.
+    await waitFor(() => {
+      expect(result.current.users.some(u => u.username === username)).toBe(true);
+    }, { timeout: 8000 });
+
+    // Authenticate the newly registered shop admin
+    let loginRes;
+    await act(async () => {
+      loginRes = await result.current.login(username, 'admin12345');
     });
     expect(loginRes.success).toBe(true);
-    expect(result.current.currentUser.username).toBe('nova.admin');
+    expect(result.current.currentUser.username).toBe(username);
     expect(result.current.currentTenant.id).toBe(createdTenant.id);
     expect(result.current.activeTab).toBe('dashboard');
 
-    // 4. Reject invalid login credentials
-    act(() => {
-      loginRes = result.current.login('unknown.user', 'wrongpass');
+    // Reject invalid login credentials
+    await act(async () => {
+      loginRes = await result.current.login('unknown.user', 'wrongpass');
     });
     expect(loginRes.success).toBe(false);
   });

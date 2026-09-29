@@ -1,7 +1,4 @@
-import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { POSProvider, usePOS } from '../../src/context/POSContext';
+import { describe, it, expect } from 'vitest';
 import { hashPassword, verifyPassword, isHashed } from '../../src/utils/passwordUtils';
 
 describe('Password hashing utility', () => {
@@ -36,86 +33,9 @@ describe('Password hashing utility', () => {
   });
 });
 
-describe('POSContext credential storage never keeps plaintext passwords', () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-  });
-
-  const wrapper = ({ children }) => <POSProvider>{children}</POSProvider>;
-
-  it('stores a new tenant admin password as a hash, not plaintext', () => {
-    const { result } = renderHook(() => usePOS(), { wrapper });
-
-    let tenant;
-    act(() => {
-      tenant = result.current.addTenant({
-        name: 'Test Boutique',
-        ownerName: 'Owner',
-        adminUsername: 'test.admin',
-        adminPassword: 'PlainTextPass1',
-      });
-    });
-
-    const created = result.current.users.find(u => u.username === 'test.admin');
-    expect(created).toBeDefined();
-    expect(created.password).not.toBe('PlainTextPass1');
-    expect(isHashed(created.password)).toBe(true);
-    expect(tenant).toBeDefined();
-  });
-
-  it('logs the new admin in with their real password and rejects the wrong one', () => {
-    const { result } = renderHook(() => usePOS(), { wrapper });
-
-    act(() => {
-      result.current.addTenant({
-        name: 'Test Boutique 2',
-        ownerName: 'Owner',
-        adminUsername: 'test.admin2',
-        adminPassword: 'PlainTextPass2',
-      });
-    });
-
-    let res;
-    act(() => {
-      res = result.current.login('test.admin2', 'PlainTextPass2');
-    });
-    expect(res.success).toBe(true);
-
-    act(() => {
-      result.current.logout(true);
-    });
-
-    act(() => {
-      res = result.current.login('test.admin2', 'wrong-password');
-    });
-    expect(res.success).toBe(false);
-  });
-
-  it('upgrades a legacy plaintext credential to a hash on successful login', () => {
-    const legacyUser = {
-      id: 'u-legacy-1',
-      username: 'legacy.user',
-      password: 'legacy-plain-pass',
-      fullName: 'Legacy User',
-      role: 'Admin',
-      tenantIds: [],
-      isSuperAdmin: false,
-    };
-    window.localStorage.setItem('pos_users', JSON.stringify([legacyUser]));
-
-    const { result } = renderHook(() => usePOS(), { wrapper });
-
-    let res;
-    act(() => {
-      res = result.current.login('legacy.user', 'legacy-plain-pass');
-    });
-    expect(res.success).toBe(true);
-
-    const upgraded = result.current.users.find(u => u.username === 'legacy.user');
-    expect(isHashed(upgraded.password)).toBe(true);
-
-    const persisted = JSON.parse(window.localStorage.getItem('pos_users'));
-    const persistedUser = persisted.find(u => u.username === 'legacy.user');
-    expect(isHashed(persistedUser.password)).toBe(true);
-  });
-});
+// The POSContext-level integration tests that used to live here (local
+// bcrypt hashing, legacy-plaintext-credential upgrade on login) tested a
+// login flow that no longer exists: credentials are now owned entirely by
+// Supabase Auth (see src/context/POSContext.jsx `login()`), so app code
+// never sees a password or a hash at all anymore - there's nothing left in
+// POSContext for this file to assert on for that behavior.

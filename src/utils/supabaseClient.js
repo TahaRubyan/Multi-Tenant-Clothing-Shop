@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { hashPassword } from './passwordUtils';
+import { cookieAuthStorage } from './authClient';
 
 // TESSLO Fashion Retail ERP Cloud Environments (Dev & Prod)
 export const TESSLO_ENVIRONMENTS = {
@@ -26,10 +27,25 @@ export const currentEnvironmentName = (typeof import.meta !== 'undefined' && imp
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
+    storage: cookieAuthStorage,
     persistSession: true,
     autoRefreshToken: true,
   },
 });
+
+/**
+ * Postgres error codes in the 22xxx (data exception) and 23xxx (integrity
+ * constraint violation, e.g. duplicate username/barcode) classes mean the
+ * request was rejected because of what's IN it, not because the network or
+ * service was unreachable. Queuing these for offline retry is wrong - the
+ * exact same payload will fail forever, silently, which just looks like
+ * "it never saved" to the user. Only genuinely transient failures (network
+ * errors, timeouts) belong in the offline queue.
+ */
+function isPermanentDbError(err) {
+  const code = err?.code || '';
+  return /^(22|23)/.test(String(code));
+}
 
 const PENDING_SYNC_KEY = 'tesslo_pending_cloud_sync';
 
@@ -94,6 +110,15 @@ export async function flushOfflineQueue() {
       } else if (item.actionType === 'DELETE_PRODUCT') {
         const { error } = await supabase.from('products').delete().eq('id', item.payload.id);
         if (error) throw error;
+      } else if (item.actionType === 'DELETE_USER') {
+        const { error } = await supabase.from('users').delete().eq('id', item.payload.id);
+        if (error) throw error;
+      } else if (item.actionType === 'PROFILE') {
+        const { error } = await supabase.from('profiles').upsert([item.payload], { onConflict: 'id' });
+        if (error) throw error;
+      } else if (item.actionType === 'DELETE_PROFILE') {
+        const { error } = await supabase.from('profiles').delete().eq('id', item.payload.id);
+        if (error) throw error;
       }
       flushedCount++;
     } catch (err) {
@@ -136,6 +161,10 @@ export async function syncTenantToCloud(tenantData) {
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
+    if (isPermanentDbError(err)) {
+      console.error('[TESSLO Cloud] Tenant rejected (not retried):', err);
+      return { success: false, error: err.message };
+    }
     console.warn('[TESSLO Cloud] Tenant sync deferred, queuing locally:', err);
     addToPendingQueue('TENANT', row);
     return { success: true, offline: true };
@@ -156,6 +185,10 @@ export async function deleteTenantFromCloud(tenantId) {
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
+    if (isPermanentDbError(err)) {
+      console.error('[TESSLO Cloud] Tenant deletion rejected (not retried):', err);
+      return { success: false, error: err.message };
+    }
     console.warn('[TESSLO Cloud] Tenant deletion deferred:', err);
     addToPendingQueue('DELETE_TENANT', { id: tenantId });
     return { success: true, offline: true };
@@ -192,6 +225,13 @@ export async function syncUserToCloud(userData) {
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
+    if (isPermanentDbError(err)) {
+      const friendly = /username/i.test(err.message || '') || err.code === '23505'
+        ? 'That username is already taken.'
+        : err.message;
+      console.error('[TESSLO Cloud] User rejected (not retried):', err);
+      return { success: false, error: friendly };
+    }
     console.warn('[TESSLO Cloud] User sync deferred, queuing locally:', err);
     addToPendingQueue('USER', row);
     return { success: true, offline: true };
@@ -228,6 +268,30 @@ export async function fetchTenantsFromCloud() {
 }
 
 /**
+ * Delete User from Supabase Cloud
+ */
+export async function deleteUserFromCloud(userId) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    addToPendingQueue('DELETE_USER', { id: userId });
+    return { success: true, offline: true };
+  }
+
+  try {
+    const { error } = await supabase.from('users').delete().eq('id', userId);
+    if (error) throw error;
+    return { success: true, offline: false };
+  } catch (err) {
+    if (isPermanentDbError(err)) {
+      console.error('[TESSLO Cloud] User deletion rejected (not retried):', err);
+      return { success: false, error: err.message };
+    }
+    console.warn('[TESSLO Cloud] User deletion deferred:', err);
+    addToPendingQueue('DELETE_USER', { id: userId });
+    return { success: true, offline: true };
+  }
+}
+
+/**
  * Fetch all Users from Supabase Cloud
  */
 export async function fetchUsersFromCloud() {
@@ -247,6 +311,140 @@ export async function fetchUsersFromCloud() {
     console.warn('[TESSLO Cloud] Could not fetch users from cloud:', err);
     return null;
   }
+}
+
+/**
+ * PROFILES - the app-specific data (role, tenant assignment, display name)
+ * for a real Supabase Auth account. Credentials themselves live entirely in
+ * Supabase's own auth.users, managed via supabase.auth.* calls - this table
+ * never sees a password or password hash.
+ */
+
+export function mapCloudProfileToLocal(row) {
+  return {
+    id: row.id,
+    username: row.username,
+    fullName: row.full_name,
+    role: row.role,
+    tenantIds: row.tenant_ids || [],
+    isSuperAdmin: Boolean(row.is_super_admin),
+  };
+}
+
+/**
+ * Upsert a profile row (id = the matching auth.users.id).
+ */
+export async function syncProfileToCloud(profile) {
+  const row = {
+    id: profile.id,
+    username: profile.username,
+    full_name: profile.fullName || profile.full_name || profile.username,
+    role: profile.role || 'Salesman',
+    tenant_ids: profile.tenantIds || profile.tenant_ids || [],
+    is_super_admin: Boolean(profile.isSuperAdmin || profile.is_super_admin),
+  };
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    addToPendingQueue('PROFILE', row);
+    return { success: true, offline: true };
+  }
+
+  try {
+    const { error } = await supabase.from('profiles').upsert([row], { onConflict: 'id' });
+    if (error) throw error;
+    return { success: true, offline: false };
+  } catch (err) {
+    if (isPermanentDbError(err)) {
+      const friendly = err.code === '23505' ? 'That username is already taken.' : err.message;
+      console.error('[TESSLO Cloud] Profile rejected (not retried):', err);
+      return { success: false, error: friendly };
+    }
+    console.warn('[TESSLO Cloud] Profile sync deferred, queuing locally:', err);
+    addToPendingQueue('PROFILE', row);
+    return { success: true, offline: true };
+  }
+}
+
+/**
+ * Fetch a single profile by its auth.users id (used right after sign-in).
+ */
+export async function fetchProfileById(userId) {
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    if (error) throw error;
+    return data ? mapCloudProfileToLocal(data) : null;
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Could not fetch profile:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch every profile (master admin's user-management views).
+ */
+export async function fetchProfilesFromCloud() {
+  try {
+    const { data, error } = await supabase.from('profiles').select('*');
+    if (error) throw error;
+    return (data || []).map(mapCloudProfileToLocal);
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Could not fetch profiles from cloud:', err);
+    return null;
+  }
+}
+
+/**
+ * Delete a profile row. This revokes the account's role/tenant access, but
+ * does NOT delete the underlying Supabase Auth credential - that requires
+ * the service-role key (supabase.auth.admin.deleteUser), which must never
+ * ship to the browser. login() treats "authenticated but no profile" as
+ * invalid access and signs the session back out, so this is still effective.
+ */
+export async function deleteProfileFromCloud(userId) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    addToPendingQueue('DELETE_PROFILE', { id: userId });
+    return { success: true, offline: true };
+  }
+
+  try {
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) throw error;
+    return { success: true, offline: false };
+  } catch (err) {
+    if (isPermanentDbError(err)) {
+      console.error('[TESSLO Cloud] Profile deletion rejected (not retried):', err);
+      return { success: false, error: err.message };
+    }
+    console.warn('[TESSLO Cloud] Profile deletion deferred:', err);
+    addToPendingQueue('DELETE_PROFILE', { id: userId });
+    return { success: true, offline: true };
+  }
+}
+
+/**
+ * Creates a new Supabase Auth account, then immediately restores the
+ * caller's own session. supabase-js only tracks one active session, and
+ * signUp() would otherwise sign the browser in as the newly created account
+ * - hijacking whichever admin was creating it. There is no admin-createUser
+ * API available without a service-role key, so this capture/restore is the
+ * standard client-only workaround for this exact problem.
+ */
+export async function createAuthAccountPreservingSession(email, password) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const callerSession = sessionData?.session || null;
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
+
+  if (callerSession) {
+    await supabase.auth.setSession({
+      access_token: callerSession.access_token,
+      refresh_token: callerSession.refresh_token,
+    });
+  }
+
+  if (error) return { success: false, error: error.message };
+  if (!data?.user) return { success: false, error: 'Signup did not return a user' };
+  return { success: true, userId: data.user.id };
 }
 
 /**
@@ -278,6 +476,10 @@ export async function syncSaleToCloud(saleData, tenantId) {
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
+    if (isPermanentDbError(err)) {
+      console.error('[TESSLO Cloud] Sale rejected (not retried):', err);
+      return { success: false, error: err.message };
+    }
     console.warn('[TESSLO Cloud] Cloud sync deferred, queuing locally:', err);
     addToPendingQueue('SALE', row);
     return { success: true, offline: true };
@@ -311,6 +513,10 @@ export async function syncSettlementToCloud(settlementData, tenantId) {
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
+    if (isPermanentDbError(err)) {
+      console.error('[TESSLO Cloud] Settlement rejected (not retried):', err);
+      return { success: false, error: err.message };
+    }
     console.warn('[TESSLO Cloud] Settlement sync deferred, queuing locally:', err);
     addToPendingQueue('SETTLEMENT', row);
     return { success: true, offline: true };
@@ -351,6 +557,11 @@ export async function syncProductToCloud(product, tenantId) {
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
+    if (isPermanentDbError(err)) {
+      const friendly = err.code === '23505' ? 'That barcode is already in use for this shop.' : err.message;
+      console.error('[TESSLO Cloud] Product rejected (not retried):', err);
+      return { success: false, error: friendly };
+    }
     console.warn('[TESSLO Cloud] Product sync deferred, queuing locally:', err);
     addToPendingQueue('PRODUCT', row);
     return { success: true, offline: true };
@@ -371,6 +582,10 @@ export async function deleteProductFromCloud(productId) {
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
+    if (isPermanentDbError(err)) {
+      console.error('[TESSLO Cloud] Product deletion rejected (not retried):', err);
+      return { success: false, error: err.message };
+    }
     console.warn('[TESSLO Cloud] Product deletion deferred:', err);
     addToPendingQueue('DELETE_PRODUCT', { id: productId });
     return { success: true, offline: true };

@@ -1,311 +1,165 @@
 -- ============================================================================
--- NOVA MEN & WOMEN FASHION - MULTI-TENANT ENTERPRISE POS & FABRIC ERP
--- PostgreSQL / Neon Distributed Database Schema with Row-Level Security (RLS)
--- Version: 1.0.0 (Production Architecture)
+-- TESSLO FASHION RETAIL - MULTI-TENANT POS - SUPABASE SCHEMA
+-- Version: 2.0.0
+--
+-- This file matches exactly what src/utils/supabaseClient.js reads and
+-- writes (upsert row shapes / mapCloud*ToLocal functions) - that file is the
+-- source of truth for column names, not any prior version of this schema.
+-- A previous version of this file defined `users`, `products`, and
+-- `day_settlements` with different column names than the client actually
+-- sends (e.g. `tenant_id` singular instead of `tenant_ids` JSONB array on
+-- `users`), which meant every real sync from the app failed outright. This
+-- version fixes that.
+--
+-- RLS is intentionally left OFF on these tables. The app talks to Supabase
+-- directly from the client with the public anon key - there is no backend
+-- server, and no session mechanism sets the Postgres GUCs a naive
+-- tenant_id-based RLS policy would need. Enabling RLS with policies keyed on
+-- unset session variables does not add security here: it just makes every
+-- table unreadable/unwritable to the anon key, since the condition
+-- evaluates false for every request. Tenant isolation is enforced at the
+-- application-query layer instead (every fetch filters `.eq('tenant_id', ...)`).
+-- Closing this gap for real requires migrating login to Supabase Auth (JWT)
+-- and rewriting RLS against auth.uid() - a separate, larger effort.
 -- ============================================================================
 
--- 1. EXTENSIONS
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. TENANTS TABLE (Platform Organizations)
+-- ----------------------------------------------------------------------------
+-- 1. TENANTS (Shops)
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tenants (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     tagline VARCHAR(255) DEFAULT '',
-    owner_name VARCHAR(150) NOT NULL,
-    phone VARCHAR(50) NOT NULL,
     city VARCHAR(100) NOT NULL DEFAULT 'Pakistan',
     address TEXT DEFAULT '',
+    phone VARCHAR(50) DEFAULT '',
     shop_type VARCHAR(50) NOT NULL DEFAULT 'mixed_garments',
+    owner_name VARCHAR(150) DEFAULT '',
+    modules JSONB NOT NULL DEFAULT '{}'::jsonb,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
-    modules JSONB NOT NULL DEFAULT '{
-        "pin_protected_discounts": true,
-        "ladies_suits": true,
-        "gents_suits": true,
-        "cloth_meters": true,
-        "ready_made_apparel": true,
-        "unstitched_fabric": true,
-        "vendor_ledger": true,
-        "promotional_engine": true,
-        "analytics": true
-    }'::jsonb,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants(status);
-CREATE INDEX IF NOT EXISTS idx_tenants_city ON tenants(city);
-
--- 3. USERS & STAFF ACCOUNTS TABLE
-CREATE TABLE IF NOT EXISTS users (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) REFERENCES tenants(id) ON DELETE CASCADE,
-    username VARCHAR(100) NOT NULL,
-    full_name VARCHAR(150) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('Super Admin', 'Admin', 'Manager', 'Cashier', 'Salesman')),
-    is_super_admin BOOLEAN NOT NULL DEFAULT FALSE,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_tenant_username UNIQUE(tenant_id, username)
-);
-
-CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-
--- 4. PRODUCT TEMPLATES & CATEGORIES
-CREATE TABLE IF NOT EXISTS product_templates (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name VARCHAR(150) NOT NULL,
-    department VARCHAR(50) NOT NULL DEFAULT 'Gents',
-    unit_type VARCHAR(50) NOT NULL DEFAULT 'Piece',
-    available_sizes JSONB NOT NULL DEFAULT '["Standard"]'::jsonb,
-    available_fabrics JSONB NOT NULL DEFAULT '["Cotton"]'::jsonb,
-    fits JSONB NOT NULL DEFAULT '["Regular Fit"]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_templates_tenant ON product_templates(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants(status);
 
--- 5. PRODUCTS MASTER CATALOG
+-- ----------------------------------------------------------------------------
+-- 2. USERS (legacy custom-login table - superseded by `profiles` below, kept
+-- only so nothing still reading it mid-migration breaks. Nothing new writes
+-- to this table anymore.)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(64) PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(150) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'Salesman',
+    tenant_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_super_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- ----------------------------------------------------------------------------
+-- 2b. PROFILES - real accounts now live in Supabase Auth's own auth.users
+-- table (credentials, hashing, session tokens all handled by Supabase itself
+-- via supabase.auth.* calls). This table only carries the app-specific data
+-- for a real Auth account: no password/hash column exists here anymore.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    full_name VARCHAR(150) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'Salesman',
+    tenant_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_super_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+
+-- Supabase auto-enables RLS by default on any new table that references
+-- auth.users (a platform safety default), which would otherwise block every
+-- read/write with zero policies defined. Matches the "RLS off, app-layer
+-- enforcement" tradeoff already made for every other table in this file.
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+
+-- ----------------------------------------------------------------------------
+-- 3. PRODUCTS
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS products (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    template_id VARCHAR(64) REFERENCES product_templates(id) ON DELETE SET NULL,
+    barcode VARCHAR(100) DEFAULT '',
     name VARCHAR(255) NOT NULL,
-    department VARCHAR(50) NOT NULL, -- 'Gents', 'Ladies', 'Kids', 'General'
-    category VARCHAR(100) NOT NULL,
+    department VARCHAR(50) DEFAULT 'Gents Wear',
+    category VARCHAR(100) DEFAULT 'Apparel',
     fabric VARCHAR(100) DEFAULT '',
     fit VARCHAR(100) DEFAULT '',
-    unit_type VARCHAR(50) NOT NULL DEFAULT 'Piece', -- 'Piece', 'Meter', 'Suit'
-    purchase_price NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    sale_price NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    min_wholesale_price NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    total_stock NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    barcode VARCHAR(100) NOT NULL,
-    keywords TEXT DEFAULT '',
+    size VARCHAR(50) DEFAULT '',
+    color VARCHAR(50) DEFAULT '',
+    cost_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    retail_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    stock_qty NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    min_stock_alert NUMERIC(12, 2) NOT NULL DEFAULT 5,
+    vendor_name VARCHAR(150) DEFAULT '',
+    rack_location VARCHAR(100) DEFAULT '',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_tenant_product_barcode UNIQUE(tenant_id, barcode)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_tenant ON products(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
-CREATE INDEX IF NOT EXISTS idx_products_department ON products(department);
-CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 
--- 6. PRODUCT VARIANTS (SKUs, Colors, Sizes & Meter Bolts)
-CREATE TABLE IF NOT EXISTS product_variants (
-    id VARCHAR(64) PRIMARY KEY,
-    product_id VARCHAR(64) NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    size VARCHAR(50) NOT NULL DEFAULT 'Standard',
-    color VARCHAR(50) NOT NULL DEFAULT 'Standard',
-    sku VARCHAR(100) NOT NULL,
-    stock_qty NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    min_stock_alert NUMERIC(12, 2) NOT NULL DEFAULT 5.00,
-    meters_remaining NUMERIC(12, 2) DEFAULT NULL,
-    barcode VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_tenant_variant_sku UNIQUE(tenant_id, sku)
-);
-
-CREATE INDEX IF NOT EXISTS idx_variants_tenant ON product_variants(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_variants_product ON product_variants(product_id);
-CREATE INDEX IF NOT EXISTS idx_variants_sku ON product_variants(sku);
-CREATE INDEX IF NOT EXISTS idx_variants_barcode ON product_variants(barcode);
-
--- 7. SALES TRANSACTIONS (POS Invoices)
-CREATE TABLE IF NOT EXISTS sales (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    invoice_number VARCHAR(100) NOT NULL,
-    cashier_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
-    cashier_name VARCHAR(150) NOT NULL,
-    customer_name VARCHAR(150) DEFAULT 'Walk-in Customer',
-    customer_phone VARCHAR(50) DEFAULT '',
-    gross_total NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    whole_sale_discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 0.00,
-    item_discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    net_total NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    amount_tendered NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    change_due NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    payment_method VARCHAR(50) NOT NULL DEFAULT 'Cash' CHECK (payment_method IN ('Cash', 'Card', 'Mobile Banking')),
-    status VARCHAR(50) NOT NULL DEFAULT 'Completed' CHECK (status IN ('Completed', 'Returned', 'Voided')),
-    date_time VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_tenant_invoice UNIQUE(tenant_id, invoice_number)
-);
-
-CREATE INDEX IF NOT EXISTS idx_sales_tenant ON sales(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_sales_invoice ON sales(invoice_number);
-CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(created_at);
-CREATE INDEX IF NOT EXISTS idx_sales_payment ON sales(payment_method);
-
--- 8. SALE LINE ITEMS (Including Fabric Cut Meterage & Returns)
-CREATE TABLE IF NOT EXISTS sale_items (
-    id VARCHAR(64) PRIMARY KEY,
-    sale_id VARCHAR(64) NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
-    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    product_id VARCHAR(64) REFERENCES products(id) ON DELETE SET NULL,
-    variant_id VARCHAR(64) REFERENCES product_variants(id) ON DELETE SET NULL,
-    item_name VARCHAR(255) NOT NULL,
-    unit_type VARCHAR(50) NOT NULL DEFAULT 'Piece',
-    qty NUMERIC(10, 2) NOT NULL DEFAULT 1.00,
-    meters NUMERIC(10, 2) DEFAULT NULL,
-    inches NUMERIC(10, 2) DEFAULT NULL,
-    unit_price NUMERIC(12, 2) NOT NULL,
-    discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 0.00,
-    line_total NUMERIC(12, 2) NOT NULL,
-    is_return BOOLEAN NOT NULL DEFAULT FALSE
-);
-
-CREATE INDEX IF NOT EXISTS idx_sale_items_tenant ON sale_items(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);
-CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id);
-
--- 9. DAY-END CASH SETTLEMENTS (Drawer Audits & Discrepancies)
-CREATE TABLE IF NOT EXISTS day_settlements (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    closed_by_user_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
-    closed_by VARCHAR(150) NOT NULL,
-    cashier_name VARCHAR(150) NOT NULL,
-    date VARCHAR(50) NOT NULL,
-    closed_at VARCHAR(50) NOT NULL,
-    expected_cash NUMERIC(12, 2) NOT NULL,
-    actual_cash NUMERIC(12, 2) NOT NULL,
-    discrepancy NUMERIC(12, 2) NOT NULL,
-    digital_sales NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    total_sales NUMERIC(12, 2) NOT NULL,
-    order_count INTEGER NOT NULL DEFAULT 0,
-    status VARCHAR(50) NOT NULL CHECK (status IN ('balanced', 'shortage', 'excess')),
-    reason_note TEXT DEFAULT '',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_settlements_tenant ON day_settlements(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_settlements_date ON day_settlements(date);
-
--- 10. VENDORS & WHOLESALE ACCOUNTS PAYABLE
-CREATE TABLE IF NOT EXISTS vendors (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    company_name VARCHAR(255) NOT NULL,
-    contact_person VARCHAR(150) NOT NULL,
-    phone VARCHAR(50) NOT NULL,
-    email VARCHAR(100) DEFAULT '',
-    address TEXT DEFAULT '',
-    balance NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_vendors_tenant ON vendors(tenant_id);
-
--- 11. HARDWARE & PRINTER CONFIGURATIONS
-CREATE TABLE IF NOT EXISTS printer_configurations (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL UNIQUE REFERENCES tenants(id) ON DELETE CASCADE,
-    receipt_printer VARCHAR(150) NOT NULL DEFAULT 'BIXOLON SRP-Q302',
-    label_printer VARCHAR(150) NOT NULL DEFAULT 'ZDesigner iMZ220 (ZPL)',
-    receipt_paper_width VARCHAR(20) NOT NULL DEFAULT '75mm',
-    label_size VARCHAR(50) NOT NULL DEFAULT '50x30mm',
-    print_method VARCHAR(50) NOT NULL DEFAULT 'thermal_transfer',
-    auto_print_receipt BOOLEAN NOT NULL DEFAULT TRUE,
-    auto_cut_receipt BOOLEAN NOT NULL DEFAULT TRUE,
-    silent_printing BOOLEAN NOT NULL DEFAULT TRUE,
-    cash_drawer_auto_kick BOOLEAN NOT NULL DEFAULT TRUE,
-    cash_drawer_pulse VARCHAR(50) NOT NULL DEFAULT '100ms',
-    cash_drawer_pin VARCHAR(50) NOT NULL DEFAULT 'pin2',
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- ============================================================================
--- 9b. SALES ORDERS (matches what the client app actually reads/writes via
--- src/utils/supabaseClient.js — kept alongside the older `sales`/`sale_items`
--- tables above rather than replacing them, since this file cannot confirm
--- what the live deployed database currently contains).
--- ============================================================================
+-- ----------------------------------------------------------------------------
+-- 4. SALES ORDERS
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS sales_orders (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     receipt_number VARCHAR(100) DEFAULT '',
     cashier_name VARCHAR(150) DEFAULT 'Cashier',
     payment_method VARCHAR(50) DEFAULT 'Cash',
-    gross_total NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    net_total NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    amount_received NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    change_returned NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    gross_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    net_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    amount_received NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    change_returned NUMERIC(12, 2) NOT NULL DEFAULT 0,
     items JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_sales_orders_tenant ON sales_orders(tenant_id);
 
--- ============================================================================
--- 12. ROW LEVEL SECURITY (RLS) POLICIES
--- Strict Isolation: Each tenant can strictly query and mutate only their own rows.
---
--- IMPORTANT / KNOWN LIMITATION (read before touching this section):
--- Every policy below gates on current_setting('app.current_tenant_id', true)
--- and current_setting('app.is_super_admin', true). Postgres only populates
--- those custom GUCs when something explicitly calls set_config(...) for the
--- current connection/request — normally done by a trusted backend after it
--- has independently verified who the caller is (e.g. from a validated JWT).
---
--- This codebase has no such backend: the client (Electron/browser) talks to
--- Supabase directly with the public anon key via src/utils/supabaseClient.js,
--- and nothing anywhere ever sets these GUCs. That means these policies are
--- NOT an effective tenant-isolation boundary under the app's current
--- architecture — confirmed by live testing against the anon REST endpoint.
---
--- Do NOT "fix" this by enabling RLS with this same policy shape on more
--- tables (e.g. `tenants`) expecting it to close the gap: since the GUCs are
--- never set, USING(...) evaluates to false for every row for every anon
--- request, which would make those tables unreadable/unwritable to the app
--- and break tenant registration, product sync, and sales sync outright.
---
--- The real fix requires one of:
---   (a) Supabase Auth: sign users in for real, issue a JWT carrying a
---       tenant_id claim, and rewrite these policies against
---       auth.jwt() ->> 'tenant_id' instead of custom session GUCs; or
---   (b) A minimal trusted backend (see src/utils/apiService.js, which
---       already anticipates `/api/*` routes but is not wired up) that holds
---       the Supabase service-role key, verifies the caller itself, and only
---       then queries Postgres with app.current_tenant_id set correctly.
--- Either change also requires migrating the `users` table off ad-hoc
--- client-side login (src/context/POSContext.jsx `login`) to real
--- server-verified sessions. Track this as its own project — it changes the
--- app's login flow and cannot be done as a side effect of a schema edit.
--- ============================================================================
+-- ----------------------------------------------------------------------------
+-- 5. DAY SETTLEMENTS
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS day_settlements (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    closed_at VARCHAR(50) DEFAULT '',
+    total_sales NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    total_cash NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    total_card NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    total_returns NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    settled_by VARCHAR(150) DEFAULT 'Cashier',
+    notes TEXT DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE product_templates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE product_variants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sale_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE day_settlements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE printer_configurations ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_settlements_tenant ON day_settlements(tenant_id);
 
--- Tenant Isolation Policies based on current_setting('app.current_tenant_id', true)
-DO $$
-BEGIN
-    EXECUTE 'CREATE POLICY tenant_isolation_users ON users FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-    EXECUTE 'CREATE POLICY tenant_isolation_templates ON product_templates FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-    EXECUTE 'CREATE POLICY tenant_isolation_products ON products FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-    EXECUTE 'CREATE POLICY tenant_isolation_variants ON product_variants FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-    EXECUTE 'CREATE POLICY tenant_isolation_sales ON sales FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-    EXECUTE 'CREATE POLICY tenant_isolation_items ON sale_items FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-    EXECUTE 'CREATE POLICY tenant_isolation_settlements ON day_settlements FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-    EXECUTE 'CREATE POLICY tenant_isolation_vendors ON vendors FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-    EXECUTE 'CREATE POLICY tenant_isolation_printers ON printer_configurations FOR ALL USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''') OR current_setting(''app.is_super_admin'', true) = ''true'')';
-EXCEPTION
-    WHEN duplicate_object THEN NULL;
-END $$;
+-- ----------------------------------------------------------------------------
+-- 6. MASTER ADMIN - no longer seeded here.
+-- `profiles.id` must reference a REAL auth.users row, which only exists
+-- once a real Supabase Auth account is created (supabase.auth.signUp).
+-- There is no arbitrary string id to INSERT against anymore. The master
+-- admin (and any migrated pre-existing account) gets created once via the
+-- app's own signUp flow instead - see the migration note handed over
+-- alongside this file.
+-- ----------------------------------------------------------------------------

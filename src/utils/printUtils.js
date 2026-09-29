@@ -926,7 +926,7 @@ export function generateZplLabel(product, shopSettings = {}, count = 1, options 
   const itemCode = String(product?.barcode || product?.sku || '000000000000').trim();
   const price = (product?.retailPrice || 0).toLocaleString();
   const printQty = Math.max(1, parseInt(count, 10) || 1);
-  const printMethod = shopSettings?.printMethod || 'thermal_transfer';
+  const printMethod = shopSettings?.printMethod || 'direct_thermal';
   const mediaTypeCmd = printMethod === 'direct_thermal' ? '^MTD' : '^MTT';
 
   const orientationCmd = orientation === 'y_axis'
@@ -936,7 +936,6 @@ export function generateZplLabel(product, shopSettings = {}, count = 1, options 
   return `^XA
 ${mediaTypeCmd}
 ${orientationCmd}
-^MNY
 ~SD22
 ^MD22
 ^PR3
@@ -979,7 +978,7 @@ export function generateEplLabel(product, shopSettings = {}, count = 1, options 
   const itemCode = String(product?.barcode || product?.sku || '000000000000').trim().slice(0, 20);
   const price = (product?.retailPrice || 0).toLocaleString();
   const printQty = Math.max(1, parseInt(count, 10) || 1);
-  const printMethod = shopSettings?.printMethod || 'thermal_transfer';
+  const printMethod = shopSettings?.printMethod || 'direct_thermal';
   // OR = Thermal Transfer (with Ribbon - engages ribbon motor/sensor so ribbon doesn't spill out)
   // OD = Direct Thermal (without Ribbon)
   const mediaMode = printMethod === 'direct_thermal' ? 'OD' : 'OR';

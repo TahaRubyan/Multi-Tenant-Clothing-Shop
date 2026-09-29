@@ -71,7 +71,7 @@ export const SettingsView = () => {
   const [labelPrinter, setLabelPrinter] = useState(printerSettings?.labelPrinter || 'ZDesigner iMZ220 (ZPL)');
   const [receiptPaperWidth, setReceiptPaperWidth] = useState(printerSettings?.receiptPaperWidth || '75mm');
   const [labelSize, setLabelSize] = useState(printerSettings?.labelSize || '50x30mm');
-  const [printMethod, setPrintMethod] = useState(printerSettings?.printMethod || 'thermal_transfer');
+  const [printMethod, setPrintMethod] = useState(printerSettings?.printMethod || 'direct_thermal');
   const [labelOrientation, setLabelOrientation] = useState(printerSettings?.labelOrientation || 'x_axis');
   const [autoPrintReceipt, setAutoPrintReceipt] = useState(printerSettings?.autoPrintReceipt !== false);
   const [autoCutReceipt, setAutoCutReceipt] = useState(printerSettings?.autoCutReceipt !== false);
@@ -250,14 +250,14 @@ export const SettingsView = () => {
     }
   };
 
-  const handleCreateUser = (e) => {
+  const handleCreateUser = async (e) => {
     e.preventDefault();
     if (!newUsername || !newFullName || !newPassword) {
       showToast('Please fill all user fields', 'warning');
       return;
     }
 
-    addUser({
+    const res = await addUser({
       username: newUsername.trim(),
       fullName: newFullName.trim(),
       role: newRole,
@@ -265,6 +265,11 @@ export const SettingsView = () => {
       tenantIds: [currentTenant?.id || 'tenant-nova-101'],
       tenantId: currentTenant?.id || 'tenant-nova-101',
     });
+
+    if (!res.success) {
+      showToast(res.message || 'Failed to create staff account', 'danger');
+      return;
+    }
 
     showToast(`Created staff account for ${newFullName}`, 'success');
     setNewUsername('');
@@ -283,11 +288,16 @@ export const SettingsView = () => {
     showToast(`Deleted user account: ${userObj.fullName}`, 'danger');
   };
 
-  const handleResetPasswordSubmit = (e) => {
+  const handleResetPasswordSubmit = async (e) => {
     e.preventDefault();
     if (!resetPasswordUser || !renewPasswordInput.trim()) return;
 
-    resetUserPassword(resetPasswordUser.id, renewPasswordInput.trim());
+    const res = await resetUserPassword(resetPasswordUser.id, renewPasswordInput.trim());
+    if (!res.success) {
+      showToast(res.message || 'Failed to update password', 'danger');
+      return;
+    }
+    showToast('Password updated', 'success');
     setResetPasswordUser(null);
     setRenewPasswordInput('');
   };
@@ -1445,11 +1455,13 @@ export const SettingsView = () => {
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value)}
                 >
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.roleName}>
-                      {r.roleName} ({r.permissions?.length || 0} Authorities)
-                    </option>
-                  ))}
+                  {roles
+                    .filter((r) => r.roleName !== 'Super Admin' && r.roleName !== 'Admin')
+                    .map((r) => (
+                      <option key={r.id} value={r.roleName}>
+                        {r.roleName} ({r.permissions?.length || 0} Authorities)
+                      </option>
+                    ))}
                 </select>
               </div>
 
