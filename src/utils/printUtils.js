@@ -1031,7 +1031,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   const labelOrientation = options?.orientation || shopSettings?.labelOrientation || savedPrinterSettings?.labelOrientation || 'x_axis';
   const isYAxis = labelOrientation === 'y_axis';
   const isRotated90 = labelOrientation === 'rotated_90';
-  const pageOrientation = isYAxis ? '30mm 50mm' : '50mm 30mm';
+  const pageOrientation = isYAxis ? '30mm 50mm portrait' : '50mm 30mm landscape';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -1079,7 +1079,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
         justify-content: space-between !important;
         align-items: center !important;
         text-align: center !important;
-        border: 1px solid #000000 !important;
+        border: none !important;
         ${isRotated90 ? 'transform: rotate(90deg); transform-origin: center center;' : ''}
       }
       .sticker-label:last-child {
@@ -1125,7 +1125,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       page-break-after: always;
       break-after: page;
       overflow: hidden;
-      border: 1px solid #000000;
+      border: none;
       box-sizing: border-box;
       ${isRotated90 ? 'transform: rotate(90deg); transform-origin: center center;' : ''}
     }

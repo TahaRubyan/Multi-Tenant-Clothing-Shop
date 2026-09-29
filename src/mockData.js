@@ -96,6 +96,7 @@ export const INITIAL_PRINTER_SETTINGS = {
   receiptPaperWidth: '75mm',
   labelSize: '50x30mm',
   printMethod: 'thermal_transfer',
+  labelOrientation: 'x_axis',
   autoPrintReceipt: true,
   autoPrintLabel: false,
   silentPrinting: true,
@@ -115,6 +116,7 @@ export const INITIAL_SHOP_SETTINGS = {
   receiptPaperWidth: '75mm',
   labelSize: '50x30mm',
   printMethod: 'thermal_transfer',
+  labelOrientation: 'x_axis',
   autoPrintReceipt: true,
   silentPrinting: true,
 };

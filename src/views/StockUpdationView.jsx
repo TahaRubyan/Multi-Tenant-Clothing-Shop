@@ -31,6 +31,7 @@ export const StockUpdationView = () => {
     logDamageItem,
     showToast,
     shopSettings,
+    updateShopSettings,
   } = usePOS();
 
   const [activeSubTab, setActiveSubTab] = useState('restock'); // 'restock' | 'damage' | 'history'
@@ -588,12 +589,38 @@ export const StockUpdationView = () => {
                   />
                 </div>
 
-                <div className="flex-align-center justify-center gap-3 mt-4">
+                <div className="flex-align-center justify-center gap-2 mt-3 mb-1">
+                  <span className="text-xxs font-weight-700 text-muted text-uppercase">Print Axis:</span>
+                  <button
+                    type="button"
+                    className={`btn btn-xs ${(!shopSettings?.labelOrientation || shopSettings.labelOrientation === 'x_axis') ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => {
+                      if (updateShopSettings) updateShopSettings({ labelOrientation: 'x_axis' });
+                      showToast('Sticker format set to X-Axis Horizontal (50x30mm)', 'info');
+                    }}
+                    title="Horizontal X-Axis (50mm Wide × 30mm Feed) [Standard]"
+                  >
+                    X-Axis (Horizontal)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-xs ${shopSettings?.labelOrientation === 'y_axis' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => {
+                      if (updateShopSettings) updateShopSettings({ labelOrientation: 'y_axis' });
+                      showToast('Sticker format set to Y-Axis Vertical (30x50mm)', 'info');
+                    }}
+                    title="Vertical Y-Axis (30mm Wide × 50mm Feed)"
+                  >
+                    Y-Axis (Vertical)
+                  </button>
+                </div>
+
+                <div className="flex-align-center justify-center gap-3 mt-3">
                   <button
                     type="button"
                     className="btn btn-primary flex-align-center gap-2"
                     onClick={() => {
-                      printBarcodeLabels(completedRestockResult.product, completedRestockResult.printCount, shopSettings);
+                      printBarcodeLabels(completedRestockResult.product, completedRestockResult.printCount, shopSettings, { orientation: shopSettings?.labelOrientation || 'x_axis' });
                       showToast(`Printing ${completedRestockResult.printCount} thermal stickers...`, 'success');
                     }}
                   >
