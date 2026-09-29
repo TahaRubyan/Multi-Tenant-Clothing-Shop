@@ -1063,11 +1063,11 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       }
       .sticker-label {
         width: ${isYAxis ? '27mm' : '48mm'} !important;
-        height: ${isYAxis ? '48mm' : '25mm'} !important;
+        height: ${isYAxis ? '48mm' : '29mm'} !important;
         max-width: ${isYAxis ? '27mm' : '48mm'} !important;
-        max-height: ${isYAxis ? '48mm' : '25.5mm'} !important;
+        max-height: ${isYAxis ? '48mm' : '29.5mm'} !important;
         margin: 0 auto !important;
-        padding: 0.5mm 1mm !important;
+        padding: 0.3mm 1mm !important;
         box-sizing: border-box !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
@@ -1109,10 +1109,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     }
     .sticker-label {
       width: ${isYAxis ? '27mm' : '48mm'};
-      height: ${isYAxis ? '48mm' : '25mm'};
+      height: ${isYAxis ? '48mm' : '29mm'};
       max-width: ${isYAxis ? '27mm' : '48mm'};
-      max-height: ${isYAxis ? '48mm' : '25.5mm'};
-      padding: 0.5mm 1mm;
+      max-height: ${isYAxis ? '48mm' : '29.5mm'};
+      padding: 0.3mm 1mm;
       display: flex;
       flex-direction: column;
       justify-content: space-between;

@@ -41,3 +41,7 @@ testing videos/
 credentials.json
 .vercel
 .gstack/
+
+# Internal security audit reports — never publish these to the repo
+TESSLO-Security-Audit.pdf
+*-Security-Audit.pdf
