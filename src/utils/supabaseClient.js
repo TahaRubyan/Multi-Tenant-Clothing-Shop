@@ -91,6 +91,9 @@ export async function flushOfflineQueue() {
       } else if (item.actionType === 'DELETE_TENANT') {
         const { error } = await supabase.from('tenants').delete().eq('id', item.payload.id);
         if (error) throw error;
+      } else if (item.actionType === 'DELETE_PRODUCT') {
+        const { error } = await supabase.from('products').delete().eq('id', item.payload.id);
+        if (error) throw error;
       }
       flushedCount++;
     } catch (err) {
@@ -350,6 +353,26 @@ export async function syncProductToCloud(product, tenantId) {
   } catch (err) {
     console.warn('[TESSLO Cloud] Product sync deferred, queuing locally:', err);
     addToPendingQueue('PRODUCT', row);
+    return { success: true, offline: true };
+  }
+}
+
+/**
+ * Delete Product from Supabase Cloud
+ */
+export async function deleteProductFromCloud(productId) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    addToPendingQueue('DELETE_PRODUCT', { id: productId });
+    return { success: true, offline: true };
+  }
+
+  try {
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) throw error;
+    return { success: true, offline: false };
+  } catch (err) {
+    console.warn('[TESSLO Cloud] Product deletion deferred:', err);
+    addToPendingQueue('DELETE_PRODUCT', { id: productId });
     return { success: true, offline: true };
   }
 }

@@ -8,6 +8,8 @@ import { hashPassword, verifyPassword } from '../utils/passwordUtils';
 import {
   syncSaleToCloud,
   syncProductToCloud,
+  deleteProductFromCloud,
+  mapCloudProductToLocal,
   syncSettlementToCloud,
   syncTenantToCloud,
   deleteTenantFromCloud,
@@ -17,6 +19,7 @@ import {
   fetchProductsFromCloud,
   fetchSalesFromCloud,
   flushOfflineQueue,
+  supabase,
 } from '../utils/supabaseClient';
 import {
   INITIAL_TENANTS,
@@ -204,6 +207,64 @@ export const POSProvider = ({ children }) => {
     if (currentTenant?.id) {
       syncTenantCatalog(currentTenant.id);
     }
+  }, [currentTenant?.id]);
+
+  // Realtime Supabase PostgreSQL Changes Subscription for Products & Inventory
+  useEffect(() => {
+    if (!supabase || typeof window === 'undefined') return;
+    const targetTenantId = currentTenant?.id;
+    const channelName = `rt-products-${targetTenantId || 'all'}-${Math.random().toString(36).slice(2, 9)}`;
+
+    let channel = null;
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'products',
+          },
+          (payload) => {
+            if (targetTenantId && payload.new?.tenant_id && payload.new.tenant_id !== targetTenantId) {
+              return;
+            }
+            if (payload.eventType === 'INSERT') {
+              const mapped = mapCloudProductToLocal(payload.new);
+              setAllProducts((prev) => {
+                if (prev.some((p) => p.id === mapped.id || p.barcode === mapped.barcode)) {
+                  return prev.map((p) => (p.id === mapped.id ? mapped : p));
+                }
+                return [mapped, ...prev];
+              });
+            } else if (payload.eventType === 'UPDATE') {
+              const mapped = mapCloudProductToLocal(payload.new);
+              setAllProducts((prev) =>
+                prev.map((p) => (p.id === mapped.id ? { ...p, ...mapped } : p))
+              );
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (deletedId) {
+                setAllProducts((prev) => prev.filter((p) => p.id !== deletedId));
+              }
+            }
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Realtime subscription notice:', err?.message || err);
+    }
+
+    return () => {
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {
+          // ignore
+        }
+      }
+    };
   }, [currentTenant?.id]);
 
   useEffect(() => {
@@ -1125,6 +1186,7 @@ export const POSProvider = ({ children }) => {
 
     const numQty = parseFloat(qtyToAdd) || 0;
 
+    let updatedTarget = null;
     setAllProducts(prev =>
       prev.map(p => {
         if (p.id === targetProd.id) {
@@ -1134,15 +1196,21 @@ export const POSProvider = ({ children }) => {
               v.sku === barcodeOrId ? { ...v, stock: Math.max(0, parseFloat((v.stock + numQty).toFixed(4))) } : v
             );
           }
-          return {
+          const up = {
             ...p,
             stock: Math.max(0, parseFloat((p.stock + numQty).toFixed(4))),
             variants: updatedVariants,
           };
+          updatedTarget = up;
+          return up;
         }
         return p;
       })
     );
+
+    if (updatedTarget) {
+      syncProductToCloud(updatedTarget, currentTenantId).catch(() => {});
+    }
 
     if (vendorId && numQty > 0) {
       const invoiceVal = targetProd.wholesalePrice * numQty;
@@ -1214,6 +1282,7 @@ export const POSProvider = ({ children }) => {
       return false;
     }
     setAllProducts(prev => prev.filter(p => p.id !== productId));
+    deleteProductFromCloud(productId).catch(() => {});
     showToast('Product deleted from inventory', 'info');
     return true;
   };

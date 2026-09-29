@@ -23,15 +23,24 @@ export default function BarcodeLabelPreview({
   className = '',
 }) {
   const displayShopName = (shopName || 'TESSLO').toUpperCase();
-  const baseName = tagLabel || itemName || 'Garment Item';
-  const effectiveSubtitle = tagSubtitle || color || '';
-  const itemNameWithColor = effectiveSubtitle ? `${baseName} - ${effectiveSubtitle}` : baseName;
+  let baseName = tagLabel || itemName || 'Garment Item';
+  baseName = baseName.replace(/\s*-\s*(Formal|Pret|Casual|Festive|Bridal|Silk|Cotton)$/gi, '').trim();
+
+  let rawSubtitle = String(tagSubtitle || color || '').trim();
+  rawSubtitle = rawSubtitle
+    .replace(/\(\s*(.*?)\s*\(\s*([A-Za-z0-9]+)\s*\(\s*(\d+)\s*\)\s*\)\s*\)/g, '$1 ($2-$3)')
+    .replace(/\(\s*([A-Za-z0-9]+)\s*\(\s*(\d+)\s*\)\s*\)/g, '($1-$2)')
+    .replace(/\(\s*\)/g, '')
+    .trim();
+
   const displayClothType = (clothType || 'Apparel & Fabric').toUpperCase();
+  const typeAndColor = rawSubtitle ? `${displayClothType} • ${rawSubtitle}` : displayClothType;
+
   const cleanBarcode = String(barcode || '000000000000').trim();
   const formattedPrice = (parseFloat(price) || 0).toLocaleString();
 
   const barcodeSvgHtml = useMemo(() => {
-    return generateBarcodeSvg(cleanBarcode, { height: 28, moduleWidth: 2 });
+    return generateBarcodeSvg(cleanBarcode, { height: 32, moduleWidth: 2, quietZoneModules: 14 });
   }, [cleanBarcode]);
 
   return (
@@ -41,17 +50,17 @@ export default function BarcodeLabelPreview({
         {displayShopName}
       </div>
 
-      {/* 2. Item Name with Color */}
-      <div className="tbl-item-name" title={itemNameWithColor}>
-        {itemNameWithColor}
+      {/* 2. Item Name */}
+      <div className="tbl-item-name" title={baseName}>
+        {baseName}
       </div>
 
-      {/* 3. Cloth Type */}
-      <div className="tbl-cloth-type" title={displayClothType}>
-        {displayClothType}
+      {/* 3. Item Type + Color */}
+      <div className="tbl-cloth-type tbl-type-color" title={typeAndColor}>
+        {typeAndColor}
       </div>
 
-      {/* 4. Authentic Code 128 Barcode (Scannable on Screen & Print) */}
+      {/* 4. Authentic Code 128 Barcode (Scannable on Screen & Thermal Print) */}
       <div
         className="tbl-barcode-box"
         dangerouslySetInnerHTML={{ __html: barcodeSvgHtml }}

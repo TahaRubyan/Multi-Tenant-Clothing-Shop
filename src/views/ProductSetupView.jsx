@@ -175,18 +175,22 @@ export const ProductSetupView = () => {
     const activeBarcode = barcode.trim() || generateNewBarcode();
     const effectiveType = itemType === 'Custom' ? (customItemType || 'Special') : itemType;
 
+    const cleanSize = size && size !== 'Standard' ? (size.trim().startsWith('(') ? size.trim() : `(${size.trim()})`) : '';
+    const formattedColorSize = cleanSize ? `${color.trim()} ${cleanSize}` : color.trim();
+
     const newProd = addProduct({
       productType: 'apparel',
       department,
       unitType: 'Piece',
       barcode: activeBarcode,
+      name: productName.trim(),
       tagLabel: tagLabel.trim() || productName.trim(),
-      tagSubtitle: tagSubtitle.trim() || `${color.trim()} (${size.trim()})`,
+      tagSubtitle: tagSubtitle.trim() || formattedColorSize,
       barcodeKeywords: barcodeKeywords.trim(),
       apparelCategory: category,
       fabricType: effectiveType,
       fabricMaterial: `${productName.trim()} - ${effectiveType}`,
-      fabricColor: `${color.trim()} (${size.trim()})`,
+      fabricColor: formattedColorSize,
       wholesalePrice: wholesaleNum,
       retailPrice: retailNum,
       initialStock: stockNum,

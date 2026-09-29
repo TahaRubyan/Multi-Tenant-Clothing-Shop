@@ -5,6 +5,8 @@
  * rendered in an isolated printing frame with zero interference from SPA modal backdrops or layout overflow rules.
  */
 
+import JsBarcode from 'jsbarcode';
+
 function escapeHtml(str) {
   if (str == null) return '';
   return String(str)
@@ -31,51 +33,73 @@ const CODE128_PATTERNS = [
 ];
 
 /**
- * Generate genuine ISO/IEC 15417 Code 128 (Set B) scannable barcode vector lines.
- * Universally readable by all 1D laser, CCD, and 2D camera handheld barcode guns.
+ * Generate genuine ISO/IEC 15417 Code 128 scannable barcode vector lines.
+ * Uses optimized Code 128 Auto (switching to Mode C for numbers) with built-in quiet zones
+ * so handheld 1D laser, CCD, and 2D camera guns decode instantly from screen and thermal paper.
  */
 export function generateBarcodeSvg(code = '000000000000', options = {}) {
-  const cleanCode = String(code || '000000000000').trim();
-  const height = options.height || 40;
+  const cleanCode = String(code || '000000000000').trim() || '000000000000';
+  const height = options.height || 36;
   const moduleWidth = options.moduleWidth || 2;
-  const quietZoneModules = 10;
+  const quietZoneModules = options.quietZoneModules || 14;
 
-  // Code 128 Set B Start Code = 104
-  let checksum = 104;
-  const symbols = [104];
+  let binary = '';
+  try {
+    if (JsBarcode && typeof JsBarcode.getModule === 'function') {
+      const Code128Class = JsBarcode.getModule('CODE128');
+      if (Code128Class) {
+        const encoder = new Code128Class(cleanCode, {});
+        if (encoder && typeof encoder.encode === 'function') {
+          binary = encoder.encode().data;
+        }
+      }
+    }
+  } catch (_) {}
 
-  for (let i = 0; i < cleanCode.length; i++) {
-    const codePoint = cleanCode.charCodeAt(i);
-    // Code 128 Set B supports ASCII 32 (' ') through 126 ('~')
-    const val = (codePoint >= 32 && codePoint <= 126) ? (codePoint - 32) : 0;
-    symbols.push(val);
-    checksum += val * (i + 1);
+  // Fallback to ISO/IEC 15417 Code 128 Set B if auto encoder unavailable
+  if (!binary) {
+    let checksum = 104;
+    const symbols = [104];
+    for (let i = 0; i < cleanCode.length; i++) {
+      const codePoint = cleanCode.charCodeAt(i);
+      const val = (codePoint >= 32 && codePoint <= 126) ? (codePoint - 32) : 0;
+      symbols.push(val);
+      checksum += val * (i + 1);
+    }
+    symbols.push(checksum % 103);
+    symbols.push(106); // Stop code (106)
+
+    for (const sym of symbols) {
+      const pattern = CODE128_PATTERNS[sym];
+      if (!pattern) continue;
+      for (let p = 0; p < pattern.length; p++) {
+        const w = parseInt(pattern[p], 10);
+        binary += (p % 2 === 0 ? '1' : '0').repeat(w);
+      }
+    }
   }
-
-  const checksumVal = checksum % 103;
-  symbols.push(checksumVal);
-  symbols.push(106); // Stop code (106)
 
   let currentX = quietZoneModules * moduleWidth;
   const rects = [];
 
-  for (const sym of symbols) {
-    const pattern = CODE128_PATTERNS[sym];
-    if (!pattern) continue;
-
-    for (let p = 0; p < pattern.length; p++) {
-      const w = parseInt(pattern[p], 10) * moduleWidth;
-      const isBar = p % 2 === 0;
-      if (isBar) {
-        rects.push(`<rect x="${currentX}" y="0" width="${w}" height="${height}" fill="#000000" shape-rendering="crispEdges" />`);
-      }
-      currentX += w;
+  let idx = 0;
+  while (idx < binary.length) {
+    const bit = binary[idx];
+    let run = 0;
+    while (idx < binary.length && binary[idx] === bit) {
+      run++;
+      idx++;
     }
+    const barWidth = run * moduleWidth;
+    if (bit === '1') {
+      rects.push(`<rect x="${currentX}" y="0" width="${barWidth}" height="${height}" fill="#000000" shape-rendering="crispEdges" />`);
+    }
+    currentX += barWidth;
   }
 
   const totalWidth = currentX + (quietZoneModules * moduleWidth);
 
-  return `<svg viewBox="0 0 ${totalWidth} ${height}" preserveAspectRatio="none" shape-rendering="crispEdges" style="width: 100%; height: 100%; display: block; shape-rendering: crispEdges;">
+  return `<svg viewBox="0 0 ${totalWidth} ${height}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" style="width: 100%; height: 100%; display: block; margin: 0 auto; shape-rendering: crispEdges;">
     <rect x="0" y="0" width="${totalWidth}" height="${height}" fill="#ffffff" shape-rendering="crispEdges" />
     ${rects.join('')}
   </svg>`;
@@ -830,10 +854,11 @@ export function generateZplLabel(product, shopSettings = {}, count = 1, options 
   if (!product) return '';
   const orientation = options?.orientation || shopSettings?.labelOrientation || 'x_axis';
   const shopName = (shopSettings?.shopName || 'NOVA MEN AND WOMEN').toUpperCase().slice(0, 32);
-  const baseItemName = product?.tagLabel || product?.fabricMaterial || product?.name || 'Garment Item';
+  let baseItemName = product?.tagLabel || product?.fabricMaterial || product?.name || 'Garment Item';
+  baseItemName = baseItemName.replace(/\s*-\s*(Formal|Pret|Casual|Festive|Bridal|Silk|Cotton)$/gi, '').trim().slice(0, 32);
   const color = product?.tagSubtitle || product?.fabricColor || product?.color || '';
-  const itemNameWithColor = (color ? `${baseItemName} - ${color}` : baseItemName).slice(0, 32);
-  const clothType = (product?.fabricType || product?.apparelCategory || product?.category || 'Cotton Fabric').toUpperCase().slice(0, 30);
+  const clothType = (product?.fabricType || product?.apparelCategory || product?.category || 'Cotton Fabric').toUpperCase().slice(0, 24);
+  const typeAndColor = (color ? `${clothType} - ${color}` : clothType).slice(0, 32);
   const itemCode = String(product?.barcode || product?.sku || '000000000000').trim();
   const price = (product?.retailPrice || 0).toLocaleString();
   const printQty = Math.max(1, parseInt(count, 10) || 1);
@@ -857,13 +882,14 @@ ${orientationCmd}
 ^PW384
 ^LL240
 ^LH0,0
-^FO10,8^FB364,1,0,C^A0N,20,20^FD${shopName}^FS
-^FO10,30^FB364,1,0,C^A0N,18,18^FD${itemNameWithColor}^FS
-^FO10,50^FB364,1,0,C^A0N,16,16^FD${clothType}^FS
-^FO20,68^BY2,3,32^BCN,32,N,N,N^FD${itemCode}^FS
-^FO10,104^FB364,1,0,C^A0N,20,20^FD${itemCode}^FS
-^FO15,126^GB354,2,2^FS
-^FO10,132^FB364,1,0,C^A0N,26,26^FDPRICE: Rs. ${price}^FS
+^FO10,8^FB364,1,0,C^A0N,18,18^FD${shopName}^FS
+^FO15,26^GB354,1,1^FS
+^FO10,29^FB364,1,0,C^A0N,18,18^FD${baseItemName}^FS
+^FO10,48^FB364,1,0,C^A0N,15,15^FD${typeAndColor}^FS
+^FO20,66^BY2,3,34^BCN,34,N,N,N^FD>:${itemCode}^FS
+^FO10,103^FB364,1,0,C^A0N,18,18^FD${itemCode}^FS
+^FO15,123^GB354,1,1^FS
+^FO10,126^FB364,1,0,C^A0N,22,22^FDPRICE: Rs. ${price}^FS
 ^PQ${printQty}
 ^XZ`;
 }
@@ -965,17 +991,23 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   const shopName = shopSettings?.shopName || 'NOVA MEN AND WOMEN';
   const labelCount = Math.max(1, parseInt(count, 10) || 1);
 
-  // Line 2: item name with color (using dedicated tagLabel if specified)
-  const baseItemName = product.tagLabel || product.fabricMaterial || product.name || product.itemName || 'Garment Item';
-  const color = product.tagSubtitle || product.fabricColor || product.color || '';
-  const itemNameWithColor = color ? `${baseItemName} - ${color}` : baseItemName;
+  // Line 2: item name (clean, concise)
+  let cleanItemName = product.tagLabel || product.name || product.fabricMaterial || product.itemName || 'Garment Item';
+  cleanItemName = cleanItemName.replace(/\s*-\s*(Formal|Pret|Casual|Festive|Bridal|Silk|Cotton)$/gi, '').trim();
 
-  // Line 3: cloth type
-  const clothType = product.fabricType || product.apparelCategory || product.category || 'Cotton Fabric';
+  // Line 3: cloth type & color
+  const clothType = (product.fabricType || product.apparelCategory || product.category || 'Cotton Fabric').trim();
+  let rawColor = String(product.tagSubtitle || product.fabricColor || product.color || '').trim();
+  rawColor = rawColor
+    .replace(/\(\s*(.*?)\s*\(\s*([A-Za-z0-9]+)\s*\(\s*(\d+)\s*\)\s*\)\s*\)/g, '$1 ($2-$3)')
+    .replace(/\(\s*([A-Za-z0-9]+)\s*\(\s*(\d+)\s*\)\s*\)/g, '($1-$2)')
+    .replace(/\(\s*\)/g, '')
+    .trim();
+  const typeAndColor = rawColor ? `${clothType} • ${rawColor}` : clothType;
 
   // Line 4: barcode & Line 5: item code
   const itemCode = String(product.barcode || product.sku || '000000000000').trim();
-  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 28, moduleWidth: 2 });
+  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 32, moduleWidth: 2, quietZoneModules: 14 });
 
   // Line 6: price
   const price = (product.retailPrice || 0).toLocaleString();
@@ -985,8 +1017,8 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     labelsHtml += `
       <div class="sticker-label">
         <div class="lbl-shop-name">${escapeHtml(shopName)}</div>
-        <div class="lbl-item-name">${escapeHtml(itemNameWithColor)}</div>
-        <div class="lbl-cloth-type">${escapeHtml(clothType)}</div>
+        <div class="lbl-item-name">${escapeHtml(cleanItemName)}</div>
+        <div class="lbl-type-color lbl-cloth-type">${escapeHtml(typeAndColor)}</div>
         <div class="lbl-barcode-box">
           ${barcodeSvg}
         </div>
@@ -999,7 +1031,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   const labelOrientation = options?.orientation || shopSettings?.labelOrientation || savedPrinterSettings?.labelOrientation || 'x_axis';
   const isYAxis = labelOrientation === 'y_axis';
   const isRotated90 = labelOrientation === 'rotated_90';
-  const pageOrientation = isYAxis ? '30mm 50mm portrait' : '50mm 30mm landscape';
+  const pageOrientation = isYAxis ? '30mm 50mm' : '50mm 30mm';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -1031,17 +1063,23 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       }
       .sticker-label {
         width: ${isYAxis ? '27mm' : '48mm'} !important;
-        height: ${isYAxis ? '48mm' : '27.5mm'} !important;
+        height: ${isYAxis ? '48mm' : '25mm'} !important;
         max-width: ${isYAxis ? '27mm' : '48mm'} !important;
-        max-height: ${isYAxis ? '48mm' : '27.5mm'} !important;
+        max-height: ${isYAxis ? '48mm' : '25.5mm'} !important;
         margin: 0 auto !important;
-        padding: 0.4mm 1mm !important;
+        padding: 0.5mm 1mm !important;
         box-sizing: border-box !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         page-break-after: always !important;
         break-after: page !important;
-        overflow: visible !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        text-align: center !important;
+        border: 1px solid #000000 !important;
         ${isRotated90 ? 'transform: rotate(90deg); transform-origin: center center;' : ''}
       }
       .sticker-label:last-child {
@@ -1071,10 +1109,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     }
     .sticker-label {
       width: ${isYAxis ? '27mm' : '48mm'};
-      height: ${isYAxis ? '48mm' : '27.5mm'};
+      height: ${isYAxis ? '48mm' : '25mm'};
       max-width: ${isYAxis ? '27mm' : '48mm'};
-      max-height: ${isYAxis ? '48mm' : '27.5mm'};
-      padding: 0.4mm 1mm;
+      max-height: ${isYAxis ? '48mm' : '25.5mm'};
+      padding: 0.5mm 1mm;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -1086,8 +1124,9 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       break-inside: avoid;
       page-break-after: always;
       break-after: page;
-      overflow: visible;
+      overflow: hidden;
       border: 1px solid #000000;
+      box-sizing: border-box;
       ${isRotated90 ? 'transform: rotate(90deg); transform-origin: center center;' : ''}
     }
     .sticker-label:last-child {
@@ -1095,32 +1134,32 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       break-after: avoid !important;
     }
     .lbl-shop-name {
-      font-size: 8.5px;
+      font-size: 8px;
       font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 0.4px;
+      letter-spacing: 0.3px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       width: 100%;
       color: #000000 !important;
       line-height: 1.1;
-      border-bottom: 1.5px solid #000000;
-      padding-bottom: 1px;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 0.5px;
     }
     .lbl-item-name {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 800;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       width: 100%;
       color: #000000 !important;
-      line-height: 1.15;
-      margin-top: 1px;
+      line-height: 1.1;
+      margin-top: 0.5px;
     }
-    .lbl-cloth-type {
-      font-size: 7px;
+    .lbl-type-color {
+      font-size: 6.5px;
       font-weight: 700;
       text-transform: uppercase;
       white-space: nowrap;
@@ -1129,23 +1168,24 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       width: 100%;
       color: #000000 !important;
       line-height: 1;
-      margin-top: 1px;
+      margin-top: 0.5px;
     }
     .lbl-barcode-box {
       width: 96%;
-      height: 7.5mm;
-      min-height: 7.5mm;
-      max-height: 7.5mm;
+      height: 8mm;
+      min-height: 8mm;
+      max-height: 8mm;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 1px auto;
+      margin: 0.5px auto;
       overflow: hidden;
     }
     .lbl-barcode-box svg {
       width: 100%;
       height: 100%;
       display: block;
+      margin: 0 auto;
       shape-rendering: crispEdges !important;
     }
     .lbl-barcode-box rect {
@@ -1153,23 +1193,23 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     }
     .lbl-item-code {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 900;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       color: #000000 !important;
-      line-height: 1.1;
-      margin: 1px 0;
+      line-height: 1;
+      margin: 0.5px 0;
       overflow: visible;
     }
     .lbl-price {
-      font-size: 11px;
+      font-size: 9.5px;
       font-weight: 900;
-      border-top: 1.5px solid #000000;
+      border-top: 1px solid #000000;
       width: 100%;
-      padding-top: 1px;
-      letter-spacing: 0.5px;
+      padding-top: 0.5px;
+      letter-spacing: 0.3px;
       color: #000000 !important;
-      line-height: 1.15;
+      line-height: 1.1;
       overflow: visible;
     }
   </style>

@@ -300,27 +300,38 @@ export const MakeSaleView = () => {
 
       // Printable single characters
       if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        // Barcode guns type characters with < 60ms between keys
-        if (timeDiff < 60 || scanBuffer.length === 0) {
+        // Barcode guns type characters in rapid bursts (< 100ms between keys)
+        if (timeDiff < 100 || scanBuffer.length === 0) {
           scanBuffer += e.key;
         } else {
           scanBuffer = e.key;
         }
       } else if (e.key === 'Enter') {
         const potentialBarcode = scanBuffer.trim();
-        if (potentialBarcode.length >= 4 && timeDiff < 120) {
+        if (potentialBarcode.length >= 3 && timeDiff < 300) {
           const queryLower = potentialBarcode.toLowerCase();
-          const matchedItem = (flattenedSearchItems || []).find(
-            (it) =>
-              it.barcode?.toLowerCase() === queryLower ||
-              it.masterBarcode?.toLowerCase() === queryLower ||
-              it.fabricMaterial?.toLowerCase() === queryLower
-          );
+          const cleanQuery = queryLower.replace(/[-\s]/g, '');
+
+          const matchedItem = (flattenedSearchItems || []).find((it) => {
+            const b = (it.barcode || '').toLowerCase();
+            const mb = (it.masterBarcode || '').toLowerCase();
+            const fm = (it.fabricMaterial || '').toLowerCase();
+            return (
+              b === queryLower ||
+              mb === queryLower ||
+              fm === queryLower ||
+              b.replace(/[-\s]/g, '') === cleanQuery ||
+              mb.replace(/[-\s]/g, '') === cleanQuery
+            );
+          });
 
           if (matchedItem) {
             e.preventDefault();
             addToCart(matchedItem.product, 1, matchedItem.variant);
-            showToast(`Scanned: ${matchedItem.product.fabricMaterial} (${matchedItem.variant ? matchedItem.variant.size : 'Standard'}) added to cart!`, 'success');
+            showToast(
+              `Scanned: ${matchedItem.product.fabricMaterial} (${matchedItem.variant ? matchedItem.variant.size : 'Standard'}) added to cart!`,
+              'success'
+            );
             setSearchQuery('');
             setIsSearchFocused(false);
             scanBuffer = '';
@@ -366,12 +377,20 @@ export const MakeSaleView = () => {
     }
 
     const queryLower = searchQuery.trim().toLowerCase();
-    const matchedItem = flattenedSearchItems.find(
-      (it) =>
-        it.barcode.toLowerCase() === queryLower ||
-        it.masterBarcode.toLowerCase() === queryLower ||
-        it.fabricMaterial.toLowerCase() === queryLower
-    );
+    const cleanQuery = queryLower.replace(/[-\s]/g, '');
+
+    const matchedItem = flattenedSearchItems.find((it) => {
+      const b = (it.barcode || '').toLowerCase();
+      const mb = (it.masterBarcode || '').toLowerCase();
+      const fm = (it.fabricMaterial || '').toLowerCase();
+      return (
+        b === queryLower ||
+        mb === queryLower ||
+        fm === queryLower ||
+        b.replace(/[-\s]/g, '') === cleanQuery ||
+        mb.replace(/[-\s]/g, '') === cleanQuery
+      );
+    });
 
     if (matchedItem) {
       addToCart(matchedItem.product, 1, matchedItem.variant);
