@@ -942,6 +942,20 @@ export function generateZplLabel(product, shopSettings = {}, count = 1, options 
   const printMethod = shopSettings?.printMethod || 'direct_thermal';
   const mediaTypeCmd = printMethod === 'direct_thermal' ? '^MTD' : '^MTT';
 
+  // ">:" forces Code 128 Subset C (2-digits-per-symbol compression), which
+  // can ONLY represent an even count of digits - nothing else. Forcing it
+  // unconditionally corrupts any barcode/SKU that isn't purely numeric with
+  // an even length (e.g. an odd-length code, or an alphanumeric SKU via the
+  // product.sku fallback above): the printer's data no longer matches what
+  // Subset C can encode, producing a barcode that looks fine but decodes to
+  // the wrong value or fails its checksum - "prints fine, won't scan."
+  // Only opt into the compact Subset C encoding when the data actually fits
+  // it; otherwise let the printer's default subset (B) handle it, which can
+  // represent any printable ASCII correctly.
+  const zplBarcodeData = /^\d+$/.test(itemCode) && itemCode.length % 2 === 0
+    ? `>:${itemCode}`
+    : itemCode;
+
   const orientationCmd = orientation === 'y_axis'
     ? '^FWR'
     : (orientation === 'inverted_180' ? '^POI' : '^PON\n^FWN');
@@ -960,7 +974,7 @@ ${orientationCmd}
 ^FO15,34^GB354,1,1^FS
 ^FO15,38^FB354,1,0,C^A0N,16,16^FD${itemName.slice(0, 34)}^FS
 ^FO15,56^FB354,1,0,C^A0N,14,14^FD${itemType}^FS
-^FO20,72^BY2,3,56^BCN,56,N,N,N^FD>:${itemCode}^FS
+^FO20,72^BY2,3,56^BCN,56,N,N,N^FD${zplBarcodeData}^FS
 ^FO15,134^FB354,1,0,C^A0N,18,18^FD${itemCode}^FS
 ^FO15,154^GB354,1,1^FS
 ^FO15,160^FB354,1,0,C^A0N,24,24^FDPRICE: Rs. ${price}^FS

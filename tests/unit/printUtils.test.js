@@ -18,7 +18,8 @@ describe('Print Utilities Unit Tests', () => {
     it('generates a valid SVG string with black and white rect bars', () => {
       const svg = generateBarcodeSvg('123456789012');
       expect(svg).toContain('<svg');
-      expect(svg).toMatch(/<svg viewBox="0 0 \d+ \d+"/);
+      expect(svg).toMatch(/viewBox="0 0 \d+ \d+"/);
+      expect(svg).toMatch(/width="\d+" height="\d+"/);
       expect(svg).toContain('fill="#ffffff"');
       expect(svg).toContain('fill="#000000"');
       expect(svg).toContain('</svg>');
