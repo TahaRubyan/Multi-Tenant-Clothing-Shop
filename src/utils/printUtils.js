@@ -17,6 +17,60 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+const CSS_PX_PER_MM = 3.7795275591;
+const LABEL_FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+let _measureCanvas = null;
+
+/**
+ * Measures the real rendered width (px) of `text` in the given font using a canvas 2D
+ * context - the only way to know exactly how wide a bold, mixed-glyph string will render,
+ * since an average-character-width guess drifts wildly across "i"/"l" vs "W"/"O". Returns
+ * null when canvas text measurement isn't available (e.g. non-browser environments), so
+ * callers can fall back to a heuristic.
+ */
+function measureTextWidthPx(text, font) {
+  try {
+    if (typeof document === 'undefined') return null;
+    if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+    const ctx = _measureCanvas.getContext && _measureCanvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.font = font;
+    const width = ctx.measureText(String(text || '')).width;
+    return Number.isFinite(width) && width > 0 ? width : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Computes a font-size (in px) that shrinks to keep `text` on a single line within
+ * `availableWidthMm`, instead of letting the browser clip it with a CSS ellipsis.
+ * Thermal sticker labels are only 48mm/27mm wide with no room to wrap onto a 2nd
+ * line without breaking the strict 6-line hierarchy, so the physical printout must
+ * never show a truncated "..." name - it always shrinks to fit instead.
+ */
+function computeAutoFitFontSizePx(text, {
+  availableWidthMm,
+  maxFontSizePx,
+  minFontSizePx,
+  fontWeight = 800,
+  charWidthFactor = 0.72,
+}) {
+  const str = String(text || '');
+  const availablePx = availableWidthMm * CSS_PX_PER_MM;
+  const REFERENCE_SIZE = 100;
+  const measuredWidthAtReference = measureTextWidthPx(str, `${fontWeight} ${REFERENCE_SIZE}px ${LABEL_FONT_STACK}`);
+
+  let fontSizePx;
+  if (measuredWidthAtReference) {
+    fontSizePx = (availablePx / measuredWidthAtReference) * REFERENCE_SIZE;
+  } else {
+    const length = Math.max(1, str.length);
+    fontSizePx = availablePx / (length * charWidthFactor);
+  }
+  return Math.max(minFontSizePx, Math.min(maxFontSizePx, fontSizePx));
+}
+
 // Authentic ISO/IEC 15417 Code 128 Patterns (Indices 0 to 106)
 const CODE128_PATTERNS = [
   '212222', '222122', '222221', '121223', '121322', '131222', '122213', '122312', '132212', '221213',
@@ -1001,20 +1055,19 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   const shopName = (shopSettings?.shopName || 'TESTING PORTAL').trim();
   const labelCount = Math.max(1, parseInt(count, 10) || 1);
 
-  // Line 2: item name (with color, clean)
-  let baseItemName = product.tagLabel || product.name || product.fabricMaterial || product.itemName || 'Garment Item';
-  let color = String(product.tagSubtitle || product.fabricColor || product.color || '').trim();
-  color = color
+  // Line 2: item name (clean, concise)
+  let cleanItemName = product.tagLabel || product.name || product.fabricMaterial || product.itemName || 'Garment Item';
+  cleanItemName = cleanItemName.replace(/\s*-\s*(Formal|Pret|Casual|Festive|Bridal|Silk|Cotton)$/gi, '').trim();
+
+  // Line 3: cloth type & color
+  const clothType = (product.fabricType || product.apparelCategory || product.category || 'Cotton Fabric').trim();
+  let rawColor = String(product.tagSubtitle || product.fabricColor || product.color || '').trim();
+  rawColor = rawColor
     .replace(/\(\s*(.*?)\s*\(\s*([A-Za-z0-9]+)\s*\(\s*(\d+)\s*\)\s*\)\s*\)/g, '$1 ($2-$3)')
     .replace(/\(\s*([A-Za-z0-9]+)\s*\(\s*(\d+)\s*\)\s*\)/g, '($1-$2)')
     .replace(/\(\s*\)/g, '')
     .trim();
-  const itemName = color && !baseItemName.toLowerCase().includes(color.toLowerCase())
-    ? `${baseItemName} - ${color}`
-    : baseItemName;
-
-  // Line 3: item type (FORMAL, CASUAL, etc. - rendered uppercase via CSS)
-  const itemType = (product.fabricType || product.apparelCategory || product.category || 'FORMAL').trim();
+  const typeAndColor = rawColor ? `${clothType} • ${rawColor}` : clothType;
 
   // Line 4: barcode & Line 5: item code
   const itemCode = String(product.barcode || product.sku || '000000000000').trim();
@@ -1023,9 +1076,21 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
   // Line 6: price
   const price = (product.retailPrice || 0).toLocaleString();
 
+  const labelOrientation = options?.orientation || shopSettings?.labelOrientation || savedPrinterSettings?.labelOrientation || 'x_axis';
+  const isYAxis = labelOrientation === 'y_axis';
+
+  // Available print width inside the sticker (label width minus the 1mm side padding on each edge).
+  // Never truncate the printed name with an ellipsis - shrink the font to fit instead.
+  const innerWidthMm = (isYAxis ? 27 : 46) - 2;
+  // .lbl-shop-name and .lbl-type-color are CSS text-transform: uppercase, so measure the
+  // uppercased string - the rendered glyphs, not the source casing, are what must fit.
+  const shopNameFontSizePx = computeAutoFitFontSizePx(shopName.toUpperCase(), { availableWidthMm: innerWidthMm, maxFontSizePx: 8, minFontSizePx: 5.5, fontWeight: 900 });
+  const itemNameFontSizePx = computeAutoFitFontSizePx(cleanItemName, { availableWidthMm: innerWidthMm, maxFontSizePx: 7.5, minFontSizePx: 5, fontWeight: 800 });
+  const typeColorFontSizePx = computeAutoFitFontSizePx(typeAndColor.toUpperCase(), { availableWidthMm: innerWidthMm, maxFontSizePx: 6.5, minFontSizePx: 4.5, fontWeight: 700 });
+
   let labelsHtml = '';
   for (let i = 0; i < labelCount; i++) {
-    labelsHtml += `<div class="sticker-label"><div class="lbl-shop-name">${escapeHtml(shopName)}</div><div class="lbl-item-name">${escapeHtml(itemName)}</div><div class="lbl-item-type">${escapeHtml(itemType)}</div><div class="lbl-barcode-box">${barcodeSvg}</div><div class="lbl-item-code">${escapeHtml(itemCode)}</div><div class="lbl-price">PRICE: Rs. ${price}</div></div>`;
+    labelsHtml += `<div class="sticker-label"><div class="lbl-shop-name" style="font-size: ${shopNameFontSizePx.toFixed(2)}px;">${escapeHtml(shopName)}</div><div class="lbl-item-name" style="font-size: ${itemNameFontSizePx.toFixed(2)}px;">${escapeHtml(cleanItemName)}</div><div class="lbl-item-type lbl-type-color lbl-cloth-type" style="font-size: ${typeColorFontSizePx.toFixed(2)}px;">${escapeHtml(typeAndColor)}</div><div class="lbl-barcode-box">${barcodeSvg}</div><div class="lbl-item-code">${escapeHtml(itemCode)}</div><div class="lbl-price">PRICE: Rs. ${price}</div></div>`;
   }
 
   const isSingle = labelCount === 1;

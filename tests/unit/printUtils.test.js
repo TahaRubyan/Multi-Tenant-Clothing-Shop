@@ -142,6 +142,28 @@ describe('Print Utilities Unit Tests', () => {
         expect(s.innerHTML).toContain('PRICE: Rs. 8,500');
       });
     });
+
+    it('never clips a long product name with a "..." ellipsis - it shrinks the font to fit instead', () => {
+      const mockProduct = {
+        name: 'Executive Royal Oxford Shirt',
+        tagLabel: 'Executive Royal Oxford Shirt',
+        apparelCategory: 'Formal',
+        fabricColor: 'Sky Blue',
+        size: 'L-42',
+        barcode: '890123456789',
+        retailPrice: 4500,
+      };
+
+      printBarcodeLabels(mockProduct, 1, { shopName: 'TESTING PANEL' });
+
+      const frame = document.getElementById('pos-clean-print-frame');
+      const doc = frame.contentWindow.document;
+      const itemNameEl = doc.querySelector('.lbl-item-name');
+
+      expect(itemNameEl.textContent).toBe('Executive Royal Oxford Shirt');
+      expect(itemNameEl.textContent).not.toContain('...');
+      expect(itemNameEl.getAttribute('style')).toMatch(/font-size:\s*[\d.]+px/);
+    });
   });
 
   describe('generateEplLabel (EPL2 Hardware Protocol)', () => {
