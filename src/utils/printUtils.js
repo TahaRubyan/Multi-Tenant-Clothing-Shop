@@ -94,7 +94,6 @@ const CODE128_PATTERNS = [
 export function generateBarcodeSvg(code = '000000000000', options = {}) {
   const cleanCode = String(code || '000000000000').trim() || '000000000000';
   const height = options.height || 48;
-  const moduleWidth = options.moduleWidth || 2;
   const quietZoneModules = options.quietZoneModules || 14;
 
   let binary = '';
@@ -133,6 +132,20 @@ export function generateBarcodeSvg(code = '000000000000', options = {}) {
     }
   }
 
+  // Choose the largest WHOLE-pixel module width that fits the caller's
+  // available print width, so every bar renders at an exact integer pixel
+  // count. Stretching/shrinking the barcode to fit a percentage-based
+  // container (via CSS width:100% + preserveAspectRatio="none") applies a
+  // fractional scale factor that gets independently rounded per-bar during
+  // rasterization, subtly distorting the precise narrow:wide bar-width
+  // ratios Code 128 decoding depends on - a barcode that looks fine on
+  // screen can still fail to scan because of exactly this. Rendering at a
+  // native integer scale and letting the flex container center it (instead
+  // of stretching the SVG to fill it) avoids that entirely.
+  const totalModules = binary.length + quietZoneModules * 2;
+  const moduleWidth = options.moduleWidth
+    || (options.targetWidthPx ? Math.max(1, Math.floor(options.targetWidthPx / totalModules)) : 2);
+
   let currentX = quietZoneModules * moduleWidth;
   const rects = [];
 
@@ -153,7 +166,7 @@ export function generateBarcodeSvg(code = '000000000000', options = {}) {
 
   const totalWidth = currentX + (quietZoneModules * moduleWidth);
 
-  return `<svg viewBox="0 0 ${totalWidth} ${height}" preserveAspectRatio="none" shape-rendering="crispEdges" style="width: 100%; height: 100%; display: block; margin: 0 auto; shape-rendering: crispEdges;">
+  return `<svg width="${totalWidth}" height="${height}" viewBox="0 0 ${totalWidth} ${height}" shape-rendering="crispEdges" style="display: block; shape-rendering: crispEdges;">
     <rect x="0" y="0" width="${totalWidth}" height="${height}" fill="#ffffff" shape-rendering="crispEdges" />
     ${rects.join('')}
   </svg>`;
@@ -1070,7 +1083,11 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
 
   // Line 4: barcode & Line 5: item code
   const itemCode = String(product.barcode || product.sku || '000000000000').trim();
-  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 42, moduleWidth: 2, quietZoneModules: 14 });
+  // .lbl-barcode-box is 98% of the 46mm sticker width - matches that here so
+  // the barcode renders at a native integer module width instead of being
+  // stretched/shrunk to fit (see generateBarcodeSvg's comment on why that
+  // breaks scanning).
+  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 42, targetWidthPx: 170, quietZoneModules: 14 });
 
   // Line 6: price
   const price = (product.retailPrice || 0).toLocaleString();
@@ -1251,10 +1268,9 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       background: #ffffff !important;
     }
     .lbl-barcode-box svg {
-      width: 100%;
-      height: 100%;
       display: block;
       margin: 0 auto;
+      max-width: 100%;
       shape-rendering: crispEdges !important;
     }
     .lbl-barcode-box rect {

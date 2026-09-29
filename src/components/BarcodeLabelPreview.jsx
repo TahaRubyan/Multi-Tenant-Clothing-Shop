@@ -40,7 +40,10 @@ export default function BarcodeLabelPreview({
   const formattedPrice = (parseFloat(price) || 0).toLocaleString();
 
   const barcodeSvgHtml = useMemo(() => {
-    return generateBarcodeSvg(cleanBarcode, { height: 48, moduleWidth: 2, quietZoneModules: 14 });
+    // .tbl-barcode-box is 95% of the 250px preview width - matches that here
+    // so the barcode renders at a native integer module width instead of
+    // being stretched/shrunk to fit (see generateBarcodeSvg's comment).
+    return generateBarcodeSvg(cleanBarcode, { height: 48, targetWidthPx: 237, quietZoneModules: 14 });
   }, [cleanBarcode]);
 
   return (
