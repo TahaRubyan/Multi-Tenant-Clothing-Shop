@@ -94,7 +94,6 @@ const CODE128_PATTERNS = [
 export function generateBarcodeSvg(code = '000000000000', options = {}) {
   const cleanCode = String(code || '000000000000').trim() || '000000000000';
   const height = options.height || 48;
-  const quietZoneModules = options.quietZoneModules || 14;
 
   let binary = '';
   try {
@@ -132,21 +131,25 @@ export function generateBarcodeSvg(code = '000000000000', options = {}) {
     }
   }
 
-  // Choose the largest WHOLE-pixel module width that fits the caller's
-  // available print width, so every bar renders at an exact integer pixel
-  // count. Stretching/shrinking the barcode to fit a percentage-based
-  // container (via CSS width:100% + preserveAspectRatio="none") applies a
-  // fractional scale factor that gets independently rounded per-bar during
-  // rasterization, subtly distorting the precise narrow:wide bar-width
-  // ratios Code 128 decoding depends on - a barcode that looks fine on
-  // screen can still fail to scan because of exactly this. Rendering at a
-  // native integer scale and letting the flex container center it (instead
-  // of stretching the SVG to fill it) avoids that entirely.
-  const totalModules = binary.length + quietZoneModules * 2;
-  const moduleWidth = options.moduleWidth
-    || (options.targetWidthPx ? Math.max(1, Math.floor(options.targetWidthPx / totalModules)) : 2);
+  // 203 DPI standard thermal printhead width = 384 dots (48mm).
+  // Narrow bar (X-dimension) MUST be integer dots (>= 2 dots = 0.25mm / 10 mil)
+  // for 100% 1D laser/CCD scannability on thermal sticker paper.
+  const targetWidth = options.targetWidth || 384;
+  let moduleWidth = options.moduleWidth || 2;
+  let dataWidth = binary.length * moduleWidth;
 
-  let currentX = quietZoneModules * moduleWidth;
+  // If an abnormally long barcode symbol exceeds 344 dots at 2 dots/module, scale moduleWidth down to 1
+  if (dataWidth > 344 && !options.moduleWidth) {
+    moduleWidth = 1;
+    dataWidth = binary.length * moduleWidth;
+  }
+
+  const remaining = Math.max(20, targetWidth - dataWidth);
+  const leftQuietZone = Math.floor(remaining / 2);
+  const rightQuietZone = remaining - leftQuietZone;
+  const totalWidth = leftQuietZone + dataWidth + rightQuietZone;
+
+  let currentX = leftQuietZone;
   const rects = [];
 
   let idx = 0;
@@ -164,9 +167,7 @@ export function generateBarcodeSvg(code = '000000000000', options = {}) {
     currentX += barWidth;
   }
 
-  const totalWidth = currentX + (quietZoneModules * moduleWidth);
-
-  return `<svg width="${totalWidth}" height="${height}" viewBox="0 0 ${totalWidth} ${height}" shape-rendering="crispEdges" style="display: block; shape-rendering: crispEdges;">
+  return `<svg width="${totalWidth}" height="${height}" viewBox="0 0 ${totalWidth} ${height}" preserveAspectRatio="none" shape-rendering="crispEdges" style="display: block; width: 100%; height: 100%; shape-rendering: crispEdges;">
     <rect x="0" y="0" width="${totalWidth}" height="${height}" fill="#ffffff" shape-rendering="crispEdges" />
     ${rects.join('')}
   </svg>`;
@@ -942,19 +943,33 @@ export function generateZplLabel(product, shopSettings = {}, count = 1, options 
   const printMethod = shopSettings?.printMethod || 'direct_thermal';
   const mediaTypeCmd = printMethod === 'direct_thermal' ? '^MTD' : '^MTT';
 
-  // ">:" forces Code 128 Subset C (2-digits-per-symbol compression), which
-  // can ONLY represent an even count of digits - nothing else. Forcing it
-  // unconditionally corrupts any barcode/SKU that isn't purely numeric with
-  // an even length (e.g. an odd-length code, or an alphanumeric SKU via the
-  // product.sku fallback above): the printer's data no longer matches what
-  // Subset C can encode, producing a barcode that looks fine but decodes to
-  // the wrong value or fails its checksum - "prints fine, won't scan."
-  // Only opt into the compact Subset C encoding when the data actually fits
-  // it; otherwise let the printer's default subset (B) handle it, which can
-  // represent any printable ASCII correctly.
-  const zplBarcodeData = /^\d+$/.test(itemCode) && itemCode.length % 2 === 0
-    ? `>:${itemCode}`
-    : itemCode;
+  // Format Code 128 for Zebra ZPL:
+  // Starts with '>:' (Subset B). If code ends with an even run of 4+ digits,
+  // switch to '>5' (Subset C) to compress numeric sequence into half length.
+  // If code is pure digits with even length, start directly in Subset C ('>;').
+  let zplBarcodeData = `>:${itemCode}`;
+  let symbolModules = itemCode.length * 11 + 35;
+  if (/^\d+$/.test(itemCode) && itemCode.length % 2 === 0) {
+    zplBarcodeData = `>;${itemCode}`;
+    symbolModules = (itemCode.length / 2) * 11 + 35;
+  } else {
+    const digitMatch = itemCode.match(/^(.*?)(\d{4,})$/);
+    if (digitMatch) {
+      const prefix = digitMatch[1];
+      let digits = digitMatch[2];
+      if (digits.length % 2 !== 0) {
+        zplBarcodeData = `>:${prefix}${digits[0]}>5${digits.slice(1)}`;
+        symbolModules = (prefix.length + 1) * 11 + 11 + ((digits.length - 1) / 2) * 11 + 35;
+      } else {
+        zplBarcodeData = `>:${prefix}>5${digits}`;
+        symbolModules = prefix.length * 11 + 11 + (digits.length / 2) * 11 + 35;
+      }
+    }
+  }
+
+  // Calculate centered X position on 384-dot printhead with 2-dot modules (^BY2)
+  const barcodeWidthDots = Math.min(364, symbolModules * 2);
+  const xBarcode = Math.max(10, Math.floor((384 - barcodeWidthDots) / 2));
 
   const orientationCmd = orientation === 'y_axis'
     ? '^FWR'
@@ -963,8 +978,8 @@ export function generateZplLabel(product, shopSettings = {}, count = 1, options 
   return `^XA
 ${mediaTypeCmd}
 ${orientationCmd}
-~SD22
-^MD22
+~SD14
+^MD14
 ^PR3
 ^PW384
 ^LL240
@@ -974,7 +989,7 @@ ${orientationCmd}
 ^FO15,34^GB354,1,1^FS
 ^FO15,38^FB354,1,0,C^A0N,16,16^FD${itemName.slice(0, 34)}^FS
 ^FO15,56^FB354,1,0,C^A0N,14,14^FD${itemType}^FS
-^FO20,72^BY2,3,56^BCN,56,N,N,N^FD${zplBarcodeData}^FS
+^FO${xBarcode},72^BY2,3,56^BCN,56,N,N,N^FD${zplBarcodeData}^FS
 ^FO15,134^FB354,1,0,C^A0N,18,18^FD${itemCode}^FS
 ^FO15,154^GB354,1,1^FS
 ^FO15,160^FB354,1,0,C^A0N,24,24^FDPRICE: Rs. ${price}^FS
@@ -1018,10 +1033,12 @@ export function generateEplLabel(product, shopSettings = {}, count = 1, options 
   const priceStr = `PRICE: Rs. ${price}`;
   const xPrice = Math.max(10, Math.floor((384 - (priceStr.length * 14)) / 2));
 
-  // Center Code 128 barcode dynamically
-  const narrowBar = itemCode.length > 12 ? 1 : 2;
-  const charWidth = narrowBar === 1 ? 11 : 22;
-  const barcodeApproxWidth = (itemCode.length + 3) * charWidth + 20;
+  // Center Code 128 barcode dynamically with standard 2-dot narrow bar (0.25mm / 10 mil)
+  const narrowBar = 2;
+  const wideBar = 4;
+  const isNumeric = /^\d+$/.test(itemCode);
+  const symbolChars = isNumeric ? Math.ceil(itemCode.length / 2) + 3 : itemCode.length + 4;
+  const barcodeApproxWidth = symbolChars * (narrowBar * 11) + 20;
   const xBarcode = Math.max(10, Math.floor((384 - barcodeApproxWidth) / 2));
 
   return [
@@ -1037,7 +1054,7 @@ export function generateEplLabel(product, shopSettings = {}, count = 1, options 
     'LO15,34,354,1',
     `A${xName},38,${rot},2,1,1,N,"${itemNameWithColor.replace(/"/g, "'")}"`,
     `A${xType},56,${rot},1,1,1,N,"${clothType.replace(/"/g, "'")}"`,
-    `B${xBarcode},72,${rot},1,${narrowBar},${narrowBar * 2},56,N,"${itemCode.replace(/"/g, '')}"`,
+    `B${xBarcode},72,${rot},1,${narrowBar},${wideBar},56,N,"${itemCode.replace(/"/g, '')}"`,
     `A${xCode},134,${rot},3,1,1,N,"${itemCode.replace(/"/g, "'")}"`,
     'LO15,154,354,1',
     `A${xPrice},160,${rot},3,1,1,N,"${priceStr.replace(/"/g, "'")}"`,
@@ -1097,12 +1114,9 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
 
   // Line 4: barcode & Line 5: item code
   const itemCode = String(product.barcode || product.sku || '000000000000').trim();
-  // .lbl-barcode-box is 98% of the 46mm sticker width and a fixed 9.5mm
-  // (~36px) tall with overflow:hidden - both matched here exactly. The SVG
-  // renders at its own native size now instead of being CSS-stretched to
-  // fit, so a mismatch on either dimension would distort bar ratios or get
-  // silently clipped by that overflow - either way, a barcode that won't scan.
-  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 36, targetWidthPx: 170, quietZoneModules: 14 });
+  // Standard 203 DPI thermal printhead width = 384 dots (48mm).
+  // Height = 48 dots (~10mm tall in SVG viewBox), integer 2-dot narrow bars (0.25mm / 10 mil).
+  const barcodeSvg = generateBarcodeSvg(itemCode, { height: 48, targetWidth: 384, moduleWidth: 2 });
 
   // Line 6: price
   const price = (product.retailPrice || 0).toLocaleString();
@@ -1112,7 +1126,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
 
   // Available print width inside the sticker (label width minus the 1mm side padding on each edge).
   // Never truncate the printed name with an ellipsis - shrink the font to fit instead.
-  const innerWidthMm = (isYAxis ? 27 : 46) - 2;
+  const innerWidthMm = (isYAxis ? 27 : 48) - 2;
   // .lbl-shop-name and .lbl-type-color are CSS text-transform: uppercase, so measure the
   // uppercased string - the rendered glyphs, not the source casing, are what must fit.
   const shopNameFontSizePx = computeAutoFitFontSizePx(shopName.toUpperCase(), { availableWidthMm: innerWidthMm, maxFontSizePx: 8, minFontSizePx: 5.5, fontWeight: 900 });
@@ -1150,16 +1164,16 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       html, body {
         width: 50mm !important;
         ${isSingle ? 'height: 25.5mm !important; max-height: 25.5mm !important; overflow: hidden !important;' : 'height: auto !important;'}
-        margin: 0 !important;
+        margin: 0 auto !important;
         padding: 0 !important;
         background: #ffffff !important;
         color: #000000 !important;
       }
       .sticker-label {
-        width: 46mm !important;
-        height: 25mm !important;
-        max-width: 46mm !important;
-        max-height: 25mm !important;
+        width: 48mm !important;
+        height: 25.5mm !important;
+        max-width: 48mm !important;
+        max-height: 25.5mm !important;
         margin: 0 auto !important;
         padding: 0.5mm 1mm !important;
         box-sizing: border-box !important;
@@ -1173,7 +1187,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
-        gap: 0.3mm !important;
+        gap: 0.2mm !important;
         align-items: center !important;
         text-align: center !important;
         border: 1.2px solid #000000 !important;
@@ -1195,7 +1209,7 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     html, body {
       width: 50mm;
       ${isSingle ? 'height: 25.5mm; max-height: 25.5mm; overflow: hidden;' : 'height: auto;'}
-      margin: 0;
+      margin: 0 auto;
       padding: 0;
       background: #ffffff !important;
       color: #000000 !important;
@@ -1205,16 +1219,16 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       shape-rendering: crispEdges !important;
     }
     .sticker-label {
-      width: 46mm;
-      height: 25mm;
-      max-width: 46mm;
-      max-height: 25mm;
+      width: 48mm;
+      height: 25.5mm;
+      max-width: 48mm;
+      max-height: 25.5mm;
       margin: 0 auto;
       padding: 0.5mm 1mm;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      gap: 0.3mm;
+      gap: 0.2mm;
       align-items: center;
       text-align: center;
       background: #ffffff !important;
@@ -1273,10 +1287,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
       margin-top: 0.2px;
     }
     .lbl-barcode-box {
-      width: 98%;
-      height: 9.5mm;
-      min-height: 9.5mm;
-      max-height: 9.5mm;
+      width: 100%;
+      height: 10mm;
+      min-height: 10mm;
+      max-height: 10mm;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1287,7 +1301,10 @@ export function printBarcodeLabels(product, count = 1, shopSettings = {}, option
     .lbl-barcode-box svg {
       display: block;
       margin: 0 auto;
+      width: 100% !important;
+      height: 100% !important;
       max-width: 100%;
+      max-height: 10mm;
       shape-rendering: crispEdges !important;
     }
     .lbl-barcode-box rect {
