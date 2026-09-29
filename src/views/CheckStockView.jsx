@@ -673,31 +673,6 @@ export const CheckStockView = () => {
                     onChange={(e) => setStickerPrintCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
                   />
                 </div>
-                <div className="flex-align-center justify-center gap-2 my-2">
-                  <span className="text-xxs font-weight-700 text-muted text-uppercase">Print Axis:</span>
-                  <button
-                    type="button"
-                    className={`btn btn-xs ${(!shopSettings?.labelOrientation || shopSettings.labelOrientation === 'x_axis') ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => {
-                      if (updateShopSettings) updateShopSettings({ labelOrientation: 'x_axis' });
-                      showToast('Sticker format set to X-Axis Horizontal (50x30mm)', 'info');
-                    }}
-                    title="Horizontal X-Axis (50mm Wide × 30mm Feed) [Standard]"
-                  >
-                    X-Axis (Horizontal)
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn btn-xs ${shopSettings?.labelOrientation === 'y_axis' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => {
-                      if (updateShopSettings) updateShopSettings({ labelOrientation: 'y_axis' });
-                      showToast('Sticker format set to Y-Axis Vertical (30x50mm)', 'info');
-                    }}
-                    title="Vertical Y-Axis (30mm Wide × 50mm Feed)"
-                  >
-                    Y-Axis (Vertical)
-                  </button>
-                </div>
               </div>
 
               <div className="modal-actions flex-between">
@@ -712,12 +687,12 @@ export const CheckStockView = () => {
                   type="button"
                   className="btn btn-primary flex-align-center gap-2"
                   onClick={() => {
-                    printBarcodeLabels(stickerModalProduct, stickerPrintCount, shopSettings, { orientation: shopSettings?.labelOrientation || 'x_axis' });
-                    showToast(`Printed ${stickerPrintCount} price stickers!`, 'success');
+                    printBarcodeLabels(stickerModalProduct, stickerPrintCount, shopSettings);
+                    showToast(`Printed ${stickerPrintCount} price stickers (50×30mm)!`, 'success');
                     setStickerModalProduct(null);
                   }}
                 >
-                  <Printer size={16} /> Print {stickerPrintCount} Stickers (1.8" × 0.9")
+                  <Printer size={16} /> Print {stickerPrintCount} Stickers (50×30mm)
                 </button>
               </div>
             </div>

@@ -12,19 +12,18 @@ import { generateBarcodeSvg } from '../utils/printUtils';
  * Line 6: price
  */
 export default function BarcodeLabelPreview({
-  shopName = 'NOVA MEN AND WOMEN',
-  itemName = 'Executive Cotton Kurta',
+  shopName = 'TESTING PORTAL',
+  itemName = 'Executive Royal Oxford Shirt',
   tagLabel = '',
   tagSubtitle = '',
-  color = 'Navy Blue',
-  clothType = 'Wash & Wear Fabric',
-  barcode = 'PAK-KRT-99201',
-  price = 3500,
+  color = 'Sky Blue',
+  clothType = 'Formal',
+  barcode = 'PAK-STI-510288',
+  price = 3700,
   className = '',
 }) {
-  const displayShopName = (shopName || 'TESSLO').toUpperCase();
+  const displayShopName = (shopName || 'TESTING PORTAL').toUpperCase();
   let baseName = tagLabel || itemName || 'Garment Item';
-  baseName = baseName.replace(/\s*-\s*(Formal|Pret|Casual|Festive|Bridal|Silk|Cotton)$/gi, '').trim();
 
   let rawSubtitle = String(tagSubtitle || color || '').trim();
   rawSubtitle = rawSubtitle
@@ -32,10 +31,11 @@ export default function BarcodeLabelPreview({
     .replace(/\(\s*([A-Za-z0-9]+)\s*\(\s*(\d+)\s*\)\s*\)/g, '($1-$2)')
     .replace(/\(\s*\)/g, '')
     .trim();
+  const displayName = rawSubtitle && !baseName.toLowerCase().includes(rawSubtitle.toLowerCase())
+    ? `${baseName} - ${rawSubtitle}`
+    : baseName;
 
-  const displayClothType = (clothType || 'Apparel & Fabric').toUpperCase();
-  const typeAndColor = rawSubtitle ? `${displayClothType} • ${rawSubtitle}` : displayClothType;
-
+  const displayItemType = (clothType || 'FORMAL').toUpperCase();
   const cleanBarcode = String(barcode || '000000000000').trim();
   const formattedPrice = (parseFloat(price) || 0).toLocaleString();
 
@@ -51,13 +51,13 @@ export default function BarcodeLabelPreview({
       </div>
 
       {/* 2. Item Name */}
-      <div className="tbl-item-name" title={baseName}>
-        {baseName}
+      <div className="tbl-item-name" title={displayName}>
+        {displayName}
       </div>
 
-      {/* 3. Item Type + Color */}
-      <div className="tbl-cloth-type tbl-type-color" title={typeAndColor}>
-        {typeAndColor}
+      {/* 3. Item Type */}
+      <div className="tbl-cloth-type" title={displayItemType}>
+        {displayItemType}
       </div>
 
       {/* 4. Authentic Code 128 Barcode (Scannable on Screen & Thermal Print) */}

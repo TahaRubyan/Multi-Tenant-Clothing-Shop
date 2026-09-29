@@ -1129,10 +1129,10 @@ export const SettingsView = () => {
                         style={{ height: '36px' }}
                         onClick={() => {
                           testPrintBarcodeLabel(
-                            { ...shopSettings, labelPrinter, labelSize, printMethod, labelOrientation },
-                            { deviceName: labelPrinter, silent: silentPrinting, forceBrowserPrint: !silentPrinting, orientation: labelOrientation }
+                            { ...shopSettings, labelPrinter, labelSize, printMethod, labelOrientation: 'x_axis' },
+                            { deviceName: labelPrinter, silent: silentPrinting, forceBrowserPrint: !silentPrinting, orientation: 'x_axis' }
                           );
-                          showToast(`Test barcode tag dispatched to ${labelPrinter} (${labelOrientation === 'x_axis' ? 'X-Axis View' : 'Y-Axis View'})`, 'success');
+                          showToast(`Test barcode tag (50×30mm) dispatched to ${labelPrinter}`, 'success');
                         }}
                         title="Dispatch a clean 50x30mm barcode sticker label to the selected printer"
                       >
@@ -1168,30 +1168,20 @@ export const SettingsView = () => {
                   </div>
 
                   <div className="form-group mb-0">
-                    <label htmlFor="label-orientation-select" className="form-label text-xs font-weight-700">
-                      Label Print Orientation / Coordinate Axis View *
+                    <label className="form-label text-xs font-weight-700">
+                      Label Standard Format *
                     </label>
-                    <select
-                      id="label-orientation-select"
-                      className="form-select font-weight-600 text-xs font-mono"
-                      value={labelOrientation}
-                      onChange={(e) => setLabelOrientation(e.target.value)}
-                    >
-                      <option value="x_axis">Horizontal / X-Axis View (50mm Wide × 30mm Feed) [Recommended]</option>
-                      <option value="y_axis">Vertical / Y-Axis View (30mm Wide × 50mm Feed)</option>
-                      <option value="rotated_90">Rotated 90° Clockwise</option>
-                      <option value="inverted_180">Inverted 180° (Bottom-Up Feed)</option>
-                    </select>
+                    <input
+                      type="text"
+                      className="form-input font-weight-600 text-xs font-mono"
+                      value="Standard Horizontal Format (50mm Wide × 30mm Feed)"
+                      readOnly
+                      disabled
+                    />
                     <small className="text-muted text-xxs mt-1 block">
-                      {labelOrientation === 'x_axis' ? (
-                        <span style={{ color: '#059669', fontWeight: 600 }}>
-                          ✓ X-Axis Mode: Text, barcode, and prices print horizontally across the 50mm roll width matching your printer feed direction.
-                        </span>
-                      ) : (
-                        <span style={{ color: '#2563eb', fontWeight: 600 }}>
-                          ℹ Y-Axis Mode: Text and barcode print along the vertical 50mm axis.
-                        </span>
-                      )}
+                      <span style={{ color: '#059669', fontWeight: 600 }}>
+                        ✓ Standard Format: Text, barcode, and prices print horizontally across the 50mm roll width matching your printer feed direction.
+                      </span>
                     </small>
                   </div>
                 </div>
