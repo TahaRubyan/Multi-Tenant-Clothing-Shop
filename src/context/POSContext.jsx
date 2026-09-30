@@ -235,9 +235,16 @@ export const POSProvider = ({ children }) => {
         fetchSalesFromCloud(targetId),
       ]);
       if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+        // Merge rather than wholesale-replace this tenant's slice: a product
+        // created/updated just before this fetch resolves (e.g. mid-sale
+        // stock sync) could otherwise get wiped out by a snapshot taken
+        // before that write landed.
         setAllProducts(prev => {
-          const others = prev.filter(p => p.tenantId && p.tenantId !== targetId);
-          return [...others, ...cloudProducts];
+          const otherTenants = prev.filter(p => p.tenantId && p.tenantId !== targetId);
+          const localOnlyForTenant = prev.filter(
+            (p) => p.tenantId === targetId && !cloudProducts.some((c) => c.id === p.id)
+          );
+          return [...otherTenants, ...cloudProducts, ...localOnlyForTenant];
         });
       }
       if (Array.isArray(cloudSales) && cloudSales.length > 0) {
@@ -1187,7 +1194,11 @@ export const POSProvider = ({ children }) => {
       vendorId: productData.vendorId || '',
     };
     setAllStockLog(prev => [newStockLog, ...prev]);
-    syncProductToCloud(newProduct, currentTenantId).catch(() => {});
+    syncProductToCloud(newProduct, currentTenantId).then((res) => {
+      if (!res.success) {
+        showToast(`"${newProduct.fabricMaterial || newProduct.name}" didn't save to the cloud: ${res.error || 'unknown error'}`, 'danger');
+      }
+    }).catch(() => {});
     return newProduct;
   };
 
@@ -1224,7 +1235,11 @@ export const POSProvider = ({ children }) => {
     );
 
     if (updatedTarget) {
-      syncProductToCloud(updatedTarget, currentTenantId).catch(() => {});
+      syncProductToCloud(updatedTarget, currentTenantId).then((res) => {
+        if (!res.success) {
+          showToast(`Stock update for "${updatedTarget.fabricMaterial || updatedTarget.name}" didn't save to the cloud: ${res.error || 'unknown error'}`, 'danger');
+        }
+      }).catch(() => {});
     }
 
     if (vendorId && numQty > 0) {
@@ -1286,7 +1301,11 @@ export const POSProvider = ({ children }) => {
       })
     );
     if (updatedTarget) {
-      syncProductToCloud(updatedTarget, currentTenantId).catch(() => {});
+      syncProductToCloud(updatedTarget, currentTenantId).then((res) => {
+        if (!res.success) {
+          showToast(`Price update for "${updatedTarget.fabricMaterial || updatedTarget.name}" didn't save to the cloud: ${res.error || 'unknown error'}`, 'danger');
+        }
+      }).catch(() => {});
     }
   };
 
@@ -1297,7 +1316,11 @@ export const POSProvider = ({ children }) => {
       return false;
     }
     setAllProducts(prev => prev.filter(p => p.id !== productId));
-    deleteProductFromCloud(productId).catch(() => {});
+    deleteProductFromCloud(productId).then((res) => {
+      if (!res.success) {
+        showToast(`"${prod?.fabricMaterial || 'Product'}" removed locally, but cloud deletion failed: ${res.error || 'unknown error'}`, 'warning');
+      }
+    }).catch(() => {});
     showToast('Product deleted from inventory', 'info');
     return true;
   };
@@ -1621,46 +1644,61 @@ export const POSProvider = ({ children }) => {
       })),
     };
 
-    // Update stock in products and variant tables (decrement sales, increment returns)
-    setAllProducts(prev =>
-      prev.map(p => {
-        const cartItemsForProduct = cart.filter(ci =>
-          ci.id === p.id ||
-          ci.barcode === p.barcode ||
-          ci.masterBarcode === p.barcode ||
-          (p.variants && p.variants.some(v => v.sku === ci.barcode))
-        );
-        if (cartItemsForProduct.length > 0) {
-          let totalStockDelta = 0;
-          let updatedVariants = p.variants ? [...p.variants] : [];
+    // Update stock in products and variant tables (decrement sales, increment returns).
+    // Computed as a plain array first (not just inside the setState updater) so the
+    // products actually touched by this sale can be synced to Supabase below -
+    // this sync was missing entirely before, meaning a sale updated stock on this
+    // device only and other devices/tenant sessions never saw it change.
+    const productsAfterSale = allProducts.map(p => {
+      const cartItemsForProduct = cart.filter(ci =>
+        ci.id === p.id ||
+        ci.barcode === p.barcode ||
+        ci.masterBarcode === p.barcode ||
+        (p.variants && p.variants.some(v => v.sku === ci.barcode))
+      );
+      if (cartItemsForProduct.length === 0) return p;
 
-          cartItemsForProduct.forEach(ci => {
-            const delta = ci.isReturn ? ci.qty : -ci.qty;
-            totalStockDelta += delta;
+      let totalStockDelta = 0;
+      let updatedVariants = p.variants ? [...p.variants] : [];
 
-            if (updatedVariants.length > 0) {
-              updatedVariants = updatedVariants.map(v =>
-                (v.sku === ci.barcode || (ci.variantDetails && v.size === ci.variantDetails.size))
-                  ? { ...v, stock: Math.max(0, parseFloat((v.stock + delta).toFixed(4))) }
-                  : v
-              );
-            }
-          });
+      cartItemsForProduct.forEach(ci => {
+        const delta = ci.isReturn ? ci.qty : -ci.qty;
+        totalStockDelta += delta;
 
-          return {
-            ...p,
-            stock: Math.max(0, parseFloat((p.stock + totalStockDelta).toFixed(4))),
-            variants: updatedVariants,
-          };
+        if (updatedVariants.length > 0) {
+          updatedVariants = updatedVariants.map(v =>
+            (v.sku === ci.barcode || (ci.variantDetails && v.size === ci.variantDetails.size))
+              ? { ...v, stock: Math.max(0, parseFloat((v.stock + delta).toFixed(4))) }
+              : v
+          );
         }
-        return p;
-      })
-    );
+      });
+
+      return {
+        ...p,
+        stock: Math.max(0, parseFloat((p.stock + totalStockDelta).toFixed(4))),
+        variants: updatedVariants,
+      };
+    });
+
+    const touchedProducts = productsAfterSale.filter((p, i) => p !== allProducts[i]);
+    setAllProducts(productsAfterSale);
 
     setAllSalesLogs(prev => [newSale, ...prev]);
     setIsCashSettled(false);
     clearCart();
     syncSaleToCloud(newSale, currentTenantId).catch(() => {});
+
+    touchedProducts.forEach((product) => {
+      syncProductToCloud(product, currentTenantId).then((res) => {
+        if (!res.success) {
+          showToast(`Stock update for "${product.fabricMaterial || product.name}" didn't save to the cloud: ${res.error || 'unknown error'}. Other devices won't see this change yet.`, 'danger');
+        }
+      }).catch((err) => {
+        console.warn('[TESSLO Cloud] Post-sale stock sync deferred:', err);
+      });
+    });
+
     return newSale;
   };
 
