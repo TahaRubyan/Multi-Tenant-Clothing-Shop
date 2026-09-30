@@ -615,6 +615,27 @@ export function mapCloudProductToLocal(row) {
   };
 }
 
+/**
+ * Formats a Date as DD-MM-YYYY HH:MM - matching exactly what
+ * POSContext.jsx's completeSale() stamps on a sale when it's created
+ * locally. Cloud-fetched sales MUST use this same shape: DashboardView's
+ * "today" filter does a string-prefix match against this format (and the
+ * ISO YYYY-MM-DD form), so a differently-formatted date (e.g. the previous
+ * locale-dependent toLocaleString(), like "9/30/2026, 1:15 AM") silently
+ * fails that match - a sale still shows locally right after checkout, but
+ * "disappears" from today's revenue the moment it's re-fetched from the
+ * cloud after a reload, even though the data itself is intact.
+ */
+function formatSaleDateTime(dateInput) {
+  const d = dateInput ? new Date(dateInput) : new Date();
+  const yr = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  const hr = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${da}-${mo}-${yr} ${hr}:${mi}`;
+}
+
 export function mapCloudSaleToLocal(row) {
   return {
     id: row.id,
@@ -629,7 +650,7 @@ export function mapCloudSaleToLocal(row) {
     amountReceived: row.amount_received,
     changeReturned: row.change_returned,
     items: row.items || [],
-    dateTime: row.created_at ? new Date(row.created_at).toLocaleString() : new Date().toLocaleString(),
+    dateTime: formatSaleDateTime(row.created_at),
     grossProfit: (row.net_total || 0) - (row.items || []).reduce((sum, item) => sum + ((item.costPrice || 0) * (item.quantity || 1)), 0),
   };
 }
