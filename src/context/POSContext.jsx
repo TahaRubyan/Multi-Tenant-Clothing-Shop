@@ -1329,10 +1329,11 @@ export const POSProvider = ({ children }) => {
     }
   };
 
-  const deleteProduct = (productId) => {
+  const deleteProduct = (productId, force = false) => {
+    const isMaster = currentUser?.isSuperAdmin || currentUser?.role === 'Super Admin' || currentUser?.role === 'Admin';
     const prod = allProducts.find(p => p.id === productId);
-    if (prod && prod.stock > 0) {
-      showToast(`Cannot delete "${prod.fabricMaterial}" because it has ${prod.stock} items in stock!`, 'danger');
+    if (prod && prod.stock > 0 && !isMaster && !force) {
+      showToast(`Cannot delete "${prod.fabricMaterial}" because it has ${prod.stock} items in stock! Only Administrators can delete active stock.`, 'danger');
       return false;
     }
     setAllProducts(prev => prev.filter(p => p.id !== productId));
@@ -1341,7 +1342,7 @@ export const POSProvider = ({ children }) => {
         showToast(`"${prod?.fabricMaterial || 'Product'}" removed locally, but cloud deletion failed: ${res.error || 'unknown error'}`, 'warning');
       }
     }).catch(() => {});
-    showToast('Product deleted from inventory', 'info');
+    showToast(`Product "${prod?.fabricMaterial || 'Item'}" deleted from inventory`, 'info');
     return true;
   };
 

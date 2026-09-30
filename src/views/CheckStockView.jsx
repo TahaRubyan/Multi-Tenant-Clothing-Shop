@@ -173,13 +173,12 @@ export const CheckStockView = () => {
 
   const handleConfirmDelete = () => {
     if (deleteConfirmProduct) {
-      if (deleteConfirmProduct.stock > 0) {
-        showToast(`Cannot delete "${deleteConfirmProduct.fabricMaterial}" with active stock (${deleteConfirmProduct.stock} items)!`, 'danger');
+      if (!isAdmin) {
+        showToast('Only Administrators can delete stock items from inventory.', 'danger');
         setDeleteConfirmProduct(null);
         return;
       }
-      deleteProduct(deleteConfirmProduct.id);
-      showToast(`Deleted ${deleteConfirmProduct.fabricMaterial} from stock`, 'info');
+      deleteProduct(deleteConfirmProduct.id, true);
       setDeleteConfirmProduct(null);
     }
   };
@@ -349,20 +348,23 @@ export const CheckStockView = () => {
                         >
                           <Edit2 size={12} /> Edit Price
                         </button>
-                        <button
-                          className={`btn btn-sm action-btn-pill ${hasStock ? 'btn-outline-subtle opacity-50 cursor-not-allowed' : 'btn-danger'}`}
-                          onClick={() => {
-                            if (hasStock) {
-                              showToast(`Cannot delete "${p.fabricMaterial}" because ${p.stock} units remain in stock.`, 'warning');
-                            } else {
-                              setDeleteConfirmProduct(p);
-                            }
-                          }}
-                          disabled={hasStock}
-                          title={hasStock ? `Cannot delete: ${p.stock} units in stock` : 'Delete SKU'}
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        {isAdmin ? (
+                          <button
+                            className="btn btn-sm btn-danger action-btn-pill"
+                            onClick={() => setDeleteConfirmProduct(p)}
+                            title={p.stock > 0 ? `Delete Stock Item (${p.stock} units in stock)` : 'Delete Stock Item'}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-sm action-btn-pill btn-outline-subtle opacity-40 cursor-not-allowed"
+                            disabled
+                            title="Delete stock option is only enabled for Administrators"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -724,9 +726,18 @@ export const CheckStockView = () => {
                   Are you sure you want to permanently delete{' '}
                   <strong>{deleteConfirmProduct.fabricMaterial}</strong> ({deleteConfirmProduct.barcode}) from inventory?
                 </p>
-                <p className="text-muted text-xs mt-2">
-                  This item currently has <strong>0 stock</strong>. Deleting will remove this SKU from inventory search.
-                </p>
+                {deleteConfirmProduct.stock > 0 ? (
+                  <div className="alert alert-danger mt-2 py-2 px-3 text-xs flex-align-center gap-2">
+                    <AlertTriangle size={16} className="flex-shrink-0" />
+                    <span>
+                      <strong>Admin Stock Override:</strong> This item currently has <strong>{deleteConfirmProduct.stock} units</strong> in stock. Deleting will permanently remove this SKU and clear all {deleteConfirmProduct.stock} stock units from the active catalog.
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-muted text-xs mt-2">
+                    This item currently has <strong>0 stock</strong>. Deleting will remove this SKU from inventory search.
+                  </p>
+                )}
               </div>
 
               <div className="modal-actions flex-end gap-2">
