@@ -193,8 +193,28 @@ export const POSProvider = ({ children }) => {
       setCurrentUser(profile);
       if (profile.isSuperAdmin || profile.role === 'Super Admin') {
         setActiveTab('super-admin-portal');
-      } else {
-        setActiveTab('dashboard');
+        return;
+      }
+
+      setActiveTab('dashboard');
+
+      // Unlike login(), this restore path can't trust whatever tenant
+      // happened to be cached locally - re-derive it from the restored
+      // profile's own tenantIds and re-fetch that tenant's catalog. Without
+      // this, a reload could leave currentTenant stale/unset, which means
+      // syncTenantCatalog (products/sales) never fires - exactly what made
+      // "today's revenue" and stock look like they reset after a reload.
+      const cloudTenants = await fetchTenantsFromCloud();
+      if (cancelled || !Array.isArray(cloudTenants)) return;
+
+      const assignedTenant = cloudTenants.find((t) => (profile.tenantIds || []).includes(t.id)) || null;
+      if (assignedTenant) {
+        setCurrentTenant(assignedTenant);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('pos_currentTenant', JSON.stringify(assignedTenant));
+          localStorage.setItem('pos_last_active_shop_name', assignedTenant.name);
+        }
+        syncTenantCatalog(assignedTenant.id);
       }
     }).catch(() => {});
 
