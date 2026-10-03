@@ -408,11 +408,22 @@ export const MakeSaleView = () => {
     }
   };
 
+  let cartGrossSubtotal = 0;
+  let cartItemDiscountsTotal = 0;
   let cartSubtotal = 0;
   cart.forEach((i) => {
-    const lineVal = i.unitPrice * i.qty - (i.itemDiscount || 0);
-    if (i.isReturn) cartSubtotal -= lineVal;
-    else cartSubtotal += lineVal;
+    const lineGross = i.unitPrice * i.qty;
+    const lineDiscount = i.itemDiscount || 0;
+    const lineVal = lineGross - lineDiscount;
+    if (i.isReturn) {
+      cartGrossSubtotal -= lineGross;
+      cartItemDiscountsTotal -= lineDiscount;
+      cartSubtotal -= lineVal;
+    } else {
+      cartGrossSubtotal += lineGross;
+      cartItemDiscountsTotal += lineDiscount;
+      cartSubtotal += lineVal;
+    }
   });
 
   const activeStorewidePromo = getActiveStorewideDiscount(cartSubtotal);
@@ -856,6 +867,19 @@ export const MakeSaleView = () => {
           <h3 className="checkout-panel-title">Order Payment &amp; Settlement</h3>
 
           <div className="totals-breakdown-card">
+            {cartItemDiscountsTotal > 0 && (
+              <>
+                <div className="t-row text-subtle text-xs">
+                  <span>Gross Total</span>
+                  <span className="font-mono">Rs. {cartGrossSubtotal.toLocaleString()}</span>
+                </div>
+                <div className="t-row text-success text-xs font-weight-600">
+                  <span>Item Discounts</span>
+                  <span className="font-mono">-Rs. {cartItemDiscountsTotal.toLocaleString()}</span>
+                </div>
+              </>
+            )}
+
             <div className="t-row">
               <span>Subtotal {cartSubtotal < 0 ? '(Return Credit)' : ''}</span>
               <span className={`font-mono font-weight-600 ${cartSubtotal < 0 ? 'text-danger' : ''}`}>
@@ -999,6 +1023,13 @@ export const MakeSaleView = () => {
                 </>
               )}
             </div>
+
+            {(cartItemDiscountsTotal > 0 && (wholeSaleDiscountAmt > 0 || storewideDiscountAmt > 0)) && (
+              <div className="t-row text-success text-xs font-weight-700">
+                <span>Total Savings / Discounts</span>
+                <span className="font-mono">-Rs. {(cartItemDiscountsTotal + wholeSaleDiscountAmt + storewideDiscountAmt).toLocaleString()}</span>
+              </div>
+            )}
 
             <div className="t-row net-total-box">
               <span>NET TOTAL</span>

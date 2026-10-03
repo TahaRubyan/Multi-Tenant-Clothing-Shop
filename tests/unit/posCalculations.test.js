@@ -189,4 +189,221 @@ describe('POS Unit Calculations', () => {
       expect(subtotal - rsDiscAmt).toBe(9500);
     });
   });
+
+  describe('Two-Tier Discount & Gross Profit Engine', () => {
+    it('correctly calculates two-tier discount (Item-level + Whole-bill) and Gross Profit', () => {
+      // Item 1: 2 units @ Rs. 3,000, cost Rs. 1,200 each, Rs. 500 item discount
+      // Item 2: 1 unit @ Rs. 4,000, cost Rs. 1,600, Rs. 0 item discount
+      const items = [
+        { unitPrice: 3000, qty: 2, wholesalePrice: 1200, itemDiscount: 500 },
+        { unitPrice: 4000, qty: 1, wholesalePrice: 1600, itemDiscount: 0 },
+      ];
+
+      const rawGrossSubtotal = items.reduce((s, it) => s + (it.unitPrice * it.qty), 0); // 6000 + 4000 = 10000
+      const totalItemDiscounts = items.reduce((s, it) => s + it.itemDiscount, 0); // 500
+      const subtotal = rawGrossSubtotal - totalItemDiscounts; // 9500
+      const totalCost = items.reduce((s, it) => s + (it.wholesalePrice * it.qty), 0); // 2400 + 1600 = 4000
+
+      // Whole bill discount of Rs. 500
+      const wholeBillDiscount = 500;
+      const allDiscountsTotal = totalItemDiscounts + wholeBillDiscount; // 1000
+      const netTotal = subtotal - wholeBillDiscount; // 9000
+      const grossProfit = netTotal - totalCost; // 9000 - 4000 = 5000
+
+      expect(rawGrossSubtotal).toBe(10000);
+      expect(totalItemDiscounts).toBe(500);
+      expect(subtotal).toBe(9500);
+      expect(allDiscountsTotal).toBe(1000);
+      expect(netTotal).toBe(9000);
+      expect(rawGrossSubtotal - allDiscountsTotal).toBe(netTotal);
+      expect(totalCost).toBe(4000);
+      expect(grossProfit).toBe(5000);
+      expect((grossProfit / netTotal) * 100).toBeCloseTo(55.56, 1);
+    });
+
+    it('correctly handles percentage-based whole-bill discount following item discounts', () => {
+      // Gross: 10,000. Item discount: 1,000. Subtotal: 9,000. Whole-bill: 10% (= 900)
+      const rawGrossSubtotal = 10000;
+      const totalItemDiscounts = 1000;
+      const subtotal = rawGrossSubtotal - totalItemDiscounts; // 9000
+      const billDiscountPercent = 10;
+      const wholeBillDiscount = Math.round(subtotal * (billDiscountPercent / 100)); // 900
+      const allDiscountsTotal = totalItemDiscounts + wholeBillDiscount; // 1900
+      const netTotal = subtotal - wholeBillDiscount; // 8100
+
+      expect(subtotal).toBe(9000);
+      expect(wholeBillDiscount).toBe(900);
+      expect(allDiscountsTotal).toBe(1900);
+      expect(netTotal).toBe(8100);
+      expect(rawGrossSubtotal - allDiscountsTotal).toBe(netTotal);
+    });
+  });
+
+  describe('Cloud Sale Mapping & Wholesale Margin Reconstruction (mapCloudSaleToLocal)', () => {
+    it('properly reads wholesalePrice and qty from cloud items and reconstructs gross profit', async () => {
+      const { mapCloudSaleToLocal } = await import('../../src/utils/supabaseClient');
+
+      const cloudRow = {
+        id: 'ord-cloud-123',
+        receipt_number: 'INV-2026-7890',
+        tenant_id: 'tenant-1',
+        created_at: '2026-10-01T15:30:00Z',
+        salesman: 'Ali Cashier',
+        cashier_id: 'u-1',
+        gross_total: 10000,
+        discount_amount: 1000,
+        net_total: 9000,
+        payment_method: 'Cash',
+        amount_received: 10000,
+        change_returned: 1000,
+        items: [
+          {
+            barcode: 'BC-001',
+            fabric: 'Cotton Kameez',
+            qty: 2,
+            unitPrice: 3000,
+            wholesalePrice: 1200,
+            itemDiscount: 500,
+          },
+          {
+            barcode: 'BC-002',
+            fabric: 'Silk Dupatta',
+            qty: 1,
+            unitPrice: 4000,
+            wholesalePrice: 1600,
+            itemDiscount: 0,
+          }
+        ]
+      };
+
+      const mapped = mapCloudSaleToLocal(cloudRow);
+
+      expect(mapped.id).toBe('ord-cloud-123');
+      expect(mapped.receiptNumber).toBe('INV-2026-7890');
+      expect(mapped.grossSubtotal).toBe(10000);
+      expect(mapped.itemDiscountsTotal).toBe(500);
+      expect(mapped.subtotal).toBe(9500);
+      expect(mapped.wholeSaleDiscount).toBe(500); // 1000 - 500 = 500
+      expect(mapped.allDiscountsTotal).toBe(1000);
+      expect(mapped.netTotal).toBe(9000);
+      // Total cost: (1200 * 2) + (1600 * 1) = 4000
+      expect(mapped.totalCost).toBe(4000);
+      // Gross profit: netTotal (9000) - totalCost (4000) = 5000 (NOT 100% false margin!)
+      expect(mapped.grossProfit).toBe(5000);
+    });
+
+    it('gracefully handles legacy cloud payloads with costPrice / quantity naming', async () => {
+      const { mapCloudSaleToLocal } = await import('../../src/utils/supabaseClient');
+
+      const legacyRow = {
+        id: 'ord-cloud-legacy',
+        receipt_number: 'INV-2026-1111',
+        created_at: '2026-09-15T12:00:00Z',
+        net_total: 5000,
+        discount_amount: 0,
+        items: [
+          {
+            barcode: 'BC-LEGACY',
+            quantity: 2,
+            price: 2500,
+            costPrice: 1000,
+          }
+        ]
+      };
+
+      const mapped = mapCloudSaleToLocal(legacyRow);
+      expect(mapped.grossSubtotal).toBe(5000);
+      expect(mapped.totalCost).toBe(2000);
+      expect(mapped.grossProfit).toBe(3000);
+    });
+
+    it('accurately restores legacy cloud sale where discount_amount only held bill discount and gross_total omitted item discount', async () => {
+      const { mapCloudSaleToLocal } = await import('../../src/utils/supabaseClient');
+
+      // Legacy cloud row before this fix:
+      // Gross was 10000, Item Discount was 1000, Bill Discount was 500, Net Total was 8500.
+      // Old syncSaleToCloud sent gross_total: 9000 (subtotal), discount_amount: 500 (bill only).
+      const legacyRowWithItemDisc = {
+        id: 'ord-cloud-legacy-disc',
+        receipt_number: 'INV-2026-2222',
+        created_at: '2026-09-20T10:00:00Z',
+        gross_total: 9000, // old subtotal
+        discount_amount: 500, // old bill discount only
+        net_total: 8500,
+        items: [
+          {
+            barcode: 'BC-ITEM-1',
+            qty: 2,
+            unitPrice: 5000,
+            wholesalePrice: 2000,
+            itemDiscount: 1000, // item discount embedded in items array
+          }
+        ]
+      };
+
+      const mapped = mapCloudSaleToLocal(legacyRowWithItemDisc);
+      // True gross was restored: 8500 + 1000 + 500 = 10000
+      expect(mapped.grossSubtotal).toBe(10000);
+      expect(mapped.itemDiscountsTotal).toBe(1000);
+      expect(mapped.wholeSaleDiscount).toBe(500);
+      expect(mapped.allDiscountsTotal).toBe(1500);
+      expect(mapped.subtotal).toBe(9000);
+      expect(mapped.netTotal).toBe(8500);
+      expect(mapped.grossSubtotal - mapped.allDiscountsTotal).toBe(mapped.netTotal);
+      // COGS: 2000 * 2 = 4000
+      expect(mapped.totalCost).toBe(4000);
+      // Gross profit: 8500 - 4000 = 4500
+      expect(mapped.grossProfit).toBe(4500);
+    });
+  });
+
+  describe('Analytics Daily Summary Reconciliation', () => {
+    it('ensures daily summary aggregates satisfy: grossSubtotal - allDiscountsTotal === netRevenue', () => {
+      const salesLogs = [
+        {
+          grossSubtotal: 10000,
+          itemDiscountsTotal: 500,
+          wholeSaleDiscount: 500,
+          storewideDiscount: 0,
+          allDiscountsTotal: 1000,
+          netTotal: 9000,
+          grossProfit: 5000,
+          dateTime: '03-10-2026 14:00',
+        },
+        {
+          grossSubtotal: 6000,
+          itemDiscountsTotal: 200,
+          wholeSaleDiscount: 0,
+          storewideDiscount: 0,
+          allDiscountsTotal: 200,
+          netTotal: 5800,
+          grossProfit: 3000,
+          dateTime: '03-10-2026 16:30',
+        }
+      ];
+
+      let dayGrossSubtotal = 0;
+      let dayDiscountsTotal = 0;
+      let dayNetRevenue = 0;
+      let dayGrossProfit = 0;
+
+      salesLogs.forEach(sale => {
+        const itemDisc = sale.itemDiscountsTotal || 0;
+        const billDisc = (sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0);
+        const totalDisc = sale.allDiscountsTotal !== undefined ? sale.allDiscountsTotal : (itemDisc + billDisc);
+        const grossSub = sale.grossSubtotal || (sale.netTotal + totalDisc);
+
+        dayGrossSubtotal += grossSub;
+        dayDiscountsTotal += totalDisc;
+        dayNetRevenue += sale.netTotal;
+        dayGrossProfit += sale.grossProfit;
+      });
+
+      expect(dayGrossSubtotal).toBe(16000);
+      expect(dayDiscountsTotal).toBe(1200);
+      expect(dayNetRevenue).toBe(14800);
+      expect(dayGrossSubtotal - dayDiscountsTotal).toBe(dayNetRevenue);
+      expect(dayGrossProfit).toBe(8000);
+    });
+  });
 });
