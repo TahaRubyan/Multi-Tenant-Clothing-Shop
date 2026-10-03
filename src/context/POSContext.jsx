@@ -270,7 +270,10 @@ export const POSProvider = ({ children }) => {
       if (Array.isArray(cloudSales) && cloudSales.length > 0) {
         setAllSalesLogs(prev => {
           const others = prev.filter(s => s.tenantId && s.tenantId !== targetId);
-          return [...others, ...cloudSales];
+          const localOnlyForTenant = (Array.isArray(prev) ? prev : []).filter(
+            (s) => s.tenantId === targetId && !cloudSales.some((c) => (c.id && c.id === s.id) || (c.receiptNumber && c.receiptNumber === s.receiptNumber))
+          );
+          return [...others, ...cloudSales, ...localOnlyForTenant];
         });
       }
       setLastSyncTime(new Date());
@@ -1577,21 +1580,29 @@ export const POSProvider = ({ children }) => {
   const completeSale = (paymentMethod, amountReceivedInput = null) => {
     if (cart.length === 0) return null;
 
+    let rawGrossSubtotal = 0;
+    let totalItemDiscounts = 0;
     let subtotal = 0;
     let totalWholesaleCost = 0;
 
     cart.forEach(item => {
-      const lineTotal = (item.unitPrice * item.qty) - (item.itemDiscount || 0);
+      const lineGross = item.unitPrice * item.qty;
+      const lineDiscount = item.itemDiscount || 0;
+      const lineTotal = lineGross - lineDiscount;
       if (item.isReturn) {
+        rawGrossSubtotal -= lineGross;
+        totalItemDiscounts -= lineDiscount;
         subtotal -= lineTotal;
         totalWholesaleCost -= (item.wholesalePrice * item.qty);
       } else {
+        rawGrossSubtotal += lineGross;
+        totalItemDiscounts += lineDiscount;
         subtotal += lineTotal;
         totalWholesaleCost += (item.wholesalePrice * item.qty);
       }
     });
 
-    const storewidePromo = getActiveStorewideDiscount();
+    const storewidePromo = getActiveStorewideDiscount(subtotal);
     let storewideDiscountVal = 0;
     if (storewidePromo && subtotal > 0) {
       storewideDiscountVal = Math.round(subtotal * (storewidePromo.discountPercent / 100));
@@ -1609,7 +1620,9 @@ export const POSProvider = ({ children }) => {
       wholeSaleDiscAmt = Math.round(subtotal * (wholeDiscPercentNum / 100));
     }
 
-    const netTotal = Math.max(0, subtotal - storewideDiscountVal - wholeSaleDiscAmt);
+    const totalBillDiscount = storewideDiscountVal + wholeSaleDiscAmt;
+    const allDiscountsTotal = Math.max(0, totalItemDiscounts) + totalBillDiscount;
+    const netTotal = Math.max(0, subtotal - totalBillDiscount);
     const grossProfit = netTotal - totalWholesaleCost;
 
     // Change Return Logic based on Payment Method
@@ -1630,20 +1643,27 @@ export const POSProvider = ({ children }) => {
     const formattedDateTime = `${da}-${mo}-${yr} ${hr}:${mi}`;
 
     const receiptNumber = `INV-${yr}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const saleId = `ord-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     const newSale = {
+      id: saleId,
       receiptNumber,
       tenantId: currentTenantId,
       dateTime: formattedDateTime,
       salesman: currentUser ? currentUser.fullName : 'Walk-in Cashier',
       salesmanId: currentUser ? currentUser.id : 'u-0',
-      subtotal,
+      grossSubtotal: rawGrossSubtotal,
+      itemDiscountsTotal: totalItemDiscounts,
+      subtotal, // Subtotal after item discounts, before bill discounts
       storewideDiscount: storewideDiscountVal,
       wholeSaleDiscount: wholeSaleDiscAmt,
       wholeSaleDiscountPercent: wholeDiscPercentNum,
       wholeSaleDiscountMode,
       wholeSaleDiscountAmount: parseFloat(wholeSaleDiscountAmount) || 0,
+      totalBillDiscount,
+      allDiscountsTotal,
       netTotal,
+      totalCost: totalWholesaleCost,
       grossProfit,
       amountReceived,
       changeReturned,

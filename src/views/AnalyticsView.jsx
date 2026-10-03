@@ -54,7 +54,9 @@ export const AnalyticsView = () => {
 
   // Filter Sales Logs by Date Range
   const filteredSalesLogs = salesLogs.filter((sale) => {
+    if (!sale) return false;
     if (dateFilterMode === 'all') return true;
+    if (!sale.dateTime) return false;
     
     const saleDate = parseSaleDate(sale.dateTime);
     const now = new Date();
@@ -65,10 +67,11 @@ export const AnalyticsView = () => {
       const yr = now.getFullYear();
       const ddMm = `${da}-${mo}-${yr}`;
       const iso = `${yr}-${mo}-${da}`;
+      const dtStr = String(sale.dateTime);
       return (
-        sale.dateTime.startsWith(ddMm) ||
-        sale.dateTime.startsWith(iso) ||
-        sale.dateTime.includes(ddMm) ||
+        dtStr.startsWith(ddMm) ||
+        dtStr.startsWith(iso) ||
+        dtStr.includes(ddMm) ||
         (saleDate.getFullYear() === yr && saleDate.getMonth() === now.getMonth() && saleDate.getDate() === now.getDate())
       );
     }
@@ -93,6 +96,7 @@ export const AnalyticsView = () => {
 
   // Filter Invoices by Search Query
   const searchedInvoices = filteredSalesLogs.filter((sale) => {
+    if (!sale) return false;
     if (!invoiceSearchQuery.trim()) return true;
     const q = invoiceSearchQuery.trim().toLowerCase();
     const receiptMatch = (sale.receiptNumber || '').toLowerCase().includes(q);
@@ -107,24 +111,31 @@ export const AnalyticsView = () => {
     return receiptMatch || salesmanMatch || paymentMatch || itemMatch;
   });
 
-  const totalRevenue = filteredSalesLogs.reduce((sum, s) => sum + s.netTotal, 0);
-  const totalGrossProfit = filteredSalesLogs.reduce((sum, s) => sum + s.grossProfit, 0);
+  const totalRevenue = filteredSalesLogs.reduce((sum, s) => sum + (s.netTotal || 0), 0);
+  const totalGrossProfit = filteredSalesLogs.reduce((sum, s) => sum + (s.grossProfit || 0), 0);
   const totalOrders = filteredSalesLogs.length;
   const grossProfitMargin = totalRevenue > 0 ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1) : '0';
 
   // Cash vs Card / Digital Receipts Breakdown
   const cashReceived = filteredSalesLogs
     .filter((s) => (s.paymentMethod || 'Cash').toLowerCase() === 'cash')
-    .reduce((sum, s) => sum + s.netTotal, 0);
+    .reduce((sum, s) => sum + (s.netTotal || 0), 0);
 
   const cardAndDigitalReceived = filteredSalesLogs
     .filter((s) => (s.paymentMethod || 'Cash').toLowerCase() !== 'cash')
-    .reduce((sum, s) => sum + s.netTotal, 0);
+    .reduce((sum, s) => sum + (s.netTotal || 0), 0);
 
   // 1. Top Selling Articles & Categories - Capped at Top 5
   const fabricSalesMap = {};
   filteredSalesLogs.forEach((sale) => {
-    sale.items.forEach((item) => {
+    const items = sale.items || [];
+    const saleSubtotal = sale.subtotal || items.reduce((sum, it) => sum + ((it.unitPrice * (it.qty || 1)) - (it.itemDiscount || 0)), 0);
+    const billDiscount = sale.totalBillDiscount !== undefined
+      ? sale.totalBillDiscount
+      : ((sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0));
+    const billDiscountRatio = saleSubtotal > 0 ? (billDiscount / saleSubtotal) : 0;
+
+    items.forEach((item) => {
       const key = item.fabric || item.itemName || 'Garment Article';
       if (!fabricSalesMap[key]) {
         fabricSalesMap[key] = {
@@ -135,13 +146,22 @@ export const AnalyticsView = () => {
           profit: 0,
         };
       }
-      if (!item.isReturn) {
-        const cost = item.wholesalePrice || Math.round(item.unitPrice * 0.45);
-        const lineGross = item.unitPrice * item.qty - (item.itemDiscount || 0);
-        const totalCost = cost * item.qty;
-        fabricSalesMap[key].qty += item.qty;
-        fabricSalesMap[key].revenue += item.total;
-        fabricSalesMap[key].profit += (lineGross - totalCost);
+      const cost = item.wholesalePrice !== undefined ? item.wholesalePrice : (item.costPrice || Math.round((item.unitPrice || 0) * 0.45));
+      const qty = item.qty || 1;
+      const lineGross = (item.unitPrice || 0) * qty - (item.itemDiscount || 0);
+      const totalCost = cost * qty;
+      const itemBillDiscount = Math.round(lineGross * billDiscountRatio);
+      const lineNetRevenue = item.isReturn ? -lineGross : Math.max(0, lineGross - itemBillDiscount);
+      const lineProfit = item.isReturn ? -(lineGross - totalCost) : (lineNetRevenue - totalCost);
+
+      if (item.isReturn) {
+        fabricSalesMap[key].qty -= qty;
+        fabricSalesMap[key].revenue += lineNetRevenue;
+        fabricSalesMap[key].profit += lineProfit;
+      } else {
+        fabricSalesMap[key].qty += qty;
+        fabricSalesMap[key].revenue += lineNetRevenue;
+        fabricSalesMap[key].profit += lineProfit;
       }
     });
   });
@@ -151,7 +171,8 @@ export const AnalyticsView = () => {
   // 2. Daily Financial Summary Table Data
   const dailySummaryMap = {};
   filteredSalesLogs.forEach((sale) => {
-    const dateOnly = sale.dateTime.split(' ')[0];
+    if (!sale || !sale.dateTime) return;
+    const dateOnly = String(sale.dateTime).split(/[\sT]+/)[0] || 'Unknown';
     if (!dailySummaryMap[dateOnly]) {
       dailySummaryMap[dateOnly] = {
         date: dateOnly,
@@ -162,11 +183,25 @@ export const AnalyticsView = () => {
         grossProfit: 0,
       };
     }
+    const items = sale.items || [];
+    const itemDisc = sale.itemDiscountsTotal !== undefined
+      ? sale.itemDiscountsTotal
+      : items.reduce((acc, it) => acc + (it.itemDiscount || 0), 0);
+    const billDisc = sale.totalBillDiscount !== undefined
+      ? sale.totalBillDiscount
+      : ((sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0));
+    const totalDisc = sale.allDiscountsTotal !== undefined
+      ? sale.allDiscountsTotal
+      : (itemDisc + billDisc);
+    const grossSub = sale.grossSubtotal !== undefined
+      ? sale.grossSubtotal
+      : (sale.subtotal + itemDisc);
+
     dailySummaryMap[dateOnly].orderCount += 1;
-    dailySummaryMap[dateOnly].subtotal += sale.subtotal;
-    dailySummaryMap[dateOnly].discount += (sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0);
-    dailySummaryMap[dateOnly].netRevenue += sale.netTotal;
-    dailySummaryMap[dateOnly].grossProfit += sale.grossProfit;
+    dailySummaryMap[dateOnly].subtotal += grossSub;
+    dailySummaryMap[dateOnly].discount += totalDisc;
+    dailySummaryMap[dateOnly].netRevenue += (sale.netTotal || 0);
+    dailySummaryMap[dateOnly].grossProfit += (sale.grossProfit || 0);
   });
   const dailySummaryList = Object.values(dailySummaryMap);
 
@@ -462,12 +497,12 @@ export const AnalyticsView = () => {
               <tr>
                 <th style={{ width: '130px' }}>Receipt #</th>
                 <th style={{ width: '130px' }}>Date & Time</th>
-                <th style={{ width: '130px' }}>Salesman</th>
-                <th style={{ width: '100px' }}>Subtotal</th>
-                <th style={{ width: '90px' }}>Discount</th>
+                <th style={{ width: '120px' }}>Salesman</th>
+                <th style={{ width: '110px' }}>Gross Total</th>
+                <th style={{ width: '110px' }}>Discounts</th>
                 <th style={{ width: '110px' }}>Net Total</th>
                 <th style={{ width: '110px' }}>Gross Profit</th>
-                <th style={{ width: '100px' }}>Payment</th>
+                <th style={{ width: '90px' }}>Payment</th>
                 <th style={{ width: '90px' }} className="text-center no-print-col">Action</th>
               </tr>
             </thead>
@@ -479,26 +514,46 @@ export const AnalyticsView = () => {
                   </td>
                 </tr>
               ) : (
-                searchedInvoices.map((sale) => (
-                  <tr key={sale.receiptNumber}>
-                    <td className="font-mono text-highlight font-weight-600">{sale.receiptNumber}</td>
-                    <td className="font-mono text-xs">{sale.dateTime}</td>
-                    <td className="font-weight-600 truncate-cell" title={sale.salesman}>{sale.salesman}</td>
-                    <td className="font-mono">Rs. {sale.subtotal.toLocaleString()}</td>
-                    <td className="font-mono text-amber">-Rs. {((sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0)).toLocaleString()}</td>
-                    <td className="font-mono text-success font-weight-700">Rs. {sale.netTotal.toLocaleString()}</td>
-                    <td className="font-mono text-primary font-weight-700">Rs. {sale.grossProfit.toLocaleString()}</td>
-                    <td><span className="badge badge-info badge-compact">{sale.paymentMethod}</span></td>
-                    <td className="text-center no-print-col">
-                      <button
-                        className="btn btn-secondary btn-sm action-btn-pill hover-lift"
-                        onClick={() => setSelectedInvoice(sale)}
-                      >
-                        Details <ChevronRight size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                searchedInvoices.map((sale) => {
+                  const itemDisc = sale.itemDiscountsTotal || (sale.items?.reduce((acc, it) => acc + (it.itemDiscount || 0), 0) || 0);
+                  const billDisc = (sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0);
+                  const totalDisc = sale.allDiscountsTotal !== undefined ? sale.allDiscountsTotal : (itemDisc + billDisc);
+                  const grossSub = sale.grossSubtotal || (sale.subtotal + itemDisc);
+
+                  return (
+                    <tr key={sale.receiptNumber || sale.id}>
+                      <td className="font-mono text-highlight font-weight-600">{sale.receiptNumber}</td>
+                      <td className="font-mono text-xs">{sale.dateTime}</td>
+                      <td className="font-weight-600 truncate-cell" title={sale.salesman}>{sale.salesman}</td>
+                      <td className="font-mono">Rs. {grossSub.toLocaleString()}</td>
+                      <td className="font-mono text-amber">
+                        {totalDisc > 0 ? (
+                          <div>
+                            <span>-Rs. {totalDisc.toLocaleString()}</span>
+                            {(itemDisc > 0 && billDisc > 0) && (
+                              <div className="text-xxs text-muted">
+                                Item: {itemDisc.toLocaleString()} • Bill: {billDisc.toLocaleString()}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted">Rs. 0</span>
+                        )}
+                      </td>
+                      <td className="font-mono text-success font-weight-700">Rs. {sale.netTotal.toLocaleString()}</td>
+                      <td className="font-mono text-primary font-weight-700">Rs. {sale.grossProfit.toLocaleString()}</td>
+                      <td><span className="badge badge-info badge-compact">{sale.paymentMethod}</span></td>
+                      <td className="text-center no-print-col">
+                        <button
+                          className="btn btn-secondary btn-sm action-btn-pill hover-lift"
+                          onClick={() => setSelectedInvoice(sale)}
+                        >
+                          Details <ChevronRight size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -543,6 +598,7 @@ export const AnalyticsView = () => {
                       <th style={{ width: '110px' }}>Barcode</th>
                       <th>Item Description</th>
                       <th style={{ width: '90px' }}>Sale Price</th>
+                      <th style={{ width: '85px' }} className="text-right">Discount</th>
                       <th style={{ width: '90px' }}>Cost Price</th>
                       <th style={{ width: '50px' }} className="text-center">Qty</th>
                       <th style={{ width: '95px' }} className="text-right">Line Total</th>
@@ -550,12 +606,14 @@ export const AnalyticsView = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedInvoice.items.map((item, idx) => {
+                    {selectedInvoice.items?.map((item, idx) => {
                       const cost = item.wholesalePrice || Math.round(item.unitPrice * 0.45);
-                      const lineGross = item.unitPrice * item.qty - (item.itemDiscount || 0);
+                      const itemDisc = item.itemDiscount || 0;
+                      const lineGross = item.unitPrice * item.qty;
+                      const lineAfterItemDisc = lineGross - itemDisc;
                       const totalCost = cost * item.qty;
-                      const profit = item.isReturn ? 0 : lineGross - totalCost;
-                      const marginPct = lineGross > 0 ? ((profit / lineGross) * 100).toFixed(0) : '0';
+                      const profit = item.isReturn ? 0 : lineAfterItemDisc - totalCost;
+                      const marginPct = lineAfterItemDisc > 0 ? ((profit / lineAfterItemDisc) * 100).toFixed(0) : '0';
 
                       return (
                         <tr key={idx}>
@@ -567,9 +625,16 @@ export const AnalyticsView = () => {
                             </div>
                           </td>
                           <td className="font-mono">Rs. {item.unitPrice.toLocaleString()}</td>
+                          <td className="text-right font-mono text-amber">
+                            {itemDisc > 0 ? (
+                              <span>-Rs. {itemDisc.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-muted text-xs">-</span>
+                            )}
+                          </td>
                           <td className="font-mono text-muted text-xs">Rs. {cost.toLocaleString()}</td>
                           <td className="text-center font-mono font-weight-700">{item.qty}</td>
-                          <td className="text-right font-mono font-weight-700">Rs. {item.total.toLocaleString()}</td>
+                          <td className="text-right font-mono font-weight-700">Rs. {(item.total ?? lineAfterItemDisc).toLocaleString()}</td>
                           <td className="text-right font-mono font-weight-800">
                             {item.isReturn ? (
                               <span className="text-muted text-xs">Return</span>
@@ -586,17 +651,37 @@ export const AnalyticsView = () => {
                 </table>
               </div>
 
-              <div className="drawer-financials-summary mt-3 font-mono p-3 bg-secondary rounded border">
-                <div className="d-row flex-between"><span>Subtotal:</span> <span>Rs. {selectedInvoice.subtotal.toLocaleString()}</span></div>
-                <div className="d-row flex-between"><span>Discount:</span> <span className="text-amber">-Rs. {((selectedInvoice.wholeSaleDiscount || 0) + (selectedInvoice.storewideDiscount || 0)).toLocaleString()}</span></div>
-                <div className="d-row flex-between d-bold border-top pt-1 mt-1 font-weight-800"><span>NET REVENUE:</span> <span>Rs. {selectedInvoice.netTotal.toLocaleString()}</span></div>
-                <div className="d-row flex-between text-success font-weight-800 mt-1">
-                  <span>INVOICE GROSS PROFIT:</span>
-                  <span>
-                    Rs. {selectedInvoice.grossProfit.toLocaleString()} ({selectedInvoice.netTotal > 0 ? ((selectedInvoice.grossProfit / selectedInvoice.netTotal) * 100).toFixed(1) : 0}%)
-                  </span>
-                </div>
-              </div>
+              {(() => {
+                const modalItemDisc = selectedInvoice.itemDiscountsTotal || (selectedInvoice.items?.reduce((acc, it) => acc + (it.itemDiscount || 0), 0) || 0);
+                const modalGross = selectedInvoice.grossSubtotal || (selectedInvoice.subtotal + modalItemDisc);
+                const modalBillDisc = (selectedInvoice.wholeSaleDiscount || 0) + (selectedInvoice.storewideDiscount || 0);
+                const modalAllDisc = selectedInvoice.allDiscountsTotal !== undefined ? selectedInvoice.allDiscountsTotal : (modalItemDisc + modalBillDisc);
+                const modalCost = selectedInvoice.totalCost || (selectedInvoice.items?.reduce((acc, it) => acc + ((it.wholesalePrice || Math.round(it.unitPrice * 0.45)) * it.qty), 0) || 0);
+
+                return (
+                  <div className="drawer-financials-summary mt-3 font-mono p-3 bg-secondary rounded border">
+                    <div className="d-row flex-between"><span>Gross Total:</span> <span>Rs. {modalGross.toLocaleString()}</span></div>
+                    {modalItemDisc > 0 && (
+                      <div className="d-row flex-between text-amber"><span>Item Discounts:</span> <span>-Rs. {modalItemDisc.toLocaleString()}</span></div>
+                    )}
+                    <div className="d-row flex-between text-subtle text-xs"><span>Subtotal (After Item Discounts):</span> <span>Rs. {selectedInvoice.subtotal.toLocaleString()}</span></div>
+                    {modalBillDisc > 0 && (
+                      <div className="d-row flex-between text-amber"><span>Whole Bill Discount:</span> <span>-Rs. {modalBillDisc.toLocaleString()}</span></div>
+                    )}
+                    {modalAllDisc > 0 && (
+                      <div className="d-row flex-between text-amber font-weight-700"><span>Total Discounts:</span> <span>-Rs. {modalAllDisc.toLocaleString()}</span></div>
+                    )}
+                    <div className="d-row flex-between text-muted text-xs"><span>Total Cost of Goods (COGS):</span> <span>Rs. {modalCost.toLocaleString()}</span></div>
+                    <div className="d-row flex-between d-bold border-top pt-1 mt-1 font-weight-800"><span>NET REVENUE:</span> <span>Rs. {selectedInvoice.netTotal.toLocaleString()}</span></div>
+                    <div className="d-row flex-between text-success font-weight-800 mt-1">
+                      <span>INVOICE GROSS PROFIT:</span>
+                      <span>
+                        Rs. {selectedInvoice.grossProfit.toLocaleString()} ({selectedInvoice.netTotal > 0 ? ((selectedInvoice.grossProfit / selectedInvoice.netTotal) * 100).toFixed(1) : 0}%)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="receipt-footer-print text-center mt-3 pt-2 border-top text-xs text-muted">
                 {shopSettings?.receiptFooterNote || 'Thank you for shopping at NOVA MEN & WOMEN FASHION!'}

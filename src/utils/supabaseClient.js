@@ -457,8 +457,10 @@ export async function syncSaleToCloud(saleData, tenantId) {
     receipt_number: saleData.receiptNumber,
     cashier_name: saleData.salesman || 'Cashier',
     payment_method: saleData.paymentMethod || 'Cash',
-    gross_total: saleData.subtotal || 0,
-    discount_amount: (saleData.storewideDiscount || 0) + (saleData.wholeSaleDiscount || 0),
+    gross_total: saleData.grossSubtotal !== undefined ? saleData.grossSubtotal : (saleData.subtotal + (saleData.itemDiscountsTotal || 0)),
+    discount_amount: saleData.allDiscountsTotal !== undefined
+      ? saleData.allDiscountsTotal
+      : ((saleData.storewideDiscount || 0) + (saleData.wholeSaleDiscount || 0) + (saleData.itemDiscountsTotal || 0)),
     net_total: saleData.netTotal || 0,
     amount_received: saleData.amountReceived || saleData.netTotal || 0,
     change_returned: saleData.changeReturned || 0,
@@ -637,21 +639,61 @@ function formatSaleDateTime(dateInput) {
 }
 
 export function mapCloudSaleToLocal(row) {
+  const items = row.items || [];
+  const itemDiscountsTotal = items.reduce((sum, item) => sum + (parseFloat(item.itemDiscount) || 0), 0);
+  const totalCost = items.reduce((sum, item) => {
+    const cost = item.wholesalePrice !== undefined ? item.wholesalePrice : (item.costPrice || 0);
+    const qty = item.qty !== undefined ? item.qty : (item.quantity || 1);
+    return sum + (cost * qty);
+  }, 0);
+
+  const rawDiscount = parseFloat(row.discount_amount) || 0;
+  const netTotal = parseFloat(row.net_total) || 0;
+  const rawGross = parseFloat(row.gross_total) || 0;
+
+  // Backward compatibility:
+  // Legacy rows stored discount_amount as only the whole-bill discount and gross_total as subtotal.
+  // New rows store discount_amount as allDiscountsTotal (item + bill) and gross_total as true raw gross.
+  let allDiscountsTotal = rawDiscount;
+  let billDiscount = rawDiscount;
+  let grossSubtotal = rawGross || (netTotal + rawDiscount);
+
+  if (itemDiscountsTotal > 0) {
+    if (rawDiscount >= itemDiscountsTotal && (rawGross >= (netTotal + rawDiscount) || rawGross === 0)) {
+      // New format: discount_amount already includes itemDiscountsTotal
+      billDiscount = Math.max(0, rawDiscount - itemDiscountsTotal);
+      allDiscountsTotal = rawDiscount;
+      grossSubtotal = rawGross || (netTotal + allDiscountsTotal);
+    } else {
+      // Legacy format: discount_amount was only bill discount; restore full two-tier breakdown
+      billDiscount = rawDiscount;
+      allDiscountsTotal = itemDiscountsTotal + billDiscount;
+      grossSubtotal = netTotal + allDiscountsTotal;
+    }
+  }
+
+  const subtotalAfterItem = Math.max(0, grossSubtotal - itemDiscountsTotal);
+
   return {
     id: row.id,
     tenantId: row.tenant_id,
     receiptNumber: row.receipt_number,
-    salesman: row.cashier_name,
-    paymentMethod: row.payment_method,
-    subtotal: row.gross_total,
-    storewideDiscount: row.discount_amount,
-    wholeSaleDiscount: 0,
+    salesman: row.cashier_name || 'Cashier',
+    paymentMethod: row.payment_method || 'Cash',
+    grossSubtotal,
+    itemDiscountsTotal,
+    subtotal: subtotalAfterItem,
+    storewideDiscount: 0,
+    wholeSaleDiscount: billDiscount,
+    totalBillDiscount: billDiscount,
+    allDiscountsTotal,
     netTotal: row.net_total,
     amountReceived: row.amount_received,
     changeReturned: row.change_returned,
-    items: row.items || [],
+    items,
     dateTime: formatSaleDateTime(row.created_at),
-    grossProfit: (row.net_total || 0) - (row.items || []).reduce((sum, item) => sum + ((item.costPrice || 0) * (item.quantity || 1)), 0),
+    totalCost,
+    grossProfit: (row.net_total || 0) - totalCost,
   };
 }
 
