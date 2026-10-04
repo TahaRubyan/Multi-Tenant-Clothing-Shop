@@ -1,29 +1,37 @@
-import { createClient } from '@supabase/supabase-js';
-import { hashPassword } from './passwordUtils';
-import { cookieAuthStorage } from './authClient';
+import { createClient } from "@supabase/supabase-js";
+import { hashPassword } from "./passwordUtils";
+import { cookieAuthStorage } from "./authClient";
 
 // TESSLO Fashion Retail ERP Cloud Environments (Dev & Prod)
 export const TESSLO_ENVIRONMENTS = {
   DEV: {
-    id: 'tesslo-dev',
-    name: 'TESSLO Dev (Sandbox)',
-    url: 'https://hkfcgggenblephpcrmkp.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrZmNnZ2dlbmJsZXBocGNybWtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1MjI0ODIsImV4cCI6MjEwNjA5ODQ4Mn0.50Q7lxZ7Fzkpx3D5EB8YYkPdmzNVyUFAz1t_--tHmgc',
+    id: "tesslo-dev",
+    name: "TESSLO Dev (Sandbox)",
+    url: "https://hkfcgggenblephpcrmkp.supabase.co",
+    anonKey:
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrZmNnZ2dlbmJsZXBocGNybWtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1MjI0ODIsImV4cCI6MjEwNjA5ODQ4Mn0.50Q7lxZ7Fzkpx3D5EB8YYkPdmzNVyUFAz1t_--tHmgc",
   },
   PROD: {
-    id: 'tesslo-prod',
-    name: 'TESSLO Prod (Live Production Mesh)',
-    url: 'https://clnpagwuriteqhvyrupx.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbnBhZ3d1cml0ZXFodnlydXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MDYxMzMsImV4cCI6MjEwNjE4MjEzM30.egORoQSjbksZqIT7Tep19S9kWGOM6JDMx6Em7ndncqU',
+    id: "tesslo-prod",
+    name: "TESSLO Prod (Live Production Mesh)",
+    url: "https://clnpagwuriteqhvyrupx.supabase.co",
+    anonKey:
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbnBhZ3d1cml0ZXFodnlydXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MDYxMzMsImV4cCI6MjEwNjE4MjEzM30.egORoQSjbksZqIT7Tep19S9kWGOM6JDMx6Em7ndncqU",
   },
 };
 
 const defaultEnv = TESSLO_ENVIRONMENTS.DEV;
 
-export const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || defaultEnv.url;
-export const supabaseKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || defaultEnv.anonKey;
-export const currentEnvironmentName = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ENV_NAME) ||
-  (supabaseUrl.includes('clnpagwuriteqhvyrupx') ? 'tesslo-prod' : 'tesslo-dev');
+export const supabaseUrl =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SUPABASE_URL) ||
+  defaultEnv.url;
+export const supabaseKey =
+  (typeof import.meta !== "undefined" &&
+    import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
+  defaultEnv.anonKey;
+export const currentEnvironmentName =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_ENV_NAME) ||
+  (supabaseUrl.includes("clnpagwuriteqhvyrupx") ? "tesslo-prod" : "tesslo-dev");
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -43,11 +51,11 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
  * errors, timeouts) belong in the offline queue.
  */
 function isPermanentDbError(err) {
-  const code = err?.code || '';
+  const code = err?.code || "";
   return /^(22|23)/.test(String(code));
 }
 
-const PENDING_SYNC_KEY = 'tesslo_pending_cloud_sync';
+const PENDING_SYNC_KEY = "tesslo_pending_cloud_sync";
 
 export function getPendingQueue() {
   try {
@@ -69,7 +77,7 @@ export function addToPendingQueue(actionType, payload) {
     });
     localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(queue));
   } catch (err) {
-    console.warn('[TESSLO Cloud Sync] Failed to enqueue offline item:', err);
+    console.warn("[TESSLO Cloud Sync] Failed to enqueue offline item:", err);
   }
 }
 
@@ -77,7 +85,7 @@ export function addToPendingQueue(actionType, payload) {
  * Flush all pending offline records to Supabase when internet connection resumes.
  */
 export async function flushOfflineQueue() {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
     return { flushed: 0, remaining: getPendingQueue().length };
   }
 
@@ -89,40 +97,64 @@ export async function flushOfflineQueue() {
 
   for (const item of queue) {
     try {
-      if (item.actionType === 'SALE') {
-        const { error } = await supabase.from('sales_orders').upsert([item.payload], { onConflict: 'id' });
+      if (item.actionType === "SALE") {
+        const { error } = await supabase
+          .from("sales_orders")
+          .upsert([item.payload], { onConflict: "id" });
         if (error) throw error;
-      } else if (item.actionType === 'PRODUCT') {
-        const { error } = await supabase.from('products').upsert([item.payload], { onConflict: 'id' });
+      } else if (item.actionType === "PRODUCT") {
+        const { error } = await supabase
+          .from("products")
+          .upsert([item.payload], { onConflict: "id" });
         if (error) throw error;
-      } else if (item.actionType === 'SETTLEMENT') {
-        const { error } = await supabase.from('day_settlements').upsert([item.payload], { onConflict: 'id' });
+      } else if (item.actionType === "SETTLEMENT") {
+        const { error } = await supabase
+          .from("day_settlements")
+          .upsert([item.payload], { onConflict: "id" });
         if (error) throw error;
-      } else if (item.actionType === 'TENANT') {
-        const { error } = await supabase.from('tenants').upsert([item.payload], { onConflict: 'id' });
+      } else if (item.actionType === "TENANT") {
+        const { error } = await supabase
+          .from("tenants")
+          .upsert([item.payload], { onConflict: "id" });
         if (error) throw error;
-      } else if (item.actionType === 'USER') {
-        const { error } = await supabase.from('users').upsert([item.payload], { onConflict: 'id' });
+      } else if (item.actionType === "USER") {
+        const { error } = await supabase
+          .from("users")
+          .upsert([item.payload], { onConflict: "id" });
         if (error) throw error;
-      } else if (item.actionType === 'DELETE_TENANT') {
-        const { error } = await supabase.from('tenants').delete().eq('id', item.payload.id);
+      } else if (item.actionType === "DELETE_TENANT") {
+        const { error } = await supabase
+          .from("tenants")
+          .delete()
+          .eq("id", item.payload.id);
         if (error) throw error;
-      } else if (item.actionType === 'DELETE_PRODUCT') {
-        const { error } = await supabase.from('products').delete().eq('id', item.payload.id);
+      } else if (item.actionType === "DELETE_PRODUCT") {
+        const { error } = await supabase
+          .from("products")
+          .delete()
+          .eq("id", item.payload.id);
         if (error) throw error;
-      } else if (item.actionType === 'DELETE_USER') {
-        const { error } = await supabase.from('users').delete().eq('id', item.payload.id);
+      } else if (item.actionType === "DELETE_USER") {
+        const { error } = await supabase
+          .from("users")
+          .delete()
+          .eq("id", item.payload.id);
         if (error) throw error;
-      } else if (item.actionType === 'PROFILE') {
-        const { error } = await supabase.from('profiles').upsert([item.payload], { onConflict: 'id' });
+      } else if (item.actionType === "PROFILE") {
+        const { error } = await supabase
+          .from("profiles")
+          .upsert([item.payload], { onConflict: "id" });
         if (error) throw error;
-      } else if (item.actionType === 'DELETE_PROFILE') {
-        const { error } = await supabase.from('profiles').delete().eq('id', item.payload.id);
+      } else if (item.actionType === "DELETE_PROFILE") {
+        const { error } = await supabase
+          .from("profiles")
+          .delete()
+          .eq("id", item.payload.id);
         if (error) throw error;
       }
       flushedCount++;
     } catch (err) {
-      console.warn('[TESSLO Cloud Sync] Retrying item later:', item.id, err);
+      console.warn("[TESSLO Cloud Sync] Retrying item later:", item.id, err);
       remaining.push(item);
     }
   }
@@ -138,35 +170,38 @@ export async function syncTenantToCloud(tenantData) {
   const row = {
     id: tenantData.id,
     name: tenantData.name,
-    tagline: tenantData.tagline || '',
-    city: tenantData.city || 'Pakistan',
-    address: tenantData.address || '',
-    phone: tenantData.phone || '',
-    shop_type: tenantData.shopType || 'mixed_garments',
-    owner_name: tenantData.ownerName || '',
+    tagline: tenantData.tagline || "",
+    city: tenantData.city || "Pakistan",
+    address: tenantData.address || "",
+    phone: tenantData.phone || "",
+    shop_type: tenantData.shopType || "mixed_garments",
+    owner_name: tenantData.ownerName || "",
     modules: tenantData.modules || {},
-    status: tenantData.status || 'active',
-    created_at: tenantData.createdAt && !isNaN(new Date(tenantData.createdAt).getTime())
-      ? new Date(tenantData.createdAt).toISOString()
-      : new Date().toISOString(),
+    status: tenantData.status || "active",
+    created_at:
+      tenantData.createdAt && !isNaN(new Date(tenantData.createdAt).getTime())
+        ? new Date(tenantData.createdAt).toISOString()
+        : new Date().toISOString(),
   };
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('TENANT', row);
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("TENANT", row);
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('tenants').upsert([row], { onConflict: 'id' });
+    const { error } = await supabase
+      .from("tenants")
+      .upsert([row], { onConflict: "id" });
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      console.error('[TESSLO Cloud] Tenant rejected (not retried):', err);
+      console.error("[TESSLO Cloud] Tenant rejected (not retried):", err);
       return { success: false, error: err.message };
     }
-    console.warn('[TESSLO Cloud] Tenant sync deferred, queuing locally:', err);
-    addToPendingQueue('TENANT', row);
+    console.warn("[TESSLO Cloud] Tenant sync deferred, queuing locally:", err);
+    addToPendingQueue("TENANT", row);
     return { success: true, offline: true };
   }
 }
@@ -175,22 +210,28 @@ export async function syncTenantToCloud(tenantData) {
  * Delete Tenant from Supabase Cloud
  */
 export async function deleteTenantFromCloud(tenantId) {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('DELETE_TENANT', { id: tenantId });
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("DELETE_TENANT", { id: tenantId });
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('tenants').delete().eq('id', tenantId);
+    const { error } = await supabase
+      .from("tenants")
+      .delete()
+      .eq("id", tenantId);
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      console.error('[TESSLO Cloud] Tenant deletion rejected (not retried):', err);
+      console.error(
+        "[TESSLO Cloud] Tenant deletion rejected (not retried):",
+        err,
+      );
       return { success: false, error: err.message };
     }
-    console.warn('[TESSLO Cloud] Tenant deletion deferred:', err);
-    addToPendingQueue('DELETE_TENANT', { id: tenantId });
+    console.warn("[TESSLO Cloud] Tenant deletion deferred:", err);
+    addToPendingQueue("DELETE_TENANT", { id: tenantId });
     return { success: true, offline: true };
   }
 }
@@ -207,33 +248,39 @@ export async function syncUserToCloud(userData) {
   const row = {
     id: userData.id || `u-${Date.now()}`,
     username: userData.username,
-    password_hash: userData.password || userData.password_hash || hashPassword(`unset-${Date.now()}-${Math.random()}`),
+    password_hash:
+      userData.password ||
+      userData.password_hash ||
+      hashPassword(`unset-${Date.now()}-${Math.random()}`),
     full_name: userData.fullName || userData.full_name || userData.username,
-    role: userData.role || 'Admin',
+    role: userData.role || "Admin",
     tenant_ids: userData.tenantIds || userData.tenant_ids || [],
     is_super_admin: Boolean(userData.isSuperAdmin || userData.is_super_admin),
     created_at: new Date().toISOString(),
   };
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('USER', row);
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("USER", row);
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('users').upsert([row], { onConflict: 'id' });
+    const { error } = await supabase
+      .from("users")
+      .upsert([row], { onConflict: "id" });
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      const friendly = /username/i.test(err.message || '') || err.code === '23505'
-        ? 'That username is already taken.'
-        : err.message;
-      console.error('[TESSLO Cloud] User rejected (not retried):', err);
+      const friendly =
+        /username/i.test(err.message || "") || err.code === "23505"
+          ? "That username is already taken."
+          : err.message;
+      console.error("[TESSLO Cloud] User rejected (not retried):", err);
       return { success: false, error: friendly };
     }
-    console.warn('[TESSLO Cloud] User sync deferred, queuing locally:', err);
-    addToPendingQueue('USER', row);
+    console.warn("[TESSLO Cloud] User sync deferred, queuing locally:", err);
+    addToPendingQueue("USER", row);
     return { success: true, offline: true };
   }
 }
@@ -244,25 +291,25 @@ export async function syncUserToCloud(userData) {
 export async function fetchTenantsFromCloud() {
   try {
     const { data, error } = await supabase
-      .from('tenants')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("tenants")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (error) throw error;
     return (data || []).map((t) => ({
       id: t.id,
       name: t.name,
-      tagline: t.tagline || '',
-      city: t.city || 'Pakistan',
-      address: t.address || '',
-      phone: t.phone || '',
-      shopType: t.shop_type || 'mixed_garments',
-      ownerName: t.owner_name || '',
+      tagline: t.tagline || "",
+      city: t.city || "Pakistan",
+      address: t.address || "",
+      phone: t.phone || "",
+      shopType: t.shop_type || "mixed_garments",
+      ownerName: t.owner_name || "",
       modules: t.modules || {},
-      status: t.status || 'active',
+      status: t.status || "active",
       createdAt: t.created_at,
     }));
   } catch (err) {
-    console.warn('[TESSLO Cloud] Could not fetch tenants from cloud:', err);
+    console.warn("[TESSLO Cloud] Could not fetch tenants from cloud:", err);
     return null;
   }
 }
@@ -271,22 +318,25 @@ export async function fetchTenantsFromCloud() {
  * Delete User from Supabase Cloud
  */
 export async function deleteUserFromCloud(userId) {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('DELETE_USER', { id: userId });
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("DELETE_USER", { id: userId });
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('users').delete().eq('id', userId);
+    const { error } = await supabase.from("users").delete().eq("id", userId);
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      console.error('[TESSLO Cloud] User deletion rejected (not retried):', err);
+      console.error(
+        "[TESSLO Cloud] User deletion rejected (not retried):",
+        err,
+      );
       return { success: false, error: err.message };
     }
-    console.warn('[TESSLO Cloud] User deletion deferred:', err);
-    addToPendingQueue('DELETE_USER', { id: userId });
+    console.warn("[TESSLO Cloud] User deletion deferred:", err);
+    addToPendingQueue("DELETE_USER", { id: userId });
     return { success: true, offline: true };
   }
 }
@@ -296,7 +346,7 @@ export async function deleteUserFromCloud(userId) {
  */
 export async function fetchUsersFromCloud() {
   try {
-    const { data, error } = await supabase.from('users').select('*');
+    const { data, error } = await supabase.from("users").select("*");
     if (error) throw error;
     return (data || []).map((u) => ({
       id: u.id,
@@ -308,7 +358,7 @@ export async function fetchUsersFromCloud() {
       isSuperAdmin: Boolean(u.is_super_admin),
     }));
   } catch (err) {
-    console.warn('[TESSLO Cloud] Could not fetch users from cloud:', err);
+    console.warn("[TESSLO Cloud] Could not fetch users from cloud:", err);
     return null;
   }
 }
@@ -339,28 +389,31 @@ export async function syncProfileToCloud(profile) {
     id: profile.id,
     username: profile.username,
     full_name: profile.fullName || profile.full_name || profile.username,
-    role: profile.role || 'Salesman',
+    role: profile.role || "Salesman",
     tenant_ids: profile.tenantIds || profile.tenant_ids || [],
     is_super_admin: Boolean(profile.isSuperAdmin || profile.is_super_admin),
   };
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('PROFILE', row);
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("PROFILE", row);
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('profiles').upsert([row], { onConflict: 'id' });
+    const { error } = await supabase
+      .from("profiles")
+      .upsert([row], { onConflict: "id" });
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      const friendly = err.code === '23505' ? 'That username is already taken.' : err.message;
-      console.error('[TESSLO Cloud] Profile rejected (not retried):', err);
+      const friendly =
+        err.code === "23505" ? "That username is already taken." : err.message;
+      console.error("[TESSLO Cloud] Profile rejected (not retried):", err);
       return { success: false, error: friendly };
     }
-    console.warn('[TESSLO Cloud] Profile sync deferred, queuing locally:', err);
-    addToPendingQueue('PROFILE', row);
+    console.warn("[TESSLO Cloud] Profile sync deferred, queuing locally:", err);
+    addToPendingQueue("PROFILE", row);
     return { success: true, offline: true };
   }
 }
@@ -370,11 +423,15 @@ export async function syncProfileToCloud(profile) {
  */
 export async function fetchProfileById(userId) {
   try {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
     if (error) throw error;
     return data ? mapCloudProfileToLocal(data) : null;
   } catch (err) {
-    console.warn('[TESSLO Cloud] Could not fetch profile:', err);
+    console.warn("[TESSLO Cloud] Could not fetch profile:", err);
     return null;
   }
 }
@@ -384,11 +441,11 @@ export async function fetchProfileById(userId) {
  */
 export async function fetchProfilesFromCloud() {
   try {
-    const { data, error } = await supabase.from('profiles').select('*');
+    const { data, error } = await supabase.from("profiles").select("*");
     if (error) throw error;
     return (data || []).map(mapCloudProfileToLocal);
   } catch (err) {
-    console.warn('[TESSLO Cloud] Could not fetch profiles from cloud:', err);
+    console.warn("[TESSLO Cloud] Could not fetch profiles from cloud:", err);
     return null;
   }
 }
@@ -401,22 +458,25 @@ export async function fetchProfilesFromCloud() {
  * invalid access and signs the session back out, so this is still effective.
  */
 export async function deleteProfileFromCloud(userId) {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('DELETE_PROFILE', { id: userId });
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("DELETE_PROFILE", { id: userId });
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    const { error } = await supabase.from("profiles").delete().eq("id", userId);
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      console.error('[TESSLO Cloud] Profile deletion rejected (not retried):', err);
+      console.error(
+        "[TESSLO Cloud] Profile deletion rejected (not retried):",
+        err,
+      );
       return { success: false, error: err.message };
     }
-    console.warn('[TESSLO Cloud] Profile deletion deferred:', err);
-    addToPendingQueue('DELETE_PROFILE', { id: userId });
+    console.warn("[TESSLO Cloud] Profile deletion deferred:", err);
+    addToPendingQueue("DELETE_PROFILE", { id: userId });
     return { success: true, offline: true };
   }
 }
@@ -443,7 +503,8 @@ export async function createAuthAccountPreservingSession(email, password) {
   }
 
   if (error) return { success: false, error: error.message };
-  if (!data?.user) return { success: false, error: 'Signup did not return a user' };
+  if (!data?.user)
+    return { success: false, error: "Signup did not return a user" };
   return { success: true, userId: data.user.id };
 }
 
@@ -453,35 +514,45 @@ export async function createAuthAccountPreservingSession(email, password) {
 export async function syncSaleToCloud(saleData, tenantId) {
   const row = {
     id: saleData.id || `ord-${Date.now()}`,
-    tenant_id: tenantId || 'tenant-default',
+    tenant_id: tenantId || "tenant-default",
     receipt_number: saleData.receiptNumber,
-    cashier_name: saleData.salesman || 'Cashier',
-    payment_method: saleData.paymentMethod || 'Cash',
+    cashier_name: saleData.salesman || "Cashier",
+    payment_method: saleData.paymentMethod || "Cash",
     gross_total: saleData.subtotal || 0,
-    discount_amount: (saleData.storewideDiscount || 0) + (saleData.wholeSaleDiscount || 0),
+    item_discount_total:
+      saleData.itemDiscountTotal ||
+      (saleData.items || []).reduce(
+        (sum, it) => sum + (it.itemDiscount || 0),
+        0,
+      ),
+    discount_amount:
+      (saleData.storewideDiscount || 0) + (saleData.wholeSaleDiscount || 0),
     net_total: saleData.netTotal || 0,
+    gross_profit: saleData.grossProfit || 0,
     amount_received: saleData.amountReceived || saleData.netTotal || 0,
     change_returned: saleData.changeReturned || 0,
     items: saleData.items || [],
     created_at: new Date().toISOString(),
   };
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('SALE', row);
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("SALE", row);
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('sales_orders').upsert([row], { onConflict: 'id' });
+    const { error } = await supabase
+      .from("sales_orders")
+      .upsert([row], { onConflict: "id" });
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      console.error('[TESSLO Cloud] Sale rejected (not retried):', err);
+      console.error("[TESSLO Cloud] Sale rejected (not retried):", err);
       return { success: false, error: err.message };
     }
-    console.warn('[TESSLO Cloud] Cloud sync deferred, queuing locally:', err);
-    addToPendingQueue('SALE', row);
+    console.warn("[TESSLO Cloud] Cloud sync deferred, queuing locally:", err);
+    addToPendingQueue("SALE", row);
     return { success: true, offline: true };
   }
 }
@@ -490,35 +561,49 @@ export async function syncSaleToCloud(saleData, tenantId) {
  * Save day-end cash register settlement with automatic offline fallback.
  */
 export async function syncSettlementToCloud(settlementData, tenantId) {
+  // Map from the local settlement object shape (built by DaySettlementModal +
+  // recordDaySettlement) to the Supabase day_settlements column names.
+  // Local fields: closedBy, cashierName, expectedCash, actualCash, digitalSales,
+  //               totalSales, orderCount, status, reasonNote, discrepancy
+  // Column names: settled_by, total_cash, total_card, total_returns, notes, closed_at
   const row = {
     id: settlementData.id || `set-${Date.now()}`,
-    tenant_id: tenantId || 'tenant-default',
+    tenant_id: tenantId || "tenant-default",
     closed_at: settlementData.closedAt || new Date().toISOString(),
     total_sales: settlementData.totalSales || 0,
-    total_cash: settlementData.totalCash || 0,
-    total_card: settlementData.totalCard || 0,
+    total_cash: settlementData.actualCash ?? settlementData.totalCash ?? 0,
+    total_card: settlementData.digitalSales ?? settlementData.totalCard ?? 0,
     total_returns: settlementData.totalReturns || 0,
-    settled_by: settlementData.settledBy || 'Cashier',
-    notes: settlementData.notes || '',
+    settled_by:
+      settlementData.closedBy ||
+      settlementData.settledBy ||
+      settlementData.cashierName ||
+      "Cashier",
+    notes: settlementData.reasonNote || settlementData.notes || "",
     created_at: new Date().toISOString(),
   };
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('SETTLEMENT', row);
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("SETTLEMENT", row);
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('day_settlements').upsert([row], { onConflict: 'id' });
+    const { error } = await supabase
+      .from("day_settlements")
+      .upsert([row], { onConflict: "id" });
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      console.error('[TESSLO Cloud] Settlement rejected (not retried):', err);
+      console.error("[TESSLO Cloud] Settlement rejected (not retried):", err);
       return { success: false, error: err.message };
     }
-    console.warn('[TESSLO Cloud] Settlement sync deferred, queuing locally:', err);
-    addToPendingQueue('SETTLEMENT', row);
+    console.warn(
+      "[TESSLO Cloud] Settlement sync deferred, queuing locally:",
+      err,
+    );
+    addToPendingQueue("SETTLEMENT", row);
     return { success: true, offline: true };
   }
 }
@@ -529,41 +614,50 @@ export async function syncSettlementToCloud(settlementData, tenantId) {
 export async function syncProductToCloud(product, tenantId) {
   const row = {
     id: product.id,
-    tenant_id: tenantId || product.tenantId || 'tenant-default',
-    barcode: product.barcode || '',
-    name: product.fabricMaterial || product.name || product.itemName || 'Garment Item',
-    department: product.department || 'Gents Wear',
-    category: product.fabricType || product.apparelCategory || 'Apparel',
-    fabric: product.fabricMaterial || '',
-    fit: product.fabricFit || '',
-    size: product.fabricSize || '',
-    color: product.fabricColor || product.color || '',
+    tenant_id: tenantId || product.tenantId || "tenant-default",
+    barcode: product.barcode || "",
+    name:
+      product.fabricMaterial ||
+      product.name ||
+      product.itemName ||
+      "Garment Item",
+    department: product.department || "Gents Wear",
+    category: product.fabricType || product.apparelCategory || "Apparel",
+    fabric: product.fabricMaterial || "",
+    fit: product.fabricFit || "",
+    size: product.fabricSize || "",
+    color: product.fabricColor || product.color || "",
     cost_price: product.wholesalePrice || product.costPrice || 0,
     retail_price: product.retailPrice || 0,
     stock_qty: product.stock || 0,
     min_stock_alert: product.reorderLimit || 5,
-    vendor_name: product.vendor || '',
-    rack_location: product.rackLocation || '',
+    vendor_name: product.vendor || "",
+    rack_location: product.rackLocation || "",
     is_active: product.isActive !== false,
   };
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('PRODUCT', row);
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("PRODUCT", row);
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('products').upsert([row], { onConflict: 'id' });
+    const { error } = await supabase
+      .from("products")
+      .upsert([row], { onConflict: "id" });
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      const friendly = err.code === '23505' ? 'That barcode is already in use for this shop.' : err.message;
-      console.error('[TESSLO Cloud] Product rejected (not retried):', err);
+      const friendly =
+        err.code === "23505"
+          ? "That barcode is already in use for this shop."
+          : err.message;
+      console.error("[TESSLO Cloud] Product rejected (not retried):", err);
       return { success: false, error: friendly };
     }
-    console.warn('[TESSLO Cloud] Product sync deferred, queuing locally:', err);
-    addToPendingQueue('PRODUCT', row);
+    console.warn("[TESSLO Cloud] Product sync deferred, queuing locally:", err);
+    addToPendingQueue("PRODUCT", row);
     return { success: true, offline: true };
   }
 }
@@ -572,22 +666,58 @@ export async function syncProductToCloud(product, tenantId) {
  * Delete Product from Supabase Cloud
  */
 export async function deleteProductFromCloud(productId) {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    addToPendingQueue('DELETE_PRODUCT', { id: productId });
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("DELETE_PRODUCT", { id: productId });
     return { success: true, offline: true };
   }
 
   try {
-    const { error } = await supabase.from('products').delete().eq('id', productId);
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", productId);
     if (error) throw error;
     return { success: true, offline: false };
   } catch (err) {
     if (isPermanentDbError(err)) {
-      console.error('[TESSLO Cloud] Product deletion rejected (not retried):', err);
+      console.error(
+        "[TESSLO Cloud] Product deletion rejected (not retried):",
+        err,
+      );
       return { success: false, error: err.message };
     }
-    console.warn('[TESSLO Cloud] Product deletion deferred:', err);
-    addToPendingQueue('DELETE_PRODUCT', { id: productId });
+    console.warn("[TESSLO Cloud] Product deletion deferred:", err);
+    addToPendingQueue("DELETE_PRODUCT", { id: productId });
+    return { success: true, offline: true };
+  }
+}
+
+/**
+ * Delete a single Sale Order from Supabase Cloud by receipt ID.
+ * Falls back to the offline queue when the network is unavailable.
+ */
+export async function deleteSaleFromCloud(saleId) {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    addToPendingQueue("DELETE_SALE", { id: saleId });
+    return { success: true, offline: true };
+  }
+  try {
+    const { error } = await supabase
+      .from("sales_orders")
+      .delete()
+      .eq("id", saleId);
+    if (error) throw error;
+    return { success: true, offline: false };
+  } catch (err) {
+    if (isPermanentDbError(err)) {
+      console.error(
+        "[TESSLO Cloud] Sale deletion rejected (not retried):",
+        err,
+      );
+      return { success: false, error: err.message };
+    }
+    console.warn("[TESSLO Cloud] Sale deletion deferred:", err);
+    addToPendingQueue("DELETE_SALE", { id: saleId });
     return { success: true, offline: true };
   }
 }
@@ -629,10 +759,10 @@ export function mapCloudProductToLocal(row) {
 function formatSaleDateTime(dateInput) {
   const d = dateInput ? new Date(dateInput) : new Date();
   const yr = d.getFullYear();
-  const mo = String(d.getMonth() + 1).padStart(2, '0');
-  const da = String(d.getDate()).padStart(2, '0');
-  const hr = String(d.getHours()).padStart(2, '0');
-  const mi = String(d.getMinutes()).padStart(2, '0');
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  const hr = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
   return `${da}-${mo}-${yr} ${hr}:${mi}`;
 }
 
@@ -646,12 +776,31 @@ export function mapCloudSaleToLocal(row) {
     subtotal: row.gross_total,
     storewideDiscount: row.discount_amount,
     wholeSaleDiscount: 0,
+    // Restore item-level discount total: prefer stored column, fall back to summing JSONB items
+    itemDiscountTotal:
+      row.item_discount_total != null && row.item_discount_total !== 0
+        ? row.item_discount_total
+        : (row.items || []).reduce(
+            (sum, item) => sum + (item.itemDiscount || 0),
+            0,
+          ),
     netTotal: row.net_total,
     amountReceived: row.amount_received,
     changeReturned: row.change_returned,
     items: row.items || [],
     dateTime: formatSaleDateTime(row.created_at),
-    grossProfit: (row.net_total || 0) - (row.items || []).reduce((sum, item) => sum + ((item.costPrice || 0) * (item.quantity || 1)), 0),
+    // Prefer the stored gross_profit column (available after the profit-fix migration).
+    // For older rows that pre-date the column (value is 0 or null), fall back to
+    // re-deriving from the JSONB items blob using the correct field names that
+    // completeSale() actually writes: wholesalePrice (not costPrice) and qty (not quantity).
+    grossProfit:
+      row.gross_profit != null && row.gross_profit !== 0
+        ? row.gross_profit
+        : (row.net_total || 0) -
+          (row.items || []).reduce(
+            (sum, item) => sum + (item.wholesalePrice || 0) * (item.qty || 1),
+            0,
+          ),
   };
 }
 
@@ -659,17 +808,17 @@ export function mapCloudSaleToLocal(row) {
  * Fetch all Products for a specific tenant from Supabase Cloud
  */
 export async function fetchProductsFromCloud(tenantId) {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return null;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return null;
   try {
-    let query = supabase.from('products').select('*');
+    let query = supabase.from("products").select("*");
     if (tenantId) {
-      query = query.eq('tenant_id', tenantId);
+      query = query.eq("tenant_id", tenantId);
     }
     const { data, error } = await query;
     if (error) throw error;
     return (data || []).map(mapCloudProductToLocal);
   } catch (err) {
-    console.warn('[TESSLO Cloud] Could not fetch products from cloud:', err);
+    console.warn("[TESSLO Cloud] Could not fetch products from cloud:", err);
     return null;
   }
 }
@@ -678,18 +827,20 @@ export async function fetchProductsFromCloud(tenantId) {
  * Fetch all Sales Orders for a specific tenant from Supabase Cloud
  */
 export async function fetchSalesFromCloud(tenantId) {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return null;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return null;
   try {
-    let query = supabase.from('sales_orders').select('*').order('created_at', { ascending: false });
+    let query = supabase
+      .from("sales_orders")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (tenantId) {
-      query = query.eq('tenant_id', tenantId);
+      query = query.eq("tenant_id", tenantId);
     }
     const { data, error } = await query;
     if (error) throw error;
     return (data || []).map(mapCloudSaleToLocal);
   } catch (err) {
-    console.warn('[TESSLO Cloud] Could not fetch sales from cloud:', err);
+    console.warn("[TESSLO Cloud] Could not fetch sales from cloud:", err);
     return null;
   }
 }
-
