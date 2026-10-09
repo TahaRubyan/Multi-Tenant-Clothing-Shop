@@ -309,12 +309,52 @@ export const POSProvider = ({ children }) => {
           return [...otherTenants, ...cloudProducts, ...localOnlyForTenant];
         });
       }
-      if (Array.isArray(cloudSales) && cloudSales.length > 0) {
+      // CRITICAL FIX: Always merge when cloud returns a valid array, even if
+      // empty (empty just means the tenant has no sales yet — that's valid and
+      // should clear any stale local-only mock data).
+      // The previous guard `cloudSales.length > 0` silently skipped the merge
+      // on empty results AND — more dangerously — a failed fetch returns null
+      // which also skipped the merge, leaving stale localStorage data on screen.
+      if (Array.isArray(cloudSales)) {
         setAllSalesLogs((prev) => {
-          const others = prev.filter(
+          // Keep sales for all OTHER tenants untouched.
+          const otherTenants = prev.filter(
             (s) => s.tenantId && s.tenantId !== targetId,
           );
-          return [...others, ...cloudSales];
+          // For THIS tenant: cloud is the source of truth.
+          // Preserve any locally-created sales that haven't synced yet
+          // (they have no matching id in the cloud set) so we don't lose
+          // sales made during a brief network outage.
+          const localPendingForTenant = prev.filter(
+            (s) =>
+              s.tenantId === targetId && !cloudSales.some((c) => c.id === s.id),
+          );
+          // Sort newest-first so Analytics and Dashboard always see the
+          // most recent sale at the top regardless of insertion order.
+          const merged = [
+            ...otherTenants,
+            ...cloudSales,
+            ...localPendingForTenant,
+          ];
+          merged.sort((a, b) => {
+            // Parse DD-MM-YYYY HH:MM or ISO strings consistently
+            const parseDate = (dt) => {
+              if (!dt) return 0;
+              const parts = String(dt)
+                .trim()
+                .split(/[\sT]+/);
+              const dp = parts[0] || "";
+              const tp = parts[1] || "00:00";
+              if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(dp)) {
+                const [d, m, y] = dp.split(/[-/]/);
+                const [hr, mi] = tp.split(":");
+                return new Date(+y, +m - 1, +d, +hr || 0, +mi || 0).getTime();
+              }
+              return new Date(dt).getTime();
+            };
+            return parseDate(b.dateTime) - parseDate(a.dateTime);
+          });
+          return merged;
         });
       }
       setLastSyncTime(new Date());
