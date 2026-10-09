@@ -595,16 +595,32 @@ export const POSProvider = ({ children }) => {
     localStorage.setItem("pos_is_cash_settled", String(isCashSettled));
   }, [isCashSettled]);
 
-  // Prevent closing the tab/window if cash register is unsettled
+  // Prevent closing the tab/window if cash register is unsettled.
+  // The condition checks for TODAY's sales specifically — not all-time history —
+  // so a fresh shift with no transactions never blocks the user unnecessarily.
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       const isMaster =
         currentUser?.isSuperAdmin || currentUser?.role === "Super Admin";
-      if (!isMaster && !isCashSettled && allSalesLogs.length > 0) {
-        e.preventDefault();
-        e.returnValue =
-          "Action Blocked: Cash register is unsettled! Please settle cash before leaving.";
-        return e.returnValue;
+      if (!isMaster && !isCashSettled) {
+        // Compute today's sales inline (same format as DaySettlementModal)
+        const now = new Date();
+        const yr = now.getFullYear();
+        const mo = String(now.getMonth() + 1).padStart(2, "0");
+        const da = String(now.getDate()).padStart(2, "0");
+        const todayStr = `${da}-${mo}-${yr}`;
+        const isoStr = `${yr}-${mo}-${da}`;
+        const hasTodaySales = allSalesLogs.some(
+          (s) =>
+            s.dateTime &&
+            (s.dateTime.startsWith(todayStr) || s.dateTime.startsWith(isoStr)),
+        );
+        if (hasTodaySales) {
+          e.preventDefault();
+          e.returnValue =
+            "Action Blocked: Cash register is unsettled! Please settle cash before leaving.";
+          return e.returnValue;
+        }
       }
     };
     if (typeof window !== "undefined") {
@@ -615,7 +631,7 @@ export const POSProvider = ({ children }) => {
         window.removeEventListener("beforeunload", handleBeforeUnload);
       }
     };
-  }, [isCashSettled, allSalesLogs.length, currentUser]);
+  }, [isCashSettled, allSalesLogs, currentUser]);
 
   // Sync shopSettings when currentTenant changes
   useEffect(() => {
@@ -2085,7 +2101,14 @@ export const POSProvider = ({ children }) => {
       paymentMethod,
       items: cart.map((i) => ({
         barcode: i.barcode,
+        // composite display label (kept for backward compat with receipt printing)
         fabric: `${i.fabricType} - ${i.fabricMaterial} ${i.fabricColor ? `(${i.fabricColor})` : ""}`,
+        // Store each component separately so AnalyticsView can group/filter
+        // by article name and category without parsing the composite string.
+        fabricType: i.fabricType || "Apparel",
+        fabricMaterial: i.fabricMaterial || "",
+        fabricColor: i.fabricColor || "",
+        category: i.fabricType || i.apparelCategory || "Apparel",
         variantDetails: i.variantDetails,
         unitType: i.unitType || "Suit",
         qty: i.qty,
