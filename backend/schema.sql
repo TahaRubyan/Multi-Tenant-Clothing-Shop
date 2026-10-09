@@ -1,6 +1,6 @@
 -- ============================================================================
 -- TESSLO FASHION RETAIL - MULTI-TENANT POS - SUPABASE SCHEMA
--- Version: 2.0.0
+-- Version: 2.1.0
 --
 -- This file matches exactly what src/utils/supabaseClient.js reads and
 -- writes (upsert row shapes / mapCloud*ToLocal functions) - that file is the
@@ -123,11 +123,22 @@ CREATE TABLE IF NOT EXISTS sales_orders (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     receipt_number VARCHAR(100) DEFAULT '',
+    -- sale_date stores the local-timezone timestamp as DD-MM-YYYY HH:MM.
+    -- This is the value completeSale() stamps at transaction time.  Keeping
+    -- the local string here means analytics / settlement filters always land
+    -- on the correct calendar day even for non-UTC timezones, unlike the
+    -- `created_at` UTC column which previously caused midnight-hour sales to
+    -- "shift" to the previous day after a cloud re-fetch.
+    sale_date VARCHAR(20) DEFAULT '',
     cashier_name VARCHAR(150) DEFAULT 'Cashier',
     payment_method VARCHAR(50) DEFAULT 'Cash',
     gross_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
     item_discount_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    -- Kept for backward-compatible reads; equals storewide_discount + wholesale_discount.
     discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    -- Split columns so mapCloudSaleToLocal() can restore both independently.
+    storewide_discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    wholesale_discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
     net_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
     gross_profit NUMERIC(12, 2) NOT NULL DEFAULT 0,
     amount_received NUMERIC(12, 2) NOT NULL DEFAULT 0,
@@ -137,6 +148,7 @@ CREATE TABLE IF NOT EXISTS sales_orders (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sales_orders_tenant ON sales_orders(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sales_orders_sale_date ON sales_orders(sale_date);
 
 -- ----------------------------------------------------------------------------
 -- 5. DAY SETTLEMENTS
@@ -165,3 +177,30 @@ CREATE INDEX IF NOT EXISTS idx_settlements_tenant ON day_settlements(tenant_id);
 -- app's own signUp flow instead - see the migration note handed over
 -- alongside this file.
 -- ----------------------------------------------------------------------------
+
+-- ============================================================================
+-- MIGRATION v2.0 → v2.1  (run once against any existing Supabase project)
+-- Safe to re-run: every statement uses IF NOT EXISTS / IF EXISTS guards.
+-- ============================================================================
+
+-- 4a. sales_orders: add local-timezone sale date column
+ALTER TABLE sales_orders
+    ADD COLUMN IF NOT EXISTS sale_date VARCHAR(20) DEFAULT '';
+
+-- 4b. sales_orders: add split discount columns
+--     discount_amount is kept as-is for backward-compatible reads.
+ALTER TABLE sales_orders
+    ADD COLUMN IF NOT EXISTS storewide_discount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+
+ALTER TABLE sales_orders
+    ADD COLUMN IF NOT EXISTS wholesale_discount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+
+-- 4c. Backfill storewide_discount from the combined discount_amount for all
+--     pre-migration rows (wholesale_discount stays 0 — the split was unknown).
+UPDATE sales_orders
+SET storewide_discount = discount_amount
+WHERE storewide_discount = 0
+  AND discount_amount > 0;
+
+-- 4d. Index on sale_date to keep today-filter queries fast.
+CREATE INDEX IF NOT EXISTS idx_sales_orders_sale_date ON sales_orders(sale_date);

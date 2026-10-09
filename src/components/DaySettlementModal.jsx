@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   X,
+  Lock,
   Printer,
   History,
   Clock,
@@ -29,6 +30,8 @@ export const DaySettlementModal = () => {
     daySettlements = [],
     logout,
     exitApplication,
+    isCashSettled,
+    showToast,
   } = usePOS();
 
   const [activeTab, setActiveTab] = useState("settle"); // 'settle' | 'history'
@@ -65,6 +68,24 @@ export const DaySettlementModal = () => {
   // Always use today's sales only — never fall back to all-time history.
   // An empty day should show Rs. 0 expected cash, not a misleading all-time total.
   const activeSales = todaySales;
+
+  // Gate: block dismissing the modal when there are unsettled sales today.
+  // A day with zero sales (fresh shift) can still be closed freely.
+  const isMaster =
+    currentUser?.isSuperAdmin || currentUser?.role === "Super Admin";
+  const isSettlementRequired =
+    !isMaster && !isCashSettled && todaySales.length > 0;
+
+  const handleAttemptClose = () => {
+    if (isSettlementRequired) {
+      showToast(
+        "Cash register must be settled before closing. Please complete the settlement first.",
+        "danger",
+      );
+      return; // block close
+    }
+    setShowDaySettlementModal(false);
+  };
 
   const cashSales = activeSales
     .filter((s) => s.paymentMethod === "Cash")
@@ -191,9 +212,19 @@ export const DaySettlementModal = () => {
               <button
                 type="button"
                 className="btn-close ml-2"
-                onClick={() => setShowDaySettlementModal(false)}
+                onClick={handleAttemptClose}
+                title={
+                  isSettlementRequired ? "Settle cash before closing" : "Close"
+                }
+                aria-label={
+                  isSettlementRequired ? "Settle cash before closing" : "Close"
+                }
               >
-                <X size={18} />
+                {isSettlementRequired ? (
+                  <Lock size={18} className="text-amber" />
+                ) : (
+                  <X size={18} />
+                )}
               </button>
             </div>
           </div>
@@ -257,7 +288,7 @@ export const DaySettlementModal = () => {
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
-                        onClick={() => setShowDaySettlementModal(false)}
+                        onClick={handleAttemptClose}
                       >
                         Cancel
                       </button>
@@ -590,9 +621,16 @@ export const DaySettlementModal = () => {
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      onClick={() => setShowDaySettlementModal(false)}
+                      onClick={handleAttemptClose}
                     >
-                      Cancel
+                      {isSettlementRequired ? (
+                        <>
+                          <Lock size={13} style={{ marginRight: "4px" }} />
+                          Settle Required
+                        </>
+                      ) : (
+                        "Cancel"
+                      )}
                     </button>
 
                     <div className="flex-align-center flex-wrap gap-2">

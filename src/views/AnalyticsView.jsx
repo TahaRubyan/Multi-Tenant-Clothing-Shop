@@ -177,11 +177,30 @@ export const AnalyticsView = () => {
   const fabricSalesMap = {};
   filteredSalesLogs.forEach((sale) => {
     sale.items.forEach((item) => {
-      const key = item.fabric || item.itemName || "Garment Article";
+      // Prefer the clean fabricMaterial field added in the item-JSONB fix.
+      // Fall back to parsing the composite `fabric` string (pre-fix rows or
+      // older cloud data) by stripping the "FabricType - " prefix if present.
+      let articleName =
+        item.fabricMaterial ||
+        (item.fabric
+          ? item.fabric
+              .replace(/^[^-]+-\s*/, "")
+              .replace(/\s*\(.*?\)\s*$/, "")
+              .trim()
+          : null) ||
+        item.itemName ||
+        "Garment Article";
+      const key = articleName;
       if (!fabricSalesMap[key]) {
         fabricSalesMap[key] = {
           fabric: key,
-          category: item.category || item.fabricType || "Garments",
+          // Prefer explicit category/fabricType fields; fall back to parsing
+          // the composite fabric string prefix for older rows.
+          category:
+            item.category ||
+            item.fabricType ||
+            (item.fabric ? item.fabric.split(" - ")[0].trim() : "Garments") ||
+            "Garments",
           qty: 0,
           revenue: 0,
           profit: 0,

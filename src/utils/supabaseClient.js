@@ -510,12 +510,35 @@ export async function createAuthAccountPreservingSession(email, password) {
 
 /**
  * Save sale order with automatic offline fallback.
+ *
+ * Key design decisions:
+ * - `id` is derived from `receiptNumber` so it is stable and unique, preventing
+ *   the `ord-{timestamp}` collision that could silently overwrite rapid sales.
+ * - `sale_date` stores the local-timezone DD-MM-YYYY HH:MM string that
+ *   completeSale() stamps. This survives a cloud round-trip without the
+ *   UTC↔local day-boundary shift that previously caused sales to "disappear"
+ *   from today's analytics/settlement after a page reload.
+ * - `storewide_discount` and `wholesale_discount` are stored in separate
+ *   columns so mapCloudSaleToLocal() can restore both correctly instead of
+ *   collapsing them into one field and zeroing the other.
  */
 export async function syncSaleToCloud(saleData, tenantId) {
+  // Build a stable, collision-free ID from the receipt number.
+  // receiptNumber is "INV-YYYY-NNNN" - unique per sale. Fall back to
+  // a timestamped random string only if it's somehow missing.
+  const stableId =
+    saleData.id ||
+    (saleData.receiptNumber
+      ? `ord-${saleData.receiptNumber}`
+      : `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+
   const row = {
-    id: saleData.id || `ord-${Date.now()}`,
+    id: stableId,
     tenant_id: tenantId || "tenant-default",
     receipt_number: saleData.receiptNumber,
+    // Persist the local-time dateTime string so re-fetched sales always land
+    // on the same calendar day they were created, regardless of UTC offset.
+    sale_date: saleData.dateTime || "",
     cashier_name: saleData.salesman || "Cashier",
     payment_method: saleData.paymentMethod || "Cash",
     gross_total: saleData.subtotal || 0,
@@ -525,6 +548,11 @@ export async function syncSaleToCloud(saleData, tenantId) {
         (sum, it) => sum + (it.itemDiscount || 0),
         0,
       ),
+    // Store the two discount types separately so they can each be restored.
+    storewide_discount: saleData.storewideDiscount || 0,
+    wholesale_discount: saleData.wholeSaleDiscount || 0,
+    // Keep discount_amount as the combined total for backward compatibility
+    // with any existing rows or external queries.
     discount_amount:
       (saleData.storewideDiscount || 0) + (saleData.wholeSaleDiscount || 0),
     net_total: saleData.netTotal || 0,
@@ -767,6 +795,16 @@ function formatSaleDateTime(dateInput) {
 }
 
 export function mapCloudSaleToLocal(row) {
+  // Prefer the new `sale_date` column (local-timezone DD-MM-YYYY HH:MM) which
+  // was introduced to fix the UTC day-boundary shift. For rows created before
+  // that column existed, fall back to re-formatting `created_at` via
+  // formatSaleDateTime() — same behaviour as before, just now the fallback
+  // rather than the only path.
+  const dateTime =
+    row.sale_date && row.sale_date.trim()
+      ? row.sale_date.trim()
+      : formatSaleDateTime(row.created_at);
+
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -774,8 +812,14 @@ export function mapCloudSaleToLocal(row) {
     salesman: row.cashier_name,
     paymentMethod: row.payment_method,
     subtotal: row.gross_total,
-    storewideDiscount: row.discount_amount,
-    wholeSaleDiscount: 0,
+    // Restore each discount type from its dedicated column. For rows created
+    // before the split columns existed, the combined `discount_amount` is
+    // used as `storewideDiscount` so the total remains correct.
+    storewideDiscount:
+      row.storewide_discount != null
+        ? row.storewide_discount
+        : row.discount_amount || 0,
+    wholeSaleDiscount: row.wholesale_discount ?? 0,
     // Restore item-level discount total: prefer stored column, fall back to summing JSONB items
     itemDiscountTotal:
       row.item_discount_total != null && row.item_discount_total !== 0
@@ -788,7 +832,7 @@ export function mapCloudSaleToLocal(row) {
     amountReceived: row.amount_received,
     changeReturned: row.change_returned,
     items: row.items || [],
-    dateTime: formatSaleDateTime(row.created_at),
+    dateTime,
     // Prefer the stored gross_profit column (available after the profit-fix migration).
     // For older rows that pre-date the column (value is 0 or null), fall back to
     // re-deriving from the JSONB items blob using the correct field names that
