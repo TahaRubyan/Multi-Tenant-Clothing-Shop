@@ -555,8 +555,8 @@ export async function syncSaleToCloud(saleData, tenantId) {
     // with any existing rows or external queries.
     discount_amount:
       (saleData.storewideDiscount || 0) + (saleData.wholeSaleDiscount || 0),
-    net_total: saleData.netTotal || 0,
-    gross_profit: saleData.grossProfit || 0,
+    net_total: saleData.netTotal ?? 0,
+    gross_profit: saleData.grossProfit ?? 0,
     amount_received: saleData.amountReceived || saleData.netTotal || 0,
     change_returned: saleData.changeReturned || 0,
     items: saleData.items || [],
@@ -833,18 +833,22 @@ export function mapCloudSaleToLocal(row) {
     changeReturned: row.change_returned,
     items: row.items || [],
     dateTime,
-    // Prefer the stored gross_profit column (available after the profit-fix migration).
-    // For older rows that pre-date the column (value is 0 or null), fall back to
-    // re-deriving from the JSONB items blob using the correct field names that
-    // completeSale() actually writes: wholesalePrice (not costPrice) and qty (not quantity).
+    // Prefer the stored gross_profit column.
+    // The fallback (for rows where gross_profit was never written or was
+    // incorrectly zeroed by the old `|| 0` bug) recomputes from the JSONB
+    // items blob.  Return items must be SUBTRACTED from wholesale cost (the
+    // store gets goods back), not added — the old formula added them, which
+    // doubled the cost penalty on mixed sale+return invoices and made profit
+    // look far more negative than reality.
     grossProfit:
       row.gross_profit != null && row.gross_profit !== 0
         ? row.gross_profit
         : (row.net_total || 0) -
-          (row.items || []).reduce(
-            (sum, item) => sum + (item.wholesalePrice || 0) * (item.qty || 1),
-            0,
-          ),
+          (row.items || []).reduce((sum, item) => {
+            const cost = (item.wholesalePrice || 0) * (item.qty || 1);
+            // Return items restore stock, so their cost is negative — subtract
+            return item.isReturn ? sum - cost : sum + cost;
+          }, 0),
   };
 }
 

@@ -150,15 +150,38 @@ export const AnalyticsView = () => {
     return receiptMatch || salesmanMatch || paymentMatch || itemMatch;
   });
 
+  // Helper: recompute gross profit directly from a sale's JSONB items.
+  // Used as the source of truth for rows where gross_profit was wrongly stored
+  // as 0 by the pre-fix cloud write (which used `|| 0` instead of `?? 0`).
+  const recomputeGrossProfit = (sale) => {
+    const totalCost = (sale.items || []).reduce((sum, item) => {
+      const cost = (item.wholesalePrice || 0) * (item.qty || 1);
+      return item.isReturn ? sum - cost : sum + cost;
+    }, 0);
+    return (sale.netTotal || 0) - totalCost;
+  };
+
+  // Resolve gross profit for a single sale: trust the stored value when
+  // non-zero; fall back to recomputing from items for pre-fix rows.
+  const resolveGrossProfit = (sale) =>
+    sale.grossProfit !== 0 && sale.grossProfit != null
+      ? sale.grossProfit
+      : recomputeGrossProfit(sale);
+
   const totalRevenue = filteredSalesLogs.reduce(
     (sum, s) => sum + s.netTotal,
     0,
   );
   const totalGrossProfit = filteredSalesLogs.reduce(
-    (sum, s) => sum + s.grossProfit,
+    (sum, s) => sum + resolveGrossProfit(s),
     0,
   );
-  const totalOrders = filteredSalesLogs.length;
+  const totalOrders = filteredSalesLogs.filter(
+    (s) =>
+      !(
+        (s.items || []).length > 0 && (s.items || []).every((it) => it.isReturn)
+      ),
+  ).length;
   const grossProfitMargin =
     totalRevenue > 0
       ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1)
@@ -207,11 +230,14 @@ export const AnalyticsView = () => {
         };
       }
       if (!item.isReturn) {
-        const cost = item.wholesalePrice || Math.round(item.unitPrice * 0.45);
+        // Use wholesalePrice as-is — fall back to 0, never guess with a % of
+        // retail. Using 45% was inconsistent with completeSale() which uses 0,
+        // causing per-article profit here to disagree with stored grossProfit.
+        const cost = item.wholesalePrice || 0;
         const lineGross = item.unitPrice * item.qty - (item.itemDiscount || 0);
         const totalCost = cost * item.qty;
         fabricSalesMap[key].qty += item.qty;
-        fabricSalesMap[key].revenue += item.total;
+        fabricSalesMap[key].revenue += item.total || lineGross;
         fabricSalesMap[key].profit += lineGross - totalCost;
       }
     });
@@ -229,6 +255,7 @@ export const AnalyticsView = () => {
       dailySummaryMap[dateOnly] = {
         date: dateOnly,
         orderCount: 0,
+        returnCount: 0,
         grossTotal: 0, // true gross = subtotal + itemDiscountTotal (before ANY discount)
         itemDiscount: 0, // sum of per-item discounts
         subtotal: 0, // after item discounts, before bill discounts
@@ -242,14 +269,24 @@ export const AnalyticsView = () => {
       sale.itemDiscountTotal ||
       (sale.items || []).reduce((s, it) => s + (it.itemDiscount || 0), 0);
 
-    dailySummaryMap[dateOnly].orderCount += 1;
+    // Determine if this invoice is a pure-return (all items are returns)
+    const isPureReturn =
+      (sale.items || []).length > 0 &&
+      (sale.items || []).every((it) => it.isReturn);
+
+    // Use stored grossProfit when it's non-zero. For rows where it was
+    // wrongly stored as 0 (pre-fix migration), recompute from items.
+    const saleGrossProfit = resolveGrossProfit(sale);
+
+    dailySummaryMap[dateOnly].orderCount += isPureReturn ? 0 : 1;
+    dailySummaryMap[dateOnly].returnCount += isPureReturn ? 1 : 0;
     dailySummaryMap[dateOnly].itemDiscount += saleItemDisc;
     dailySummaryMap[dateOnly].subtotal += sale.subtotal;
     dailySummaryMap[dateOnly].grossTotal += sale.subtotal + saleItemDisc;
     dailySummaryMap[dateOnly].billDiscount +=
       (sale.wholeSaleDiscount || 0) + (sale.storewideDiscount || 0);
     dailySummaryMap[dateOnly].netRevenue += sale.netTotal;
-    dailySummaryMap[dateOnly].grossProfit += sale.grossProfit;
+    dailySummaryMap[dateOnly].grossProfit += saleGrossProfit;
   });
   const dailySummaryList = Object.values(dailySummaryMap);
 
@@ -519,6 +556,9 @@ export const AnalyticsView = () => {
                 <th style={{ width: "80px" }} className="text-center">
                   Orders
                 </th>
+                <th style={{ width: "75px" }} className="text-center">
+                  Returns
+                </th>
                 <th style={{ width: "130px" }} className="text-right">
                   Gross Total
                 </th>
@@ -548,7 +588,7 @@ export const AnalyticsView = () => {
               {dailySummaryList.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={isAdmin ? 8 : 7}
+                    colSpan={isAdmin ? 9 : 8}
                     className="text-center text-muted py-6"
                   >
                     No sales activity for this date range.
@@ -567,6 +607,18 @@ export const AnalyticsView = () => {
                       </td>
                       <td className="text-center font-mono font-weight-700">
                         {row.orderCount}
+                      </td>
+                      <td
+                        className="text-center font-mono"
+                        style={{
+                          color:
+                            row.returnCount > 0
+                              ? "var(--color-warning, #d97706)"
+                              : "var(--text-muted)",
+                          fontWeight: row.returnCount > 0 ? 700 : 400,
+                        }}
+                      >
+                        {row.returnCount > 0 ? row.returnCount : "—"}
                       </td>
                       <td className="font-mono text-right">
                         Rs. {row.grossTotal.toLocaleString()}

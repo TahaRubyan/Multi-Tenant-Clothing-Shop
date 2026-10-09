@@ -2019,8 +2019,14 @@ export const POSProvider = ({ children }) => {
 
     const cartItemId = `return-${itemBarcode || Date.now()}-${Date.now()}`;
     const unitPrice = parseFloat(invoiceItem.unitPrice) || 0;
+    // Use the stored wholesalePrice from the original invoice. Fall back to
+    // looking up the matched product's cost price, then 0 — never guess with
+    // unitPrice * 0.5 because that inflates the cost baseline for return items
+    // and produces wrong grossProfit when the return is processed.
     const wholesalePrice =
-      parseFloat(invoiceItem.wholesalePrice) || unitPrice * 0.5;
+      parseFloat(invoiceItem.wholesalePrice) ||
+      parseFloat(matchedProd?.wholesalePrice) ||
+      0;
 
     // Clean raw fabric material name without redundant prefixes
     let cleanName =
@@ -2098,11 +2104,15 @@ export const POSProvider = ({ children }) => {
       wholeSaleDiscAmt = Math.round(subtotal * (wholeDiscPercentNum / 100));
     }
 
-    const netTotal = Math.max(
-      0,
-      subtotal - storewideDiscountVal - wholeSaleDiscAmt,
-    );
-    const grossProfit = netTotal - totalWholesaleCost;
+    const rawNetTotal = subtotal - storewideDiscountVal - wholeSaleDiscAmt;
+    // Gross profit must be computed on rawNetTotal BEFORE the Math.max(0)
+    // clamp. If we used the clamped netTotal (0 on a pure-return invoice),
+    // the negative totalWholesaleCost would produce a falsely positive profit:
+    //   netTotal=0, totalWholesaleCost=-5000 → grossProfit=+5000 (wrong)
+    // Using rawNetTotal keeps the relationship intact:
+    //   rawNetTotal=-5000, totalWholesaleCost=-5000 → grossProfit=0 (correct)
+    const grossProfit = rawNetTotal - totalWholesaleCost;
+    const netTotal = Math.max(0, rawNetTotal);
 
     // Change Return Logic based on Payment Method
     const isCash = paymentMethod === "Cash";

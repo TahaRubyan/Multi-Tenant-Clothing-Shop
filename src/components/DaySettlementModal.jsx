@@ -69,6 +69,14 @@ export const DaySettlementModal = () => {
   // An empty day should show Rs. 0 expected cash, not a misleading all-time total.
   const activeSales = todaySales;
 
+  // Separate pure-return invoices (all items flagged isReturn) from forward sales.
+  // Pure returns have netTotal=0 (clamped by completeSale) and should NOT be
+  // counted as regular orders or inflate the expected cash total.
+  const isPureReturnInvoice = (s) =>
+    (s.items || []).length > 0 && (s.items || []).every((it) => it.isReturn);
+  const forwardSales = activeSales.filter((s) => !isPureReturnInvoice(s));
+  const returnInvoices = activeSales.filter((s) => isPureReturnInvoice(s));
+
   // Gate: block dismissing the modal when there are unsettled sales today.
   // A day with zero sales (fresh shift) can still be closed freely.
   const isMaster =
@@ -87,20 +95,32 @@ export const DaySettlementModal = () => {
     setShowDaySettlementModal(false);
   };
 
-  const cashSales = activeSales
+  const cashSales = forwardSales
     .filter((s) => s.paymentMethod === "Cash")
     .reduce((sum, s) => sum + s.netTotal, 0);
 
-  const cardSales = activeSales
+  const cardSales = forwardSales
     .filter((s) => s.paymentMethod === "Card")
     .reduce((sum, s) => sum + s.netTotal, 0);
 
-  const mobileBankSales = activeSales
+  const mobileBankSales = forwardSales
     .filter((s) => s.paymentMethod === "Mobile Banking")
     .reduce((sum, s) => sum + s.netTotal, 0);
 
+  // Total value of items returned today (use the original sale value from
+  // the return invoice's items so the cashier knows how much stock came back).
+  const totalReturnsToday = returnInvoices.reduce(
+    (sum, s) =>
+      sum +
+      (s.items || []).reduce(
+        (si, it) => si + (it.unitPrice || 0) * (it.qty || 1),
+        0,
+      ),
+    0,
+  );
+
   const totalSalesToday = cashSales + cardSales + mobileBankSales;
-  const totalOrdersToday = activeSales.length;
+  const totalOrdersToday = forwardSales.length;
 
   const actualCashNum = parseFloat(actualCashInput) || 0;
   const hasEnteredCash = actualCashInput.trim() !== "";
@@ -446,11 +466,25 @@ export const DaySettlementModal = () => {
                         </strong>
                         <span className="settlement-kpi-sub font-mono">
                           {
-                            activeSales.filter(
+                            forwardSales.filter(
                               (s) => s.paymentMethod === "Cash",
                             ).length
                           }{" "}
                           Cash Sales
+                          {returnInvoices.length > 0 && (
+                            <span
+                              style={{
+                                display: "block",
+                                color: "var(--color-warning, #d97706)",
+                                fontSize: "0.7rem",
+                                marginTop: "2px",
+                              }}
+                            >
+                              {returnInvoices.length} Return
+                              {returnInvoices.length > 1 ? "s" : ""} (Rs.{" "}
+                              {totalReturnsToday.toLocaleString()})
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -489,7 +523,8 @@ export const DaySettlementModal = () => {
                           Rs. {totalSalesToday.toLocaleString()}
                         </strong>
                         <span className="settlement-kpi-sub font-mono">
-                          {totalOrdersToday} Invoices Settled
+                          {totalOrdersToday} Invoice
+                          {totalOrdersToday !== 1 ? "s" : ""} Settled
                         </span>
                       </div>
                     </div>
