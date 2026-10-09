@@ -813,12 +813,16 @@ export function mapCloudSaleToLocal(row) {
     paymentMethod: row.payment_method,
     subtotal: row.gross_total,
     // Restore each discount type from its dedicated column. For rows created
-    // before the split columns existed, the combined `discount_amount` is
-    // used as `storewideDiscount` so the total remains correct.
+    // before the split columns existed, storewide_discount and wholesale_discount
+    // both default to 0 (from the migration) while discount_amount holds the
+    // real combined value. Fall back to discount_amount whenever the split
+    // columns are both 0 but discount_amount is non-zero (pre-migration rows).
     storewideDiscount:
-      row.storewide_discount != null
+      row.storewide_discount != null && row.storewide_discount !== 0
         ? row.storewide_discount
-        : row.discount_amount || 0,
+        : row.wholesale_discount != null && row.wholesale_discount !== 0
+          ? 0 // split columns present and wholesale has the value — storewide really is 0
+          : row.discount_amount || 0,
     wholeSaleDiscount: row.wholesale_discount ?? 0,
     // Restore item-level discount total: prefer stored column, fall back to summing JSONB items
     itemDiscountTotal:
