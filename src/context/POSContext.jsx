@@ -323,11 +323,19 @@ export const POSProvider = ({ children }) => {
           );
           // For THIS tenant: cloud is the source of truth.
           // Preserve any locally-created sales that haven't synced yet
-          // (they have no matching id in the cloud set) so we don't lose
-          // sales made during a brief network outage.
+          // (they have no matching id OR receiptNumber in the cloud set).
+          // Match on both id and receiptNumber so pre-fix local sales that
+          // lack an id field are still deduplicated correctly.
           const localPendingForTenant = prev.filter(
             (s) =>
-              s.tenantId === targetId && !cloudSales.some((c) => c.id === s.id),
+              s.tenantId === targetId &&
+              !cloudSales.some(
+                (c) =>
+                  (c.id && s.id && c.id === s.id) ||
+                  (c.receiptNumber &&
+                    s.receiptNumber &&
+                    c.receiptNumber === s.receiptNumber),
+              ),
           );
           // Sort newest-first so Analytics and Dashboard always see the
           // most recent sale at the top regardless of insertion order.
@@ -2132,6 +2140,9 @@ export const POSProvider = ({ children }) => {
     const receiptNumber = `INV-${yr}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newSale = {
+      // id must match what syncSaleToCloud writes to the DB so the merge
+      // deduplication check (c.id === s.id) can find it and not duplicate it.
+      id: `ord-${receiptNumber}`,
       receiptNumber,
       tenantId: currentTenantId,
       dateTime: formattedDateTime,
