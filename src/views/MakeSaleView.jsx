@@ -830,7 +830,47 @@ export const MakeSaleView = () => {
                           {item.barcode}
                         </td>
                         <td className="font-mono text-xs white-space-nowrap">
-                          Rs. {item.unitPrice.toLocaleString()}
+                          {item.isReturn &&
+                          item.originalUnitPrice &&
+                          item.originalUnitPrice !== item.unitPrice ? (
+                            <div>
+                              {/* Show original retail price struck through */}
+                              <div
+                                style={{
+                                  textDecoration: "line-through",
+                                  color: "var(--text-muted)",
+                                  fontSize: "0.68rem",
+                                }}
+                              >
+                                Rs. {item.originalUnitPrice.toLocaleString()}
+                              </div>
+                              {/* Actual sold price they paid */}
+                              <div
+                                className="font-weight-700"
+                                style={{
+                                  color: "var(--color-success, #16a34a)",
+                                }}
+                              >
+                                Rs. {item.unitPrice.toLocaleString()}
+                              </div>
+                              {/* Discount label */}
+                              {item.originalItemDiscount > 0 && (
+                                <div
+                                  className="badge badge-danger badge-compact"
+                                  style={{
+                                    fontSize: "0.6rem",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  {item.itemDiscountPercent > 0
+                                    ? `${item.itemDiscountPercent}% disc.`
+                                    : `-Rs. ${item.originalItemDiscount.toLocaleString()}`}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <>Rs. {item.unitPrice.toLocaleString()}</>
+                          )}
                         </td>
                         <td className="text-center">
                           <div className="cart-qty-counter-compact">
@@ -1939,80 +1979,130 @@ export const MakeSaleView = () => {
                 </div>
 
                 <div className="return-items-list">
-                  {selectedReturnInvoice.items?.map((it, idx) => (
-                    <div
-                      key={`${it.barcode}-${idx}`}
-                      className="return-item-row-card glass-card p-2 mb-2"
-                    >
-                      <div className="flex-between">
-                        <div>
-                          <div className="flex-align-center gap-2">
-                            <span className="badge badge-sage badge-compact">
-                              {it.variantDetails
-                                ? it.variantDetails.size
-                                : it.unitType || "Piece"}
-                            </span>
-                            <strong className="text-main text-sm">
-                              {it.fabric}
-                            </strong>
-                          </div>
-                          <div className="text-xs text-muted font-mono mt-1">
-                            {it.barcode} • Qty: {it.qty}{" "}
-                            {it.itemDiscount > 0 ? (
-                              <>
-                                <span
-                                  style={{
-                                    textDecoration: "line-through",
-                                    color: "var(--text-muted)",
-                                  }}
-                                >
-                                  Rs. {it.unitPrice.toLocaleString()}
-                                </span>
-                                {" → "}
-                                <span
-                                  className="font-weight-700"
-                                  style={{ color: "var(--color-success)" }}
-                                >
-                                  Rs.{" "}
-                                  {(
-                                    (it.unitPrice * it.qty - it.itemDiscount) /
-                                    it.qty
-                                  ).toFixed(0)}{" "}
-                                  sold
-                                </span>
-                              </>
-                            ) : (
-                              <>@ Rs. {it.unitPrice.toLocaleString()}</>
-                            )}
-                          </div>
-                        </div>
+                  {selectedReturnInvoice.items?.map((it, idx) => {
+                    const itQty = it.qty || 1;
+                    const itDiscount = parseFloat(it.itemDiscount) || 0;
+                    const itDiscPct = parseFloat(it.itemDiscountPercent) || 0;
+                    const soldPrice =
+                      itDiscount > 0
+                        ? parseFloat(
+                            (
+                              (it.unitPrice * itQty - itDiscount) /
+                              itQty
+                            ).toFixed(2),
+                          )
+                        : it.unitPrice;
+                    const lineTotal = soldPrice * itQty;
 
-                        <div className="text-right">
-                          <div className="font-mono font-weight-700 text-sm mb-1 text-danger">
-                            -Rs. {it.total.toLocaleString()}
+                    return (
+                      <div
+                        key={`${it.barcode}-${idx}`}
+                        className="return-item-row-card glass-card p-2 mb-2"
+                      >
+                        <div className="flex-between">
+                          <div>
+                            <div className="flex-align-center gap-2">
+                              <span className="badge badge-sage badge-compact">
+                                {it.variantDetails
+                                  ? it.variantDetails.size
+                                  : it.unitType || "Piece"}
+                              </span>
+                              <strong className="text-main text-sm">
+                                {it.fabric}
+                              </strong>
+                            </div>
+
+                            {/* Sold price breakdown — always visible */}
+                            <div
+                              className="font-mono mt-1"
+                              style={{ fontSize: "0.72rem", lineHeight: 1.6 }}
+                            >
+                              {/* Original retail price */}
+                              <span className="text-muted">
+                                {it.barcode} • Qty: {itQty}
+                              </span>
+                              <div className="flex-align-center gap-2 mt-1 flex-wrap">
+                                {itDiscount > 0 ? (
+                                  <>
+                                    {/* Original price struck through */}
+                                    <span
+                                      style={{
+                                        textDecoration: "line-through",
+                                        color: "var(--text-muted)",
+                                      }}
+                                    >
+                                      Rs. {it.unitPrice.toLocaleString()} /pc
+                                    </span>
+                                    {/* Discount badge */}
+                                    <span
+                                      className="badge badge-danger badge-compact"
+                                      style={{ fontSize: "0.65rem" }}
+                                    >
+                                      {itDiscPct > 0
+                                        ? `${itDiscPct}% OFF`
+                                        : `-Rs. ${itDiscount.toLocaleString()}`}
+                                    </span>
+                                    {/* Actual sold price */}
+                                    <span
+                                      className="font-weight-800"
+                                      style={{
+                                        color: "var(--color-success, #16a34a)",
+                                      }}
+                                    >
+                                      Rs. {soldPrice.toLocaleString()} sold/pc
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="font-weight-700">
+                                    Rs. {it.unitPrice.toLocaleString()} /pc
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            className="btn btn-warning btn-sm flex-align-center gap-1"
-                            onClick={() => {
-                              addReturnItemToCart(
-                                it,
-                                selectedReturnInvoice.receiptNumber,
-                              );
-                              showToast(
-                                `Returned "${it.fabric}" added for exchange`,
-                                "success",
-                              );
-                              setShowReturnItemsModal(false);
-                              setReturnInvoiceQuery("");
-                            }}
-                          >
-                            <RotateCcw size={12} /> Add to Cart (Return)
-                          </button>
+
+                          <div className="text-right">
+                            {/* Total return credit */}
+                            <div
+                              className="font-mono font-weight-800 mb-1"
+                              style={{
+                                color: "var(--status-danger, #ef4444)",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              -Rs. {lineTotal.toLocaleString()}
+                            </div>
+                            {itDiscount > 0 && (
+                              <div
+                                className="text-muted font-mono"
+                                style={{ fontSize: "0.65rem" }}
+                              >
+                                (after Rs. {itDiscount.toLocaleString()} disc.)
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-warning btn-sm flex-align-center gap-1 mt-1"
+                              onClick={() => {
+                                addReturnItemToCart(
+                                  it,
+                                  selectedReturnInvoice.receiptNumber,
+                                );
+                                showToast(
+                                  `Returned "${it.fabric}" added for exchange`,
+                                  "success",
+                                );
+                                setShowReturnItemsModal(false);
+                                setReturnInvoiceQuery("");
+                              }}
+                            >
+                              <RotateCcw size={12} /> Add to Cart (Return)
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
