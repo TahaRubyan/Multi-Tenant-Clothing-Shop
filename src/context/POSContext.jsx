@@ -2027,14 +2027,26 @@ export const POSProvider = ({ children }) => {
 
     const cartItemId = `return-${itemBarcode || Date.now()}-${Date.now()}`;
     const unitPrice = parseFloat(invoiceItem.unitPrice) || 0;
-    // Use the stored wholesalePrice from the original invoice. Fall back to
-    // looking up the matched product's cost price, then 0 — never guess with
-    // unitPrice * 0.5 because that inflates the cost baseline for return items
-    // and produces wrong grossProfit when the return is processed.
     const wholesalePrice =
       parseFloat(invoiceItem.wholesalePrice) ||
       parseFloat(matchedProd?.wholesalePrice) ||
       0;
+
+    // The customer paid the discounted price, not the original retail price.
+    // unitPrice is the pre-discount retail price (e.g. Rs. 1200).
+    // itemDiscount is the discount given at sale time (e.g. Rs. 240 for 20%).
+    // The actual sold price per unit = (unitPrice * qty - itemDiscount) / qty.
+    // We store this as soldUnitPrice so:
+    //   - The return cart credits back exactly what was paid
+    //   - grossProfit on the return invoice correctly reverses the original margin
+    const itemQty = parseFloat(invoiceItem.qty) || 1;
+    const itemDiscount = parseFloat(invoiceItem.itemDiscount) || 0;
+    const soldUnitPrice =
+      itemDiscount > 0
+        ? parseFloat(
+            ((unitPrice * itemQty - itemDiscount) / itemQty).toFixed(2),
+          )
+        : unitPrice;
 
     // Clean raw fabric material name without redundant prefixes
     let cleanName =
@@ -2055,12 +2067,22 @@ export const POSProvider = ({ children }) => {
         fabricColor: invoiceItem.fabricColor || "Exchange Return",
         variantDetails: invoiceItem.variantDetails || null,
         unitType: invoiceItem.unitType || "Suit",
-        unitPrice: unitPrice,
+        // Use the actual sold price (after discount), not the original retail.
+        // If item was sold at Rs. 1200 with 20% off, soldUnitPrice = Rs. 960.
+        // This ensures the customer gets back exactly what they paid.
+        unitPrice: soldUnitPrice,
         wholesalePrice: wholesalePrice,
         stock: matchedProd ? matchedProd.stock : 999,
-        qty: parseFloat(invoiceItem.qty) || 1,
+        qty: itemQty,
+        // No further discount on a return — the sold price already reflects
+        // the original discount. Applying it again would double-discount.
         itemDiscountPercent: 0,
         itemDiscount: 0,
+        itemDiscountMode: "percent",
+        itemDiscountAmount: 0,
+        // Keep original retail price for display in the receipt
+        originalUnitPrice: unitPrice,
+        originalItemDiscount: itemDiscount,
         promoTag: originalInvoiceNumber
           ? `Ref: ${originalInvoiceNumber}`
           : null,

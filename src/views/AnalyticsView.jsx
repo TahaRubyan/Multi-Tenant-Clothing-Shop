@@ -250,14 +250,21 @@ export const AnalyticsView = () => {
   // 2. Daily Financial Summary Table Data
   const dailySummaryMap = {};
   filteredSalesLogs.forEach((sale) => {
-    const dateOnly = sale.dateTime.split(" ")[0];
+    // Always normalise to DD-MM-YYYY so local sales (DD-MM-YYYY HH:MM) and
+    // cloud-re-fetched sales that may carry an ISO prefix (YYYY-MM-DD) never
+    // produce two separate map entries for the same calendar day.
+    const parsedDate = parseSaleDate(sale.dateTime);
+    const dy = String(parsedDate.getDate()).padStart(2, "0");
+    const dm = String(parsedDate.getMonth() + 1).padStart(2, "0");
+    const dyr = parsedDate.getFullYear();
+    const dateOnly = `${dy}-${dm}-${dyr}`;
     if (!dailySummaryMap[dateOnly]) {
       dailySummaryMap[dateOnly] = {
         date: dateOnly,
         orderCount: 0,
         returnCount: 0,
-        grossTotal: 0, // true gross = subtotal + itemDiscountTotal (before ANY discount)
-        itemDiscount: 0, // sum of per-item discounts
+        grossTotal: 0,
+        itemDiscount: 0,
         subtotal: 0, // after item discounts, before bill discounts
         billDiscount: 0, // wholeSaleDiscount + storewideDiscount
         netRevenue: 0,

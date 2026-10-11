@@ -1957,8 +1957,33 @@ export const MakeSaleView = () => {
                             </strong>
                           </div>
                           <div className="text-xs text-muted font-mono mt-1">
-                            {it.barcode} • Purchased Qty: {it.qty} @ Rs.{" "}
-                            {it.unitPrice.toLocaleString()}
+                            {it.barcode} • Qty: {it.qty}{" "}
+                            {it.itemDiscount > 0 ? (
+                              <>
+                                <span
+                                  style={{
+                                    textDecoration: "line-through",
+                                    color: "var(--text-muted)",
+                                  }}
+                                >
+                                  Rs. {it.unitPrice.toLocaleString()}
+                                </span>
+                                {" → "}
+                                <span
+                                  className="font-weight-700"
+                                  style={{ color: "var(--color-success)" }}
+                                >
+                                  Rs.{" "}
+                                  {(
+                                    (it.unitPrice * it.qty - it.itemDiscount) /
+                                    it.qty
+                                  ).toFixed(0)}{" "}
+                                  sold
+                                </span>
+                              </>
+                            ) : (
+                              <>@ Rs. {it.unitPrice.toLocaleString()}</>
+                            )}
                           </div>
                         </div>
 
