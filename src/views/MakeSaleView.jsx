@@ -442,17 +442,26 @@ export const MakeSaleView = () => {
   };
 
   let cartSubtotal = 0;
-  let cartItemDiscountsTotal = 0; // sum of per-item discounts, shown as a separate deduction row
+  let cartItemDiscountsTotal = 0; // sum of per-item discounts (forward items only)
+  let returnCreditTotal = 0; // total value being returned (positive number)
+  let newSalesTotal = 0; // total value of forward sale items (positive)
+
   cart.forEach((i) => {
     const lineVal = i.unitPrice * i.qty - (i.itemDiscount || 0);
     if (i.isReturn) {
       cartSubtotal -= lineVal;
-      // return item discounts reduce what we credit back — don't double-count them
+      returnCreditTotal += lineVal;
     } else {
       cartSubtotal += lineVal;
+      newSalesTotal += lineVal;
       cartItemDiscountsTotal += i.itemDiscount || 0;
     }
   });
+
+  // Cart mode detection — drives payment panel and checkout behaviour
+  const isAllReturns = cart.length > 0 && cart.every((i) => i.isReturn);
+  const hasMixedCart =
+    cart.some((i) => i.isReturn) && cart.some((i) => !i.isReturn);
 
   const activeStorewidePromo = getActiveStorewideDiscount(cartSubtotal);
   const storewideDiscountAmt =
@@ -477,10 +486,12 @@ export const MakeSaleView = () => {
     );
   }
 
-  const cartNetTotal = Math.max(
-    0,
-    cartSubtotal - storewideDiscountAmt - wholeSaleDiscountAmt,
-  );
+  // Raw net (can be negative when returns exceed new sales)
+  const rawCartNet = cartSubtotal - storewideDiscountAmt - wholeSaleDiscountAmt;
+  // Displayed net total — never negative for UI, but we track refund separately
+  const cartNetTotal = Math.max(0, rawCartNet);
+  // When rawCartNet < 0 the store owes the customer this amount
+  const refundDueToCustomer = rawCartNet < 0 ? Math.abs(rawCartNet) : 0;
 
   // Cash vs Digital Payment Calculation
   const isCash = paymentMethod === "Cash";
@@ -497,6 +508,50 @@ export const MakeSaleView = () => {
       return;
     }
 
+    // PURE RETURN / CASH REFUND MODE
+    // Cart contains only return items. Cashier manually types how much
+    // cash they are handing back to the customer.
+    if (isAllReturns) {
+      const enteredRefund = String(amountReceived || "").trim();
+      if (!enteredRefund || parseFloat(enteredRefund) <= 0) {
+        showToast(
+          "Enter the refund amount you are giving back to the customer.",
+          "warning",
+        );
+        return;
+      }
+      const saleResult = completeSale(paymentMethod, 0);
+      if (saleResult) {
+        showToast(
+          `Refund processed — Rs. ${parseFloat(enteredRefund).toLocaleString()} returned to customer.`,
+          "success",
+        );
+        setAmountReceived("");
+        setIsDiscountPinUnlocked(false);
+        setCompletedSaleData(saleResult);
+      }
+      return;
+    }
+
+    // MIXED CART (exchange) or FORWARD SALE ONLY
+    // When returns exceed new sales, refundDueToCustomer > 0 — cashier
+    // gives change back. No "amount received" needed in that case.
+    if (refundDueToCustomer > 0) {
+      // Cashier owes customer money — no cash collection needed
+      const saleResult = completeSale(paymentMethod, 0);
+      if (saleResult) {
+        showToast(
+          `Exchange complete — refund Rs. ${refundDueToCustomer.toLocaleString()} to customer.`,
+          "success",
+        );
+        setAmountReceived("");
+        setIsDiscountPinUnlocked(false);
+        setCompletedSaleData(saleResult);
+      }
+      return;
+    }
+
+    // NORMAL CHECKOUT (cartNetTotal >= 0, customer pays)
     if (isCash) {
       const enteredAmt = String(amountReceived || "").trim();
       if (!enteredAmt || parseFloat(enteredAmt) <= 0) {
@@ -521,14 +576,8 @@ export const MakeSaleView = () => {
     const saleResult = completeSale(paymentMethod, effectiveAmountRec);
     if (saleResult) {
       try {
-        confetti({
-          particleCount: 90,
-          spread: 75,
-          origin: { y: 0.6 },
-        });
+        confetti({ particleCount: 90, spread: 75, origin: { y: 0.6 } });
       } catch (_) {}
-
-      // Automatically route print to thermal receipt printer if auto-print is enabled
       const isAutoPrint = printerSettings?.autoPrintReceipt !== false;
       if (isAutoPrint) {
         printThermalReceipt(saleResult, shopSettings, {
@@ -538,10 +587,9 @@ export const MakeSaleView = () => {
       } else if (isCash) {
         triggerCashDrawerKick(shopSettings).catch(() => {});
       }
-
       showToast(`Sale #${saleResult.receiptNumber} recorded!`, "success");
       setAmountReceived("");
-      setIsDiscountPinUnlocked(false); // Automatically re-arms stealth PIN protection for next sale
+      setIsDiscountPinUnlocked(false);
       setCompletedSaleData(saleResult);
     }
   };
@@ -999,13 +1047,27 @@ export const MakeSaleView = () => {
                         <td className="text-center">
                           <button
                             type="button"
-                            className={`mode-toggle-pill-compact ${item.isReturn ? "return" : "sale"}`}
+                            className={`return-mode-toggle ${item.isReturn ? "is-return" : "is-sale"}`}
                             onClick={() =>
                               toggleCartReturn(item.cartItemId, item.isReturn)
                             }
+                            title={
+                              item.isReturn
+                                ? "Switch to Sale"
+                                : "Switch to Return"
+                            }
                           >
-                            <RotateCcw size={9} />{" "}
-                            {item.isReturn ? "Ret" : "Sale"}
+                            {item.isReturn ? (
+                              <>
+                                <RotateCcw size={10} />
+                                <span>RETURN</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShoppingCart size={10} />
+                                <span>SALE</span>
+                              </>
+                            )}
                           </button>
                         </td>
                         <td
@@ -1044,6 +1106,58 @@ export const MakeSaleView = () => {
           </h3>
 
           <div className="totals-breakdown-card">
+            {/* Cart Balance Strip — shown when cart has return items */}
+            {(isAllReturns || hasMixedCart) && (
+              <div className="cart-balance-strip">
+                {hasMixedCart && (
+                  <>
+                    <div className="balance-row new-sales">
+                      <span>New Sales</span>
+                      <span className="font-mono font-weight-700 text-success">
+                        +Rs. {newSalesTotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="balance-row returns-credit">
+                      <span>Return Credit</span>
+                      <span className="font-mono font-weight-700 text-danger">
+                        -Rs. {returnCreditTotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="balance-row balance-due">
+                      <span className="font-weight-800">
+                        {refundDueToCustomer > 0
+                          ? "Refund to Customer"
+                          : "Balance Due"}
+                      </span>
+                      <span
+                        className="font-mono font-weight-800"
+                        style={{
+                          color:
+                            refundDueToCustomer > 0
+                              ? "var(--status-danger, #ef4444)"
+                              : "var(--text-main)",
+                        }}
+                      >
+                        {refundDueToCustomer > 0
+                          ? `-Rs. ${refundDueToCustomer.toLocaleString()}`
+                          : `Rs. ${cartNetTotal.toLocaleString()}`}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {isAllReturns && (
+                  <div className="balance-row refund-only">
+                    <span className="font-weight-800">
+                      Cash Refund to Customer
+                    </span>
+                    <span className="font-mono font-weight-800 text-danger">
+                      Rs. {returnCreditTotal.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="t-row">
               <span>Subtotal {cartSubtotal < 0 ? "(Return Credit)" : ""}</span>
               <span
@@ -1290,7 +1404,54 @@ export const MakeSaleView = () => {
           </div>
 
           {/* Payment Cash Tender Inputs */}
-          {isCash ? (
+          {/* MODE A: Pure return — cashier enters how much cash to give back */}
+          {isAllReturns ? (
+            <div className="cash-tender-spacious-panel mb-2">
+              <div className="refund-mode-banner mb-2">
+                <RotateCcw size={15} />
+                <span>Cash Refund Mode — No new sale items in cart</span>
+              </div>
+              <div className="tender-input-block mb-2">
+                <label className="form-label font-weight-700 text-xs">
+                  Cash Refund Amount (Rs.) *
+                </label>
+                <div className="tender-input-wrap">
+                  <span className="tender-prefix font-mono font-weight-700">
+                    Rs.
+                  </span>
+                  <input
+                    type="number"
+                    className="form-input font-mono tender-large-input"
+                    value={amountReceived}
+                    onChange={(e) => setAmountReceived(e.target.value)}
+                    placeholder={String(returnCreditTotal)}
+                    aria-label="Cash refund amount"
+                  />
+                </div>
+              </div>
+              <div className="text-xs text-muted font-weight-600 text-center">
+                Return credit: Rs. {returnCreditTotal.toLocaleString()} — enter
+                exact cash given back
+              </div>
+            </div>
+          ) : refundDueToCustomer > 0 ? (
+            /* MODE B: Mixed cart, returns exceed new sales — show refund due */
+            <div className="refund-due-panel mb-2">
+              <div className="refund-due-inner">
+                <RotateCcw size={20} className="refund-icon" />
+                <div>
+                  <div className="refund-due-label">Refund Due to Customer</div>
+                  <div className="refund-due-amount font-mono">
+                    Rs. {refundDueToCustomer.toLocaleString()}
+                  </div>
+                  <div className="refund-due-note">
+                    Returns exceed new purchase — give this amount back
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : isCash ? (
+            /* MODE C: Normal cash collection */
             <div className="cash-tender-spacious-panel mb-2">
               <div className="tender-input-block mb-2">
                 <label className="form-label font-weight-700 text-xs">
@@ -1314,8 +1475,6 @@ export const MakeSaleView = () => {
                   />
                 </div>
               </div>
-
-              {/* Spacious Change Returned Box */}
               <div
                 className={`change-returned-spacious-card ${changeReturned > 0 ? "has-change" : ""}`}
               >
@@ -1326,6 +1485,7 @@ export const MakeSaleView = () => {
               </div>
             </div>
           ) : (
+            /* MODE D: Digital payment */
             <div className="digital-settlement-alert glass-card mb-2">
               <div className="digital-settlement-inner">
                 <div className="settlement-icon-badge">
@@ -1345,16 +1505,21 @@ export const MakeSaleView = () => {
             </div>
           )}
 
-          {/* Inline Validation Hints for Cash Checkout */}
-          {isCash && (!amountReceived || parseFloat(amountReceived) <= 0) && (
-            <div
-              className="text-danger text-xxs font-weight-700 mb-1 text-center"
-              style={{ color: "#dc2626" }}
-            >
-              * Enter cash received to proceed with sale
-            </div>
-          )}
-          {isCash &&
+          {/* Inline Validation Hints */}
+          {!isAllReturns &&
+            !refundDueToCustomer &&
+            isCash &&
+            (!amountReceived || parseFloat(amountReceived) <= 0) && (
+              <div
+                className="text-danger text-xxs font-weight-700 mb-1 text-center"
+                style={{ color: "#dc2626" }}
+              >
+                * Enter cash received to proceed with sale
+              </div>
+            )}
+          {!isAllReturns &&
+            !refundDueToCustomer &&
+            isCash &&
             amountReceived &&
             parseFloat(amountReceived) > 0 &&
             parseFloat(amountReceived) < cartNetTotal && (
@@ -1367,21 +1532,59 @@ export const MakeSaleView = () => {
                 Total
               </div>
             )}
+          {isAllReturns &&
+            (!amountReceived || parseFloat(amountReceived) <= 0) && (
+              <div
+                className="text-danger text-xxs font-weight-700 mb-1 text-center"
+                style={{ color: "#dc2626" }}
+              >
+                * Enter refund amount to process return
+              </div>
+            )}
 
           {/* Checkout & Print Button */}
           <button
             type="button"
-            className="btn btn-primary btn-checkout-primary hover-lift"
+            className={`btn btn-checkout-primary hover-lift ${isAllReturns ? "btn-danger" : refundDueToCustomer > 0 ? "btn-warning" : "btn-primary"}`}
             disabled={
               cart.length === 0 ||
-              (isCash &&
+              (isAllReturns &&
+                (!amountReceived || parseFloat(amountReceived) <= 0)) ||
+              (!isAllReturns &&
+                !refundDueToCustomer &&
+                isCash &&
                 (!amountReceived || parseFloat(amountReceived) < cartNetTotal))
             }
             onClick={handleCheckout}
-            aria-label="Save Order & Print Receipt"
+            aria-label={
+              isAllReturns
+                ? "Process Cash Refund"
+                : refundDueToCustomer > 0
+                  ? "Complete Exchange & Refund"
+                  : "Save Order & Checkout"
+            }
           >
-            <CheckCircle2 size={19} />
-            <span>Save Order &amp; Checkout</span>
+            {isAllReturns ? (
+              <>
+                <RotateCcw size={19} />
+                <span>Process Cash Refund</span>
+              </>
+            ) : refundDueToCustomer > 0 ? (
+              <>
+                <RotateCcw size={19} />
+                <span>
+                  Complete Exchange &amp; Refund Rs.{" "}
+                  {refundDueToCustomer.toLocaleString()}
+                </span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={19} />
+                <span>
+                  {hasMixedCart ? "Complete Exchange" : "Save Order & Checkout"}
+                </span>
+              </>
+            )}
           </button>
         </div>
       </div>

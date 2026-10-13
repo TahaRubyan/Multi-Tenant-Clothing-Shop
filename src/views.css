@@ -18,8 +18,16 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(560px circle at 12% 18%, rgba(37, 99, 235, 0.13), transparent 70%),
-    radial-gradient(520px circle at 88% 82%, rgba(99, 102, 241, 0.11), transparent 70%);
+    radial-gradient(
+      560px circle at 12% 18%,
+      rgba(37, 99, 235, 0.13),
+      transparent 70%
+    ),
+    radial-gradient(
+      520px circle at 88% 82%,
+      rgba(99, 102, 241, 0.11),
+      transparent 70%
+    );
 }
 
 .login-container-card {
@@ -28,7 +36,9 @@
   width: 92%;
   max-width: 860px;
   padding: 2.25rem 2.5rem;
-  box-shadow: 0 20px 50px -14px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  box-shadow:
+    0 20px 50px -14px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
 .login-single-card {
@@ -46,7 +56,11 @@
   width: 56px;
   height: 56px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+  background: linear-gradient(
+    135deg,
+    var(--brand-primary),
+    var(--brand-accent)
+  );
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -89,7 +103,6 @@
   font-size: 0.78rem;
   font-weight: 600;
 }
-
 
 /* NAVBAR MULTI-TENANT BADGES & CONTROLS */
 .btn-switch-shop-header {
@@ -730,7 +743,9 @@
   border: 1px solid #38bdf8 !important;
   border-radius: 10px !important;
   padding: 8px 14px !important;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.25) !important;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.4),
+    0 4px 10px rgba(0, 0, 0, 0.25) !important;
   pointer-events: none;
   text-align: center;
   white-space: nowrap;
@@ -806,10 +821,26 @@
   flex-shrink: 0;
 }
 
-.icon-blue { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
-.icon-emerald { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
-.icon-amber { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-.icon-red { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.icon-blue {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+.icon-emerald {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.icon-amber {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+.icon-red {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
 
 .kpi-info {
   display: flex;
@@ -844,9 +875,17 @@
   gap: 0.35rem;
 }
 
-.kpi-sub.positive { color: var(--status-success-text); font-weight: 600; }
-.kpi-sub.neutral { color: var(--text-muted); }
-.kpi-sub.warning { color: var(--status-warning-text); font-weight: 600; }
+.kpi-sub.positive {
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+.kpi-sub.neutral {
+  color: var(--text-muted);
+}
+.kpi-sub.warning {
+  color: var(--status-warning-text);
+  font-weight: 600;
+}
 
 /* MAKE A SALE (POS CHECKOUT) - FIXED LAYOUT WITHOUT COLLAPSE OR SCROLLBAR */
 .view-container.make-sale-full-view,
@@ -1675,7 +1714,9 @@
   width: 90%;
   max-width: 410px;
   padding: 1.6rem 1.8rem;
-  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 20px 45px -10px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
   animation: posPinZoomIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   text-align: center;
   transform-origin: center center;
@@ -1690,7 +1731,9 @@
   width: 90%;
   max-width: 390px;
   padding: 1.85rem 2rem;
-  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 20px 45px -10px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
   animation: posPinZoomIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   display: flex;
   flex-direction: column;
@@ -1865,10 +1908,22 @@
   z-index: 9999;
 }
 
-.toast-success { background: var(--accent-primary); color: #ffffff; }
-.toast-warning { background: var(--accent-sand); color: #0f172a; }
-.toast-danger { background: var(--status-danger); color: #ffffff; }
-.toast-info { background: var(--accent-info); color: #ffffff; }
+.toast-success {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+.toast-warning {
+  background: var(--accent-sand);
+  color: #0f172a;
+}
+.toast-danger {
+  background: var(--status-danger);
+  color: #ffffff;
+}
+.toast-info {
+  background: var(--accent-info);
+  color: #ffffff;
+}
 
 /* PRODUCT SETUP */
 .product-setup-view.no-scroll-view {
@@ -2113,7 +2168,7 @@
 }
 
 .sticker-code-num {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: "Courier New", Courier, monospace;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2579,7 +2634,10 @@
 
 .form-grid-horizontal-vendor {
   display: grid;
-  grid-template-columns: minmax(240px, 2.5fr) minmax(130px, 1fr) minmax(200px, 1.8fr) minmax(190px, 1.8fr) minmax(150px, auto);
+  grid-template-columns: minmax(240px, 2.5fr) minmax(130px, 1fr) minmax(
+      200px,
+      1.8fr
+    ) minmax(190px, 1.8fr) minmax(150px, auto);
   gap: 0.85rem;
   align-items: flex-end;
 }
@@ -3109,7 +3167,8 @@
   flex: 1;
 }
 
-.discount-form-panel, .discount-list-panel {
+.discount-form-panel,
+.discount-list-panel {
   padding: 1.25rem;
   background: var(--bg-card);
   border: 1.5px solid var(--border-color-strong);
@@ -3421,7 +3480,8 @@
 
 @media print {
   /* Global Reset for Print Canvas */
-  html, body {
+  html,
+  body {
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
@@ -3471,7 +3531,12 @@
   }
 
   /* If a printable modal is active, hide the host application in the background */
-  body:has(.modal-overlay .printable-area, .modal-overlay .settlement-slip-preview, .modal-overlay .printable-receipt-card) #root {
+  body:has(
+      .modal-overlay .printable-area,
+      .modal-overlay .settlement-slip-preview,
+      .modal-overlay .printable-receipt-card
+    )
+    #root {
     display: none !important;
     visibility: hidden !important;
   }
@@ -3506,7 +3571,11 @@
   }
 
   /* ONLY modals that explicitly contain a printable slip or receipt are displayed */
-  .modal-overlay:has(.printable-area, .settlement-slip-preview, .printable-receipt-card) {
+  .modal-overlay:has(
+    .printable-area,
+    .settlement-slip-preview,
+    .printable-receipt-card
+  ) {
     display: block !important;
     visibility: visible !important;
     position: static !important;
@@ -3519,7 +3588,12 @@
     height: auto !important;
   }
 
-  .modal-overlay:has(.printable-area, .settlement-slip-preview, .printable-receipt-card) .modal-content {
+  .modal-overlay:has(
+      .printable-area,
+      .settlement-slip-preview,
+      .printable-receipt-card
+    )
+    .modal-content {
     background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
@@ -3626,7 +3700,8 @@
   align-items: center;
   text-align: center;
   color: #000000 !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   margin: 0.5rem auto;
@@ -3733,7 +3808,7 @@
 /* Line 5: Item Code */
 .tbl-item-code,
 .tbl-sku-code {
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: "Consolas", "Courier New", monospace;
   font-size: 0.84rem;
   font-weight: 800;
   letter-spacing: 0.16em;
@@ -3844,7 +3919,10 @@
 /* Interactive KPI Card Hover Effects */
 .kpi-interactive-card {
   cursor: pointer;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+  transition:
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .kpi-interactive-card:hover {
@@ -3868,9 +3946,15 @@
 }
 
 @keyframes pulse-soft {
-  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
 }
 
 .dropdown-header-note {
@@ -4332,7 +4416,7 @@
 .thermal-receipt-preview {
   background: #ffffff !important;
   color: #000000 !important;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-family: "JetBrains Mono", "Courier New", monospace;
   padding: 0.7rem 0.85rem !important;
   border: 1.5px dashed #000000 !important;
   border-radius: 6px !important;
@@ -4820,13 +4904,15 @@
   max-height: 480px;
 }
 
-.return-invoices-col, .return-items-col {
+.return-invoices-col,
+.return-items-col {
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.return-invoices-list, .return-items-list {
+.return-invoices-list,
+.return-items-list {
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -5607,7 +5693,8 @@
 }
 
 @keyframes unsettledPulseAnim {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3);
   }
   50% {
@@ -5615,11 +5702,169 @@
   }
 }
 
+/* ============================================================
+   RETURN / EXCHANGE MODE — REDESIGNED TOGGLE & PANELS
+   ============================================================ */
 
+/* Return mode toggle button — replaces the tiny mode-toggle-pill-compact */
+.return-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1.5px solid;
+  letter-spacing: 0.04em;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
 
+.return-mode-toggle.is-sale {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #059669;
+}
+.return-mode-toggle.is-sale:hover {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: #059669;
+}
 
+.return-mode-toggle.is-return {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.5);
+  color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+  animation: return-toggle-pulse 2.2s ease-in-out infinite;
+}
+.return-mode-toggle.is-return:hover {
+  background: rgba(220, 38, 38, 0.22);
+  border-color: #dc2626;
+}
 
+@keyframes return-toggle-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.22);
+  }
+}
 
+/* Return item row — stronger left border + tinted background */
+.return-item-row {
+  background: rgba(220, 38, 38, 0.04) !important;
+  border-left: 3px solid rgba(220, 38, 38, 0.5);
+}
 
+/* Cart Balance Strip — shows when return items are in cart */
+.cart-balance-strip {
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
 
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
 
+.balance-row.new-sales .font-mono {
+  color: #059669;
+}
+.balance-row.returns-credit .font-mono {
+  color: #dc2626;
+}
+
+.balance-row.balance-due,
+.balance-row.refund-only {
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  padding-top: 0.3rem;
+  margin-top: 0.1rem;
+  font-size: 0.82rem;
+}
+
+/* Refund mode banner — shown inside cash tender panel for pure-return cart */
+.refund-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 6px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+/* Refund due panel — shown when mixed cart has returns > new sales */
+.refund-due-panel {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1.5px solid rgba(245, 158, 11, 0.4);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+}
+
+.refund-due-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.refund-due-panel .refund-icon {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.refund-due-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #92400e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.refund-due-amount {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #dc2626;
+  line-height: 1.2;
+}
+
+.refund-due-note {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+/* Checkout button — danger variant for refund mode */
+.btn-checkout-primary.btn-danger {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  border-color: #dc2626;
+  color: #fff;
+}
+.btn-checkout-primary.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c, #991b1b);
+}
+
+.btn-checkout-primary.btn-warning {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  border-color: #d97706;
+  color: #fff;
+}
+.btn-checkout-primary.btn-warning:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b45309, #92400e);
+}

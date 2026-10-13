@@ -1783,6 +1783,16 @@ export const POSProvider = ({ children }) => {
       : product.wholesalePrice;
     const stockToUse = isVariant ? selectedVariant.stock : product.stock;
 
+    // STOCK CAP: block sale if product has zero stock or adding initialQty
+    // would exceed available stock. The current cart qty is included in the
+    // check so scanning the same item twice correctly accumulates against stock.
+    const currentCartQty = (() => {
+      // We can't read cart state directly here (async), but we use the
+      // functional updater below — check is done inside the updater.
+      return 0; // placeholder; real check is inside setCart below
+    })();
+    void currentCartQty; // suppress lint
+
     const promo = getMatchingPromosForProduct(product, barcodeToUse);
     const promoPercent = promo ? promo.discountPercent : 0;
     const initialLineTotal = retailPriceToUse * initialQty;
@@ -1794,6 +1804,26 @@ export const POSProvider = ({ children }) => {
       const existing = prev.find(
         (item) => item.cartItemId === cartItemId && !item.isReturn,
       );
+
+      // Stock enforcement: total qty in cart (after this add) must not
+      // exceed the product's available stock.
+      const currentQty = existing ? existing.qty : 0;
+      const requestedTotal = currentQty + initialQty;
+      if (
+        stockToUse !== undefined &&
+        stockToUse !== null &&
+        requestedTotal > stockToUse
+      ) {
+        // Show toast via the next microtask so it fires outside the setter
+        setTimeout(() => {
+          showToast(
+            `Only ${stockToUse} unit${stockToUse !== 1 ? "s" : ""} available for "${product.fabricMaterial || product.name}". Cannot add more than stock.`,
+            "danger",
+          );
+        }, 0);
+        return prev; // leave cart unchanged
+      }
+
       if (existing) {
         return prev.map((item) => {
           if (item.cartItemId === cartItemId && !item.isReturn) {
@@ -1854,6 +1884,23 @@ export const POSProvider = ({ children }) => {
           if (item.cartItemId === cartItemId && item.isReturn === isReturn) {
             const newQty = item.qty + delta;
             if (newQty <= 0) return null;
+            // Stock cap: forward-sale items cannot exceed available stock.
+            // Return items have no upper stock limit (returning is always valid).
+            if (
+              !isReturn &&
+              delta > 0 &&
+              item.stock !== undefined &&
+              item.stock !== null &&
+              newQty > item.stock
+            ) {
+              setTimeout(() => {
+                showToast(
+                  `Only ${item.stock} unit${item.stock !== 1 ? "s" : ""} in stock. Cannot add more.`,
+                  "danger",
+                );
+              }, 0);
+              return item; // leave qty unchanged
+            }
             const lineVal = item.unitPrice * newQty;
             let discAmt = 0;
             let discPct = 0;
