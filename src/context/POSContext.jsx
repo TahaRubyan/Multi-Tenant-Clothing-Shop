@@ -2063,7 +2063,11 @@ export const POSProvider = ({ children }) => {
     }
   };
 
-  const addReturnItemToCart = (invoiceItem, originalInvoiceNumber = "") => {
+  const addReturnItemToCart = (
+    invoiceItem,
+    originalInvoiceNumber = "",
+    invoiceMeta = {},
+  ) => {
     const itemBarcode = String(invoiceItem.barcode || "").trim();
     const matchedProd = products.find(
       (p) =>
@@ -2079,19 +2083,41 @@ export const POSProvider = ({ children }) => {
       parseFloat(matchedProd?.wholesalePrice) ||
       0;
 
-    // The customer paid the discounted price, not the original retail price.
-    // unitPrice is the pre-discount retail price (e.g. Rs. 1200).
-    // itemDiscount is the discount given at sale time (e.g. Rs. 240 for 20%).
-    // The actual sold price per unit = (unitPrice * qty - itemDiscount) / qty.
-    // We store this as soldUnitPrice so:
-    //   - The return cart credits back exactly what was paid
-    //   - grossProfit on the return invoice correctly reverses the original margin
     const itemQty = parseFloat(invoiceItem.qty) || 1;
     const itemDiscount = parseFloat(invoiceItem.itemDiscount) || 0;
+
+    // Bill-level discount (storewide promo or wholesale discount) is stored on
+    // the sale object, not on each item. We pro-rate it across items using each
+    // item's share of the invoice subtotal so the return credit reflects the
+    // actual cash the customer paid — not the full retail price.
+    //
+    // Formula: effectiveBillDiscountPerItem =
+    //   (itemLineValue / invoiceSubtotal) * totalBillDiscount
+    //
+    // invoiceMeta carries: { subtotal, storewideDiscount, wholeSaleDiscount }
+    // passed from the return lookup modal which has the full invoice object.
+    const invoiceSubtotal = parseFloat(invoiceMeta.subtotal) || 0;
+    const totalBillDiscount =
+      (parseFloat(invoiceMeta.storewideDiscount) || 0) +
+      (parseFloat(invoiceMeta.wholeSaleDiscount) || 0);
+
+    // item's share of the subtotal (after its own item discount)
+    const itemLineValue = unitPrice * itemQty - itemDiscount;
+    const proRatedBillDiscount =
+      invoiceSubtotal > 0 && totalBillDiscount > 0
+        ? Math.round((itemLineValue / invoiceSubtotal) * totalBillDiscount)
+        : 0;
+
+    // Total effective discount on this item = item-level + pro-rated bill discount
+    const totalEffectiveDiscount = itemDiscount + proRatedBillDiscount;
+
+    // soldUnitPrice = what the customer actually paid per unit
     const soldUnitPrice =
-      itemDiscount > 0
+      totalEffectiveDiscount > 0
         ? parseFloat(
-            ((unitPrice * itemQty - itemDiscount) / itemQty).toFixed(2),
+            ((unitPrice * itemQty - totalEffectiveDiscount) / itemQty).toFixed(
+              2,
+            ),
           )
         : unitPrice;
 
@@ -2114,22 +2140,21 @@ export const POSProvider = ({ children }) => {
         fabricColor: invoiceItem.fabricColor || "Exchange Return",
         variantDetails: invoiceItem.variantDetails || null,
         unitType: invoiceItem.unitType || "Suit",
-        // Use the actual sold price (after discount), not the original retail.
-        // If item was sold at Rs. 1200 with 20% off, soldUnitPrice = Rs. 960.
-        // This ensures the customer gets back exactly what they paid.
+        // Use the actual sold price (after ALL discounts — item-level + bill-level)
         unitPrice: soldUnitPrice,
         wholesalePrice: wholesalePrice,
         stock: matchedProd ? matchedProd.stock : 999,
         qty: itemQty,
-        // No further discount on a return — the sold price already reflects
-        // the original discount. Applying it again would double-discount.
+        // Discount is already baked into soldUnitPrice — do not apply again
         itemDiscountPercent: 0,
         itemDiscount: 0,
         itemDiscountMode: "percent",
         itemDiscountAmount: 0,
-        // Keep original retail price for display in the receipt
+        // Keep original retail price and all discount details for display
         originalUnitPrice: unitPrice,
         originalItemDiscount: itemDiscount,
+        proRatedBillDiscount,
+        totalEffectiveDiscount,
         promoTag: originalInvoiceNumber
           ? `Ref: ${originalInvoiceNumber}`
           : null,

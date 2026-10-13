@@ -270,7 +270,11 @@ export const MakeSaleView = () => {
       return;
     }
     if (matched.items.length === 1) {
-      addReturnItemToCart(matched.items[0], matched.receiptNumber);
+      addReturnItemToCart(matched.items[0], matched.receiptNumber, {
+        subtotal: matched.subtotal,
+        storewideDiscount: matched.storewideDiscount,
+        wholeSaleDiscount: matched.wholeSaleDiscount,
+      });
       showToast(
         `Added returned item from ${matched.receiptNumber} for exchange credit`,
         "success",
@@ -1548,10 +1552,14 @@ export const MakeSaleView = () => {
             className={`btn btn-checkout-primary hover-lift ${isAllReturns ? "btn-danger" : refundDueToCustomer > 0 ? "btn-warning" : "btn-primary"}`}
             disabled={
               cart.length === 0 ||
+              // Pure return: need a refund amount entered by cashier
               (isAllReturns &&
                 (!amountReceived || parseFloat(amountReceived) <= 0)) ||
+              // Normal forward sale or mixed where customer pays balance:
+              // need sufficient cash received (skip this check when store
+              // owes the customer a refund — no cash needed in that case)
               (!isAllReturns &&
-                !refundDueToCustomer &&
+                refundDueToCustomer === 0 &&
                 isCash &&
                 (!amountReceived || parseFloat(amountReceived) < cartNetTotal))
             }
@@ -2154,11 +2162,47 @@ export const MakeSaleView = () => {
               </div>
 
               <div className="modal-body p-3">
+                {/* Invoice summary — shows original sale amounts + any bill discount */}
+                <div className="return-invoice-summary-header mb-2">
+                  <div className="flex-between">
+                    <span className="text-xs text-muted font-mono">
+                      {selectedReturnInvoice.dateTime} •{" "}
+                      {selectedReturnInvoice.paymentMethod}
+                    </span>
+                    <span className="font-mono text-xs font-weight-700">
+                      Net: Rs.{" "}
+                      {(selectedReturnInvoice.netTotal || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  {/* Show bill-level discounts so cashier knows what sale deal was running */}
+                  {(selectedReturnInvoice.storewideDiscount || 0) +
+                    (selectedReturnInvoice.wholeSaleDiscount || 0) >
+                    0 && (
+                    <div
+                      className="flex-align-center gap-2 mt-1 flex-wrap"
+                      style={{ fontSize: "0.72rem" }}
+                    >
+                      <span className="text-muted">Bill discount applied:</span>
+                      {selectedReturnInvoice.storewideDiscount > 0 && (
+                        <span className="badge badge-danger badge-compact">
+                          Storewide -Rs.{" "}
+                          {selectedReturnInvoice.storewideDiscount.toLocaleString()}
+                        </span>
+                      )}
+                      {selectedReturnInvoice.wholeSaleDiscount > 0 && (
+                        <span className="badge badge-warning badge-compact">
+                          Wholesale -Rs.{" "}
+                          {selectedReturnInvoice.wholeSaleDiscount.toLocaleString()}
+                        </span>
+                      )}
+                      <span className="text-muted">
+                        (pro-rated per item on return)
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex-between mb-2">
-                  <span className="text-xs text-muted font-mono">
-                    {selectedReturnInvoice.dateTime} •{" "}
-                    {selectedReturnInvoice.paymentMethod}
-                  </span>
+                  <span className="text-xs text-muted" />
                   <button
                     type="button"
                     className="btn btn-secondary btn-xs"
@@ -2167,6 +2211,13 @@ export const MakeSaleView = () => {
                         addReturnItemToCart(
                           it,
                           selectedReturnInvoice.receiptNumber,
+                          {
+                            subtotal: selectedReturnInvoice.subtotal,
+                            storewideDiscount:
+                              selectedReturnInvoice.storewideDiscount,
+                            wholeSaleDiscount:
+                              selectedReturnInvoice.wholeSaleDiscount,
+                          },
                         );
                       });
                       showToast(
@@ -2186,11 +2237,29 @@ export const MakeSaleView = () => {
                     const itQty = it.qty || 1;
                     const itDiscount = parseFloat(it.itemDiscount) || 0;
                     const itDiscPct = parseFloat(it.itemDiscountPercent) || 0;
+
+                    // Pro-rate bill-level discount across this item
+                    const invoiceSubtotal =
+                      parseFloat(selectedReturnInvoice.subtotal) || 0;
+                    const totalBillDiscount =
+                      (parseFloat(selectedReturnInvoice.storewideDiscount) ||
+                        0) +
+                      (parseFloat(selectedReturnInvoice.wholeSaleDiscount) ||
+                        0);
+                    const itemLineVal = it.unitPrice * itQty - itDiscount;
+                    const proRatedBill =
+                      invoiceSubtotal > 0 && totalBillDiscount > 0
+                        ? Math.round(
+                            (itemLineVal / invoiceSubtotal) * totalBillDiscount,
+                          )
+                        : 0;
+
+                    const totalEffectiveDisc = itDiscount + proRatedBill;
                     const soldPrice =
-                      itDiscount > 0
+                      totalEffectiveDisc > 0
                         ? parseFloat(
                             (
-                              (it.unitPrice * itQty - itDiscount) /
+                              (it.unitPrice * itQty - totalEffectiveDisc) /
                               itQty
                             ).toFixed(2),
                           )
@@ -2225,7 +2294,7 @@ export const MakeSaleView = () => {
                                 {it.barcode} • Qty: {itQty}
                               </span>
                               <div className="flex-align-center gap-2 mt-1 flex-wrap">
-                                {itDiscount > 0 ? (
+                                {totalEffectiveDisc > 0 ? (
                                   <>
                                     {/* Original price struck through */}
                                     <span
@@ -2236,15 +2305,27 @@ export const MakeSaleView = () => {
                                     >
                                       Rs. {it.unitPrice.toLocaleString()} /pc
                                     </span>
-                                    {/* Discount badge */}
-                                    <span
-                                      className="badge badge-danger badge-compact"
-                                      style={{ fontSize: "0.65rem" }}
-                                    >
-                                      {itDiscPct > 0
-                                        ? `${itDiscPct}% OFF`
-                                        : `-Rs. ${itDiscount.toLocaleString()}`}
-                                    </span>
+                                    {/* Item-level discount badge */}
+                                    {itDiscount > 0 && (
+                                      <span
+                                        className="badge badge-danger badge-compact"
+                                        style={{ fontSize: "0.65rem" }}
+                                      >
+                                        {itDiscPct > 0
+                                          ? `${itDiscPct}% item disc.`
+                                          : `-Rs. ${itDiscount.toLocaleString()}`}
+                                      </span>
+                                    )}
+                                    {/* Bill-level discount badge */}
+                                    {proRatedBill > 0 && (
+                                      <span
+                                        className="badge badge-warning badge-compact"
+                                        style={{ fontSize: "0.65rem" }}
+                                      >
+                                        -Rs. {proRatedBill.toLocaleString()}{" "}
+                                        bill
+                                      </span>
+                                    )}
                                     {/* Actual sold price */}
                                     <span
                                       className="font-weight-800"
@@ -2275,12 +2356,13 @@ export const MakeSaleView = () => {
                             >
                               -Rs. {lineTotal.toLocaleString()}
                             </div>
-                            {itDiscount > 0 && (
+                            {totalEffectiveDisc > 0 && (
                               <div
                                 className="text-muted font-mono"
                                 style={{ fontSize: "0.65rem" }}
                               >
-                                (after Rs. {itDiscount.toLocaleString()} disc.)
+                                (after Rs. {totalEffectiveDisc.toLocaleString()}{" "}
+                                disc.)
                               </div>
                             )}
                             <button
@@ -2290,6 +2372,13 @@ export const MakeSaleView = () => {
                                 addReturnItemToCart(
                                   it,
                                   selectedReturnInvoice.receiptNumber,
+                                  {
+                                    subtotal: selectedReturnInvoice.subtotal,
+                                    storewideDiscount:
+                                      selectedReturnInvoice.storewideDiscount,
+                                    wholeSaleDiscount:
+                                      selectedReturnInvoice.wholeSaleDiscount,
+                                  },
                                 );
                                 showToast(
                                   `Returned "${it.fabric}" added for exchange`,
