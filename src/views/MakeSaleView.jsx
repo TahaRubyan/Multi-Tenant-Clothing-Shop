@@ -513,8 +513,6 @@ export const MakeSaleView = () => {
     }
 
     // PURE RETURN / CASH REFUND MODE
-    // Cart contains only return items. Cashier manually types how much
-    // cash they are handing back to the customer.
     if (isAllReturns) {
       const enteredRefund = String(amountReceived || "").trim();
       if (!enteredRefund || parseFloat(enteredRefund) <= 0) {
@@ -524,7 +522,10 @@ export const MakeSaleView = () => {
         );
         return;
       }
-      const saleResult = completeSale(paymentMethod, 0);
+      // Pass the refund amount as amountReceived so it appears on the receipt.
+      // completeSale stores it in amountReceived and sets changeReturned = 0
+      // since netTotal = 0 on a pure-return cart.
+      const saleResult = completeSale(paymentMethod, parseFloat(enteredRefund));
       if (saleResult) {
         showToast(
           `Refund processed — Rs. ${parseFloat(enteredRefund).toLocaleString()} returned to customer.`,
@@ -537,11 +538,10 @@ export const MakeSaleView = () => {
       return;
     }
 
-    // MIXED CART (exchange) or FORWARD SALE ONLY
-    // When returns exceed new sales, refundDueToCustomer > 0 — cashier
-    // gives change back. No "amount received" needed in that case.
+    // MIXED CART — returns exceed new sales — store gives change back
     if (refundDueToCustomer > 0) {
-      // Cashier owes customer money — no cash collection needed
+      // Pass refundDueToCustomer as amountReceived so the receipt shows
+      // how much the cashier gave back (negative sale = store pays customer)
       const saleResult = completeSale(paymentMethod, 0);
       if (saleResult) {
         showToast(
