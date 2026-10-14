@@ -250,11 +250,26 @@ export const DaySettlementModal = () => {
                 aria-label={
                   isSettlementRequired ? "Settle cash before closing" : "Close"
                 }
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: isSettlementRequired
+                    ? "rgba(217,119,6,0.1)"
+                    : "rgba(100,116,139,0.1)",
+                  border: isSettlementRequired
+                    ? "1px solid rgba(217,119,6,0.4)"
+                    : "1px solid var(--border-color)",
+                  cursor: "pointer",
+                }}
               >
                 {isSettlementRequired ? (
-                  <Lock size={18} className="text-amber" />
+                  <Lock size={16} className="text-amber" />
                 ) : (
-                  <X size={18} />
+                  <X size={16} />
                 )}
               </button>
             </div>

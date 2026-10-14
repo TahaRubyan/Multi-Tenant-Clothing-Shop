@@ -1,4 +1,4 @@
-/* views.css - High Contrast, Accessible & Award-Winning Multi-Tenant POS Layout */
+﻿/* views.css - High Contrast, Accessible & Award-Winning Multi-Tenant POS Layout */
 
 /* LOGIN VIEW - SINGLE ACCENT CARD */
 .login-wrapper {
@@ -1332,23 +1332,22 @@
 .checkout-summary-panel {
   display: flex;
   flex-direction: column;
-  padding: 0; /* padding moved to inner sections */
+  padding: 0;
   background: var(--bg-card);
   border: 1.5px solid var(--border-color-strong);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  overflow: hidden; /* outer panel clips; scroll is inside */
+  overflow: hidden;
   min-height: 0;
+  height: 100%;
 }
-
-/* Scrollable inner area — everything above the checkout button */
+/* Scrollable inner area — takes all space above the button */
 .checkout-panel-scroll-body {
-  flex: 1;
+  flex: 1 1 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.65rem 0.85rem 0.5rem;
+  padding: 0.65rem 0.85rem 0.4rem;
   min-height: 0;
-  /* Custom thin scrollbar so it matches the rest of the UI */
   scrollbar-width: thin;
   scrollbar-color: var(--border-color-strong) transparent;
 }
@@ -1362,12 +1361,11 @@
   background: var(--border-color-strong);
   border-radius: 99px;
 }
-
-/* Pinned footer — holds the checkout button, never scrolls away */
+/* Pinned footer — checkout button always visible at bottom */
 .checkout-panel-footer {
   flex-shrink: 0;
-  padding: 0 0.85rem 0.85rem;
-  border-top: 1px solid var(--border-color);
+  padding: 0.5rem 0.85rem 0.85rem;
+  border-top: 1.5px solid var(--border-color);
   background: var(--bg-card);
 }
 
@@ -5732,10 +5730,10 @@
 }
 
 /* ============================================================
-   RETURN / EXCHANGE MODE — REDESIGNED TOGGLE & PANELS
+   RETURN / EXCHANGE MODE â€” REDESIGNED TOGGLE & PANELS
    ============================================================ */
 
-/* Return mode toggle button — replaces the tiny mode-toggle-pill-compact */
+/* Return mode toggle button â€” replaces the tiny mode-toggle-pill-compact */
 .return-mode-toggle {
   display: inline-flex;
   align-items: center;
@@ -5784,13 +5782,13 @@
   }
 }
 
-/* Return item row — stronger left border + tinted background */
+/* Return item row â€” stronger left border + tinted background */
 .return-item-row {
   background: rgba(220, 38, 38, 0.04) !important;
   border-left: 3px solid rgba(220, 38, 38, 0.5);
 }
 
-/* Cart Balance Strip — shows when return items are in cart */
+/* Cart Balance Strip â€” shows when return items are in cart */
 .cart-balance-strip {
   border-radius: 8px;
   background: var(--bg-secondary, #f8fafc);
@@ -5825,7 +5823,7 @@
   font-size: 0.82rem;
 }
 
-/* Refund mode banner — shown inside cash tender panel for pure-return cart */
+/* Refund mode banner â€” shown inside cash tender panel for pure-return cart */
 .refund-mode-banner {
   display: flex;
   align-items: center;
@@ -5839,7 +5837,7 @@
   color: #dc2626;
 }
 
-/* Refund due panel — shown when mixed cart has returns > new sales */
+/* Refund due panel â€” shown when mixed cart has returns > new sales */
 .refund-due-panel {
   background: rgba(245, 158, 11, 0.08);
   border: 1.5px solid rgba(245, 158, 11, 0.4);
@@ -5879,7 +5877,7 @@
   margin-top: 0.1rem;
 }
 
-/* Checkout button — danger variant for refund mode */
+/* Checkout button â€” danger variant for refund mode */
 .btn-checkout-primary.btn-danger {
   background: linear-gradient(135deg, #dc2626, #b91c1c);
   border-color: #dc2626;
