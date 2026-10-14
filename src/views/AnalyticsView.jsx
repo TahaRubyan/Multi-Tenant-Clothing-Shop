@@ -172,6 +172,20 @@ export const AnalyticsView = () => {
     (sum, s) => sum + s.netTotal,
     0,
   );
+
+  // Return invoices have netTotal=0 (clamped) so they don't reduce totalRevenue
+  // automatically. We need to subtract the actual credit given back to customers.
+  // amountReceived on a return invoice = cash the cashier gave back.
+  const totalReturnCredits = filteredSalesLogs
+    .filter(
+      (s) =>
+        (s.items || []).length > 0 &&
+        (s.items || []).every((it) => it.isReturn),
+    )
+    .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0);
+
+  // Net revenue = gross forward sales revenue minus return credits paid out
+  const netTotalRevenue = totalRevenue - totalReturnCredits;
   const totalGrossProfit = filteredSalesLogs.reduce(
     (sum, s) => sum + resolveGrossProfit(s),
     0,
@@ -183,17 +197,36 @@ export const AnalyticsView = () => {
       ),
   ).length;
   const grossProfitMargin =
-    totalRevenue > 0
-      ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1)
+    netTotalRevenue > 0
+      ? ((totalGrossProfit / netTotalRevenue) * 100).toFixed(1)
       : "0";
 
   // Cash vs Card / Digital Receipts Breakdown
-  const cashReceived = filteredSalesLogs
-    .filter((s) => (s.paymentMethod || "Cash").toLowerCase() === "cash")
-    .reduce((sum, s) => sum + s.netTotal, 0);
+  // Subtract cash refunds given back to customers from cash received
+  const cashReturnCredits = filteredSalesLogs
+    .filter(
+      (s) =>
+        (s.paymentMethod || "Cash").toLowerCase() === "cash" &&
+        (s.items || []).length > 0 &&
+        (s.items || []).every((it) => it.isReturn),
+    )
+    .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0);
+
+  const cashReceived =
+    filteredSalesLogs
+      .filter(
+        (s) =>
+          (s.paymentMethod || "Cash").toLowerCase() === "cash" &&
+          !(s.items || []).every((it) => it.isReturn),
+      )
+      .reduce((sum, s) => sum + s.netTotal, 0) - cashReturnCredits;
 
   const cardAndDigitalReceived = filteredSalesLogs
-    .filter((s) => (s.paymentMethod || "Cash").toLowerCase() !== "cash")
+    .filter(
+      (s) =>
+        (s.paymentMethod || "Cash").toLowerCase() !== "cash" &&
+        !(s.items || []).every((it) => it.isReturn),
+    )
     .reduce((sum, s) => sum + s.netTotal, 0);
 
   // 1. Top Selling Articles & Categories - Capped at Top 5
@@ -432,7 +465,7 @@ export const AnalyticsView = () => {
             <div className="pill-info">
               <span className="pill-label">Total Net Revenue</span>
               <span className="pill-value font-mono text-primary font-weight-800">
-                Rs. {totalRevenue.toLocaleString()}
+                Rs. {netTotalRevenue.toLocaleString()}
               </span>
             </div>
           </div>

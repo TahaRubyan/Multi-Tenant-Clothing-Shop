@@ -107,8 +107,15 @@ export const DaySettlementModal = () => {
     .filter((s) => s.paymentMethod === "Mobile Banking")
     .reduce((sum, s) => sum + s.netTotal, 0);
 
-  // Total value of items returned today (use the original sale value from
-  // the return invoice's items so the cashier knows how much stock came back).
+  // Total value of items returned today.
+  // Use amountReceived from the return invoice — that's the actual cash
+  // the cashier handed back to the customer, which directly reduces the
+  // expected cash in the drawer.
+  const totalCashRefundedToday = returnInvoices
+    .filter((s) => s.paymentMethod === "Cash" || !s.paymentMethod)
+    .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0);
+
+  // Also compute the item-level return value for display purposes
   const totalReturnsToday = returnInvoices.reduce(
     (sum, s) =>
       sum +
@@ -119,12 +126,15 @@ export const DaySettlementModal = () => {
     0,
   );
 
+  // Net expected cash = forward cash sales minus cash refunds given back
   const totalSalesToday = cashSales + cardSales + mobileBankSales;
+  const netCashExpected = cashSales - totalCashRefundedToday;
   const totalOrdersToday = forwardSales.length;
 
   const actualCashNum = parseFloat(actualCashInput) || 0;
   const hasEnteredCash = actualCashInput.trim() !== "";
-  const discrepancy = hasEnteredCash ? actualCashNum - cashSales : 0;
+  // Discrepancy is against netCashExpected (sales minus refunds)
+  const discrepancy = hasEnteredCash ? actualCashNum - netCashExpected : 0;
   const isBalanced = hasEnteredCash && discrepancy === 0;
   const hasDiscrepancy = hasEnteredCash && discrepancy !== 0;
 
@@ -144,11 +154,12 @@ export const DaySettlementModal = () => {
         ? `${currentUser.fullName} (${currentUser.role})`
         : "Store Admin",
       cashierName: currentUser ? currentUser.fullName : "Terminal Cashier",
-      expectedCash: cashSales,
+      expectedCash: netCashExpected,
       actualCash: actualCashNum,
       discrepancy,
       digitalSales: cardSales + mobileBankSales,
       totalSales: totalSalesToday,
+      totalReturns: totalCashRefundedToday,
       orderCount: totalOrdersToday,
       status: isBalanced ? "balanced" : discrepancy < 0 ? "shortage" : "excess",
       reasonNote:
@@ -462,7 +473,7 @@ export const DaySettlementModal = () => {
                           Expected Cash
                         </span>
                         <strong className="settlement-kpi-val font-mono text-primary">
-                          Rs. {cashSales.toLocaleString()}
+                          Rs. {netCashExpected.toLocaleString()}
                         </strong>
                         <span className="settlement-kpi-sub font-mono">
                           {
@@ -470,19 +481,19 @@ export const DaySettlementModal = () => {
                               (s) => s.paymentMethod === "Cash",
                             ).length
                           }{" "}
-                          Cash Sales
-                          {returnInvoices.length > 0 && (
+                          Cash Sales (Rs. {cashSales.toLocaleString()})
+                          {totalCashRefundedToday > 0 && (
                             <span
                               style={{
                                 display: "block",
-                                color: "var(--color-warning, #d97706)",
+                                color: "var(--status-danger, #ef4444)",
                                 fontSize: "0.7rem",
                                 marginTop: "2px",
+                                fontWeight: 700,
                               }}
                             >
-                              {returnInvoices.length} Return
-                              {returnInvoices.length > 1 ? "s" : ""} (Rs.{" "}
-                              {totalReturnsToday.toLocaleString()})
+                              − Rs. {totalCashRefundedToday.toLocaleString()}{" "}
+                              refunded
                             </span>
                           )}
                         </span>
@@ -559,12 +570,12 @@ export const DaySettlementModal = () => {
                           type="button"
                           className="btn btn-sm btn-outline-primary flex-align-center gap-1"
                           onClick={() =>
-                            setActualCashInput(cashSales.toString())
+                            setActualCashInput(netCashExpected.toString())
                           }
                           title="Counted physical cash matches expected drawer cash"
                         >
                           <CheckCircle2 size={13} /> Match Expected (Rs.{" "}
-                          {cashSales.toLocaleString()})
+                          {netCashExpected.toLocaleString()})
                         </button>
                       </div>
 
@@ -625,8 +636,8 @@ export const DaySettlementModal = () => {
                                 </strong>
                                 <span className="text-muted text-xs">
                                   Expected in Register: Rs.{" "}
-                                  {cashSales.toLocaleString()} • Actual Counted:
-                                  Rs. {actualCashNum.toLocaleString()}
+                                  {netCashExpected.toLocaleString()} • Actual
+                                  Counted: Rs. {actualCashNum.toLocaleString()}
                                 </span>
                               </div>
                             </div>
