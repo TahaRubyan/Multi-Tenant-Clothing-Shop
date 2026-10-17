@@ -1030,9 +1030,9 @@
   grid-template-columns: 1fr 360px;
   gap: 0.85rem;
   flex: 1;
+  min-height: 0;    /* allows grid to shrink inside flex column */
   overflow: hidden;
 }
-
 .cart-table-panel {
   display: flex;
   flex-direction: column;
@@ -1328,7 +1328,7 @@
   border-color: var(--status-danger);
 }
 
-/* CHECKOUT SUMMARY PANEL — scrollable content, pinned button */
+/* CHECKOUT SUMMARY PANEL — scrollable content, always-visible pinned button */
 .checkout-summary-panel {
   display: flex;
   flex-direction: column;
@@ -1339,11 +1339,12 @@
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   min-height: 0;
-  height: 100%;
+  /* Fill the grid cell height so scroll + pinned footer work correctly */
+  align-self: stretch;
 }
-/* Scrollable inner area — takes all space above the button */
+/* Scrollable inner area — grows to fill space, shrinks when footer needs room */
 .checkout-panel-scroll-body {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0.65rem 0.85rem 0.4rem;
@@ -1361,19 +1362,20 @@
   background: var(--border-color-strong);
   border-radius: 99px;
 }
-/* Pinned footer — checkout button always visible at bottom */
+/* Pinned footer — never shrinks, never scrolls, always at the bottom */
 .checkout-panel-footer {
   flex-shrink: 0;
   padding: 0.5rem 0.85rem 0.85rem;
   border-top: 1.5px solid var(--border-color);
   background: var(--bg-card);
+  /* Sticky as belt-and-suspenders fallback for edge cases */
+  position: sticky;
+  z-index: 2;
 }
-
 .checkout-panel-title {
   font-size: 0.88rem;
   font-weight: 700;
   padding-bottom: 0.3rem;
-  border-bottom: 1px solid var(--border-color);
   margin-bottom: 0.4rem;
 }
 
