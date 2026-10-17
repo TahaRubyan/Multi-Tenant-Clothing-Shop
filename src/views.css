@@ -1328,11 +1328,12 @@
   border-color: var(--status-danger);
 }
 
-/* CHECKOUT SUMMARY PANEL — single scrollable column, button at bottom */
+/* CHECKOUT SUMMARY PANEL — single scrollable column, button always reachable */
 .checkout-summary-panel {
+  max-height: calc(100vh - 135px);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.65rem 0.85rem 0.85rem;
+  padding: 0.65rem 0.85rem 1rem;
   background: var(--bg-card);
   border: 1.5px solid var(--border-color-strong);
   border-radius: var(--radius-md);
@@ -1340,12 +1341,8 @@
   scrollbar-width: thin;
   scrollbar-color: var(--border-color-strong) transparent;
 }
-.checkout-summary-panel::-webkit-scrollbar {
-  width: 5px;
-}
-.checkout-summary-panel::-webkit-scrollbar-track {
-  background: transparent;
-}
+.checkout-summary-panel::-webkit-scrollbar { width: 5px; }
+.checkout-summary-panel::-webkit-scrollbar-track { background: transparent; }
 .checkout-summary-panel::-webkit-scrollbar-thumb {
   background: var(--border-color-strong);
   border-radius: 99px;
@@ -1664,8 +1661,8 @@
   height: auto !important;
   margin-top: 0.6rem !important;
   padding: 0.65rem 1rem !important;
-  font-size: 0.88rem !important;
-  font-weight: 800 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.25rem !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
