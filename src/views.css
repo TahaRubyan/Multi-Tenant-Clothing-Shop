@@ -1328,49 +1328,27 @@
   border-color: var(--status-danger);
 }
 
-/* CHECKOUT SUMMARY PANEL — scrollable content, always-visible pinned button */
+/* CHECKOUT SUMMARY PANEL — single scrollable column, button at bottom */
 .checkout-summary-panel {
-  display: flex;
-  flex-direction: column;
-  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.65rem 0.85rem 0.85rem;
   background: var(--bg-card);
   border: 1.5px solid var(--border-color-strong);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  min-height: 0;
-  /* Fill the grid cell height so scroll + pinned footer work correctly */
-  align-self: stretch;
-}
-/* Scrollable inner area — grows to fill space, shrinks when footer needs room */
-.checkout-panel-scroll-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 0.65rem 0.85rem 0.4rem;
-  min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: var(--border-color-strong) transparent;
 }
-.checkout-panel-scroll-body::-webkit-scrollbar {
+.checkout-summary-panel::-webkit-scrollbar {
   width: 5px;
 }
-.checkout-panel-scroll-body::-webkit-scrollbar-track {
+.checkout-summary-panel::-webkit-scrollbar-track {
   background: transparent;
 }
-.checkout-panel-scroll-body::-webkit-scrollbar-thumb {
+.checkout-summary-panel::-webkit-scrollbar-thumb {
   background: var(--border-color-strong);
   border-radius: 99px;
-}
-/* Pinned footer — never shrinks, never scrolls, always at the bottom */
-.checkout-panel-footer {
-  flex-shrink: 0;
-  padding: 0.5rem 0.85rem 0.85rem;
-  border-top: 1.5px solid var(--border-color);
-  background: var(--bg-card);
-  /* Sticky as belt-and-suspenders fallback for edge cases */
-  position: sticky;
-  z-index: 2;
 }
 .checkout-panel-title {
   font-size: 0.88rem;

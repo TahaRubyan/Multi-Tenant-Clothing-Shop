@@ -1105,513 +1105,494 @@ export const MakeSaleView = () => {
 
         {/* RIGHT: Payment & Order Settlement Panel */}
         <div className="checkout-summary-panel glass-card">
-          {/* SCROLLABLE BODY — title + all content above the button */}
-          <div className="checkout-panel-scroll-body">
-            <h3 className="checkout-panel-title">
-              Order Payment &amp; Settlement
-            </h3>
+          <h3 className="checkout-panel-title">
+            Order Payment &amp; Settlement
+          </h3>
 
-            <div className="totals-breakdown-card">
-              {/* Cart Balance Strip — shown when cart has return items */}
-              {(isAllReturns || hasMixedCart) && (
-                <div className="cart-balance-strip">
-                  {hasMixedCart && (
-                    <>
-                      <div className="balance-row new-sales">
-                        <span>New Sales</span>
-                        <span className="font-mono font-weight-700 text-success">
-                          +Rs. {newSalesTotal.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="balance-row returns-credit">
-                        <span>Return Credit</span>
-                        <span className="font-mono font-weight-700 text-danger">
-                          -Rs. {returnCreditTotal.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="balance-row balance-due">
-                        <span className="font-weight-800">
-                          {refundDueToCustomer > 0
-                            ? "Refund to Customer"
-                            : "Balance Due"}
-                        </span>
-                        <span
-                          className="font-mono font-weight-800"
-                          style={{
-                            color:
-                              refundDueToCustomer > 0
-                                ? "var(--status-danger, #ef4444)"
-                                : "var(--text-main)",
-                          }}
-                        >
-                          {refundDueToCustomer > 0
-                            ? `-Rs. ${refundDueToCustomer.toLocaleString()}`
-                            : `Rs. ${cartNetTotal.toLocaleString()}`}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  {isAllReturns && (
-                    <div className="balance-row refund-only">
+          <div className="totals-breakdown-card">
+            {/* Cart Balance Strip — shown when cart has return items */}
+            {(isAllReturns || hasMixedCart) && (
+              <div className="cart-balance-strip">
+                {hasMixedCart && (
+                  <>
+                    <div className="balance-row new-sales">
+                      <span>New Sales</span>
+                      <span className="font-mono font-weight-700 text-success">
+                        +Rs. {newSalesTotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="balance-row returns-credit">
+                      <span>Return Credit</span>
+                      <span className="font-mono font-weight-700 text-danger">
+                        -Rs. {returnCreditTotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="balance-row balance-due">
                       <span className="font-weight-800">
-                        Cash Refund to Customer
+                        {refundDueToCustomer > 0
+                          ? "Refund to Customer"
+                          : "Balance Due"}
                       </span>
-                      <span className="font-mono font-weight-800 text-danger">
-                        Rs. {returnCreditTotal.toLocaleString()}
+                      <span
+                        className="font-mono font-weight-800"
+                        style={{
+                          color:
+                            refundDueToCustomer > 0
+                              ? "var(--status-danger, #ef4444)"
+                              : "var(--text-main)",
+                        }}
+                      >
+                        {refundDueToCustomer > 0
+                          ? `-Rs. ${refundDueToCustomer.toLocaleString()}`
+                          : `Rs. ${cartNetTotal.toLocaleString()}`}
                       </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="t-row">
-                <span>
-                  Subtotal {cartSubtotal < 0 ? "(Return Credit)" : ""}
-                </span>
-                <span
-                  className={`font-mono font-weight-600 ${cartSubtotal < 0 ? "text-danger" : ""}`}
-                >
-                  Rs. {cartSubtotal.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Item-level discounts: shown only when at least one cart item has a discount */}
-              {cartItemDiscountsTotal > 0 && (
-                <div
-                  className="t-row font-weight-600"
-                  style={{ color: "var(--color-success, #16a34a)" }}
-                >
-                  <span>Item Discount(s) Applied</span>
-                  <span className="font-mono">
-                    -Rs. {cartItemDiscountsTotal.toLocaleString()}
-                  </span>
-                </div>
-              )}
-
-              {storewideDiscountAmt > 0 && (
-                <div className="t-row text-warning font-weight-600">
-                  <span>
-                    Storewide Promo ({activeStorewidePromo.discountPercent}%)
-                  </span>
-                  <span className="font-mono">
-                    -Rs. {storewideDiscountAmt.toLocaleString()}
-                  </span>
-                </div>
-              )}
-
-              {/* PRICE DISCOUNT OPTION: DUAL % AND RS. SELECTOR */}
-              <div className="whole-discount-box">
-                <div className="flex-between w-100 mb-1.5">
-                  <div className="flex-align-center gap-1">
-                    <Tag size={13} className="text-primary" />
-                    <span className="font-weight-700 text-xs text-main">
-                      Price Discount
-                    </span>
-                  </div>
-                  {/* Mode Selector Toggle: % vs Rs. */}
-                  <div className="discount-mode-toggle flex-align-center gap-1">
-                    <button
-                      type="button"
-                      className={`btn-mode-toggle ${wholeSaleDiscountMode === "percent" ? "active" : ""}`}
-                      onClick={() => {
-                        if (wholeSaleDiscountMode !== "percent") {
-                          setWholeSaleDiscount("percent", 0);
-                        }
-                      }}
-                      title="Discount by Percentage (%)"
-                    >
-                      % Option
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn-mode-toggle ${wholeSaleDiscountMode === "rupees" ? "active" : ""}`}
-                      onClick={() => {
-                        if (wholeSaleDiscountMode !== "rupees") {
-                          setWholeSaleDiscount("rupees", 0);
-                        }
-                      }}
-                      title="Discount by Flat Rupees (Rs.)"
-                    >
-                      Rs. Option
-                    </button>
-                  </div>
-                </div>
-
-                {/* Active Discount Badge */}
-                {wholeSaleDiscountAmt > 0 && (
-                  <div className="flex-between w-100 mb-1">
-                    <span className="text-xxs text-muted font-weight-600">
-                      Applied Discount:
-                    </span>
-                    <span className="badge badge-warning text-xxs font-mono font-weight-700">
-                      {wholeSaleDiscountMode === "rupees"
-                        ? `-Rs. ${wholeSaleDiscountAmt.toLocaleString()} (${wholeDiscPercentNum}% off)`
-                        : `-${wholeDiscPercentNum}% (-Rs. ${wholeSaleDiscountAmt.toLocaleString()})`}
-                    </span>
-                  </div>
-                )}
-
-                {/* MODE 1: PERCENTAGE MODE */}
-                {wholeSaleDiscountMode === "percent" ? (
-                  <>
-                    <div className="discount-pills-row">
-                      {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
-                        const isActive =
-                          pct === 0
-                            ? !wholeDiscPercentNum || wholeDiscPercentNum === 0
-                            : wholeDiscPercentNum === pct;
-                        return (
-                          <button
-                            key={pct}
-                            type="button"
-                            className={`discount-pill-btn ${isActive ? "active" : ""}`}
-                            onClick={() =>
-                              handleBillDiscountChange(pct, "percent")
-                            }
-                            title={
-                              pct === 0
-                                ? "No discount"
-                                : `Apply ${pct}% discount`
-                            }
-                          >
-                            {pct === 0 ? "None (0%)" : `${pct}%`}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex-between w-100 mt-1">
-                      <span className="text-xxs text-muted font-weight-600">
-                        Custom Discount %:
-                      </span>
-                      <div className="discount-input-field">
-                        <Percent size={12} className="text-muted" />
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.5"
-                          value={wholeSaleDiscountPercent || ""}
-                          onChange={(e) =>
-                            handleBillDiscountChange(e.target.value, "percent")
-                          }
-                          placeholder="0"
-                          className="font-mono font-weight-700 text-xs"
-                          aria-label="Custom Discount Percent"
-                        />
-                        <span className="font-weight-700 text-subtle text-xs">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  /* MODE 2: FLAT RUPEES MODE */
-                  <>
-                    <div className="discount-pills-row">
-                      {[0, 50, 100, 200, 500, 1000].map((amt) => {
-                        const currentAmt =
-                          parseFloat(wholeSaleDiscountAmount) || 0;
-                        const isActive =
-                          amt === 0
-                            ? !currentAmt || currentAmt === 0
-                            : currentAmt === amt;
-                        return (
-                          <button
-                            key={amt}
-                            type="button"
-                            className={`discount-pill-btn ${isActive ? "active" : ""}`}
-                            onClick={() =>
-                              handleBillDiscountChange(amt, "rupees")
-                            }
-                            title={
-                              amt === 0
-                                ? "No discount"
-                                : `Apply Rs. ${amt} discount`
-                            }
-                          >
-                            {amt === 0 ? "None (Rs. 0)" : `Rs. ${amt}`}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex-between w-100 mt-1">
-                      <span className="text-xxs text-muted font-weight-600">
-                        Custom Discount Rs.:
-                      </span>
-                      <div className="discount-input-field">
-                        <span className="font-weight-700 text-subtle text-xxs">
-                          Rs.
-                        </span>
-                        <input
-                          type="number"
-                          min="0"
-                          max={cartSubtotal > 0 ? cartSubtotal : 999999}
-                          step="10"
-                          value={wholeSaleDiscountAmount || ""}
-                          onChange={(e) =>
-                            handleBillDiscountChange(e.target.value, "rupees")
-                          }
-                          placeholder="0"
-                          className="font-mono font-weight-700 text-xs"
-                          aria-label="Custom Discount Rupees"
-                        />
-                      </div>
                     </div>
                   </>
                 )}
-              </div>
-
-              <div className="t-row net-total-box">
-                <span>NET TOTAL</span>
-                <span className="net-total-price font-mono">
-                  Rs. {cartNetTotal.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            {/* Payment Method Selector */}
-            <div className="payment-selector-group">
-              <label className="form-label">Payment Method</label>
-              <div className="payment-options-grid">
-                <button
-                  type="button"
-                  className={`payment-option-card ${paymentMethod === "Cash" ? "active" : ""}`}
-                  onClick={() => setPaymentMethod("Cash")}
-                >
-                  <Banknote size={16} />
-                  <span>Cash</span>
-                  {paymentMethod === "Cash" && (
-                    <Check size={13} className="check-icon" />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  className={`payment-option-card ${paymentMethod === "Card" ? "active" : ""}`}
-                  onClick={() => setPaymentMethod("Card")}
-                >
-                  <CreditCard size={16} />
-                  <span>Card</span>
-                  {paymentMethod === "Card" && (
-                    <Check size={13} className="check-icon" />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  className={`payment-option-card ${paymentMethod === "Mobile Banking" ? "active" : ""}`}
-                  onClick={() => setPaymentMethod("Mobile Banking")}
-                >
-                  <Smartphone size={16} />
-                  <span>Mobile Bank</span>
-                  {paymentMethod === "Mobile Banking" && (
-                    <Check size={13} className="check-icon" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Payment Cash Tender Inputs */}
-            {/* MODE A: Pure return — cashier enters how much cash to give back */}
-            {isAllReturns ? (
-              <div className="cash-tender-spacious-panel mb-2">
-                <div className="refund-mode-banner mb-2">
-                  <RotateCcw size={15} />
-                  <span>Cash Refund Mode — No new sale items in cart</span>
-                </div>
-                <div className="tender-input-block mb-2">
-                  <label className="form-label font-weight-700 text-xs">
-                    Cash Refund Amount (Rs.) *
-                  </label>
-                  <div className="tender-input-wrap">
-                    <span className="tender-prefix font-mono font-weight-700">
-                      Rs.
+                {isAllReturns && (
+                  <div className="balance-row refund-only">
+                    <span className="font-weight-800">
+                      Cash Refund to Customer
                     </span>
-                    <input
-                      type="number"
-                      className="form-input font-mono tender-large-input"
-                      value={amountReceived}
-                      onChange={(e) => setAmountReceived(e.target.value)}
-                      placeholder={String(returnCreditTotal)}
-                      aria-label="Cash refund amount"
-                    />
-                  </div>
-                </div>
-                <div className="text-xs text-muted font-weight-600 text-center">
-                  Return credit: Rs. {returnCreditTotal.toLocaleString()} —
-                  enter exact cash given back
-                </div>
-              </div>
-            ) : refundDueToCustomer > 0 ? (
-              /* MODE B: Mixed cart, returns exceed new sales — show refund due */
-              <div className="refund-due-panel mb-2">
-                <div className="refund-due-inner">
-                  <RotateCcw size={20} className="refund-icon" />
-                  <div>
-                    <div className="refund-due-label">
-                      Refund Due to Customer
-                    </div>
-                    <div className="refund-due-amount font-mono">
-                      Rs. {refundDueToCustomer.toLocaleString()}
-                    </div>
-                    <div className="refund-due-note">
-                      Returns exceed new purchase — give this amount back
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : isCash ? (
-              /* MODE C: Normal cash collection */
-              <div className="cash-tender-spacious-panel mb-2">
-                <div className="tender-input-block mb-2">
-                  <label className="form-label font-weight-700 text-xs">
-                    Amount Received (Rs.) *
-                  </label>
-                  <div className="tender-input-wrap">
-                    <span className="tender-prefix font-mono font-weight-700">
-                      Rs.
+                    <span className="font-mono font-weight-800 text-danger">
+                      Rs. {returnCreditTotal.toLocaleString()}
                     </span>
-                    <input
-                      type="number"
-                      className="form-input font-mono tender-large-input"
-                      value={amountReceived}
-                      onChange={(e) => setAmountReceived(e.target.value)}
-                      placeholder={
-                        cartNetTotal
-                          ? String(cartNetTotal)
-                          : "Enter cash received"
-                      }
-                      aria-label="Amount Received"
-                    />
                   </div>
-                </div>
-                <div
-                  className={`change-returned-spacious-card ${changeReturned > 0 ? "has-change" : ""}`}
-                >
-                  <span className="change-label">Change to Return:</span>
-                  <span className="change-value font-mono">
-                    Rs. {changeReturned.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              /* MODE D: Digital payment */
-              <div className="digital-settlement-alert glass-card mb-2">
-                <div className="digital-settlement-inner">
-                  <div className="settlement-icon-badge">
-                    <CheckCircle2 size={18} className="text-success" />
-                  </div>
-                  <div className="settlement-text-block">
-                    <div className="settlement-heading">
-                      Payment Mode: {paymentMethod} (Rs.{" "}
-                      {cartNetTotal.toLocaleString()})
-                    </div>
-                    <p className="settlement-note">
-                      Direct terminal transaction. Fixed price digital
-                      settlement. No cash change required.
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
-            {/* Inline Validation Hints */}
-            {!isAllReturns &&
-              !refundDueToCustomer &&
-              isCash &&
-              (!amountReceived || parseFloat(amountReceived) <= 0) && (
-                <div
-                  className="text-danger text-xxs font-weight-700 mb-1 text-center"
-                  style={{ color: "#dc2626" }}
-                >
-                  * Enter cash received to proceed with sale
-                </div>
-              )}
-            {!isAllReturns &&
-              !refundDueToCustomer &&
-              isCash &&
-              amountReceived &&
-              parseFloat(amountReceived) > 0 &&
-              parseFloat(amountReceived) < cartNetTotal && (
-                <div
-                  className="text-danger text-xxs font-weight-700 mb-1 text-center"
-                  style={{ color: "#dc2626" }}
-                >
-                  * Cash received (Rs.{" "}
-                  {parseFloat(amountReceived).toLocaleString()}) is less than
-                  Net Total
-                </div>
-              )}
-            {isAllReturns &&
-              (!amountReceived || parseFloat(amountReceived) <= 0) && (
-                <div
-                  className="text-danger text-xxs font-weight-700 mb-1 text-center"
-                  style={{ color: "#dc2626" }}
-                >
-                  * Enter refund amount to process return
-                </div>
-              )}
-          </div>
-          {/* end checkout-panel-scroll-body */}
+            <div className="t-row">
+              <span>Subtotal {cartSubtotal < 0 ? "(Return Credit)" : ""}</span>
+              <span
+                className={`font-mono font-weight-600 ${cartSubtotal < 0 ? "text-danger" : ""}`}
+              >
+                Rs. {cartSubtotal.toLocaleString()}
+              </span>
+            </div>
 
-          {/* PINNED FOOTER — checkout button always visible, never scrolls away */}
-          <div className="checkout-panel-footer">
-            {" "}
-            {/* Checkout & Print Button */}
-            <button
-              type="button"
-              className={`btn btn-checkout-primary hover-lift ${isAllReturns ? "btn-danger" : refundDueToCustomer > 0 ? "btn-warning" : "btn-primary"}`}
-              disabled={
-                cart.length === 0 ||
-                // Pure return: need a refund amount entered by cashier
-                (isAllReturns &&
-                  (!amountReceived || parseFloat(amountReceived) <= 0)) ||
-                // Normal forward sale or mixed where customer pays balance:
-                // need sufficient cash received (skip this check when store
-                // owes the customer a refund — no cash needed in that case)
-                (!isAllReturns &&
-                  refundDueToCustomer === 0 &&
-                  isCash &&
-                  (!amountReceived ||
-                    parseFloat(amountReceived) < cartNetTotal))
-              }
-              onClick={handleCheckout}
-              aria-label={
-                isAllReturns
-                  ? "Process Cash Refund"
-                  : refundDueToCustomer > 0
-                    ? "Complete Exchange & Refund"
-                    : "Save Order & Checkout"
-              }
-            >
-              {isAllReturns ? (
-                <>
-                  <RotateCcw size={19} />
-                  <span>Process Cash Refund</span>
-                </>
-              ) : refundDueToCustomer > 0 ? (
-                <>
-                  <RotateCcw size={19} />
-                  <span>
-                    Complete Exchange &amp; Refund Rs.{" "}
-                    {refundDueToCustomer.toLocaleString()}
+            {/* Item-level discounts: shown only when at least one cart item has a discount */}
+            {cartItemDiscountsTotal > 0 && (
+              <div
+                className="t-row font-weight-600"
+                style={{ color: "var(--color-success, #16a34a)" }}
+              >
+                <span>Item Discount(s) Applied</span>
+                <span className="font-mono">
+                  -Rs. {cartItemDiscountsTotal.toLocaleString()}
+                </span>
+              </div>
+            )}
+
+            {storewideDiscountAmt > 0 && (
+              <div className="t-row text-warning font-weight-600">
+                <span>
+                  Storewide Promo ({activeStorewidePromo.discountPercent}%)
+                </span>
+                <span className="font-mono">
+                  -Rs. {storewideDiscountAmt.toLocaleString()}
+                </span>
+              </div>
+            )}
+
+            {/* PRICE DISCOUNT OPTION: DUAL % AND RS. SELECTOR */}
+            <div className="whole-discount-box">
+              <div className="flex-between w-100 mb-1.5">
+                <div className="flex-align-center gap-1">
+                  <Tag size={13} className="text-primary" />
+                  <span className="font-weight-700 text-xs text-main">
+                    Price Discount
                   </span>
+                </div>
+                {/* Mode Selector Toggle: % vs Rs. */}
+                <div className="discount-mode-toggle flex-align-center gap-1">
+                  <button
+                    type="button"
+                    className={`btn-mode-toggle ${wholeSaleDiscountMode === "percent" ? "active" : ""}`}
+                    onClick={() => {
+                      if (wholeSaleDiscountMode !== "percent") {
+                        setWholeSaleDiscount("percent", 0);
+                      }
+                    }}
+                    title="Discount by Percentage (%)"
+                  >
+                    % Option
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-mode-toggle ${wholeSaleDiscountMode === "rupees" ? "active" : ""}`}
+                    onClick={() => {
+                      if (wholeSaleDiscountMode !== "rupees") {
+                        setWholeSaleDiscount("rupees", 0);
+                      }
+                    }}
+                    title="Discount by Flat Rupees (Rs.)"
+                  >
+                    Rs. Option
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Discount Badge */}
+              {wholeSaleDiscountAmt > 0 && (
+                <div className="flex-between w-100 mb-1">
+                  <span className="text-xxs text-muted font-weight-600">
+                    Applied Discount:
+                  </span>
+                  <span className="badge badge-warning text-xxs font-mono font-weight-700">
+                    {wholeSaleDiscountMode === "rupees"
+                      ? `-Rs. ${wholeSaleDiscountAmt.toLocaleString()} (${wholeDiscPercentNum}% off)`
+                      : `-${wholeDiscPercentNum}% (-Rs. ${wholeSaleDiscountAmt.toLocaleString()})`}
+                  </span>
+                </div>
+              )}
+
+              {/* MODE 1: PERCENTAGE MODE */}
+              {wholeSaleDiscountMode === "percent" ? (
+                <>
+                  <div className="discount-pills-row">
+                    {[0, 5, 10, 15, 20, 25, 30, 50].map((pct) => {
+                      const isActive =
+                        pct === 0
+                          ? !wholeDiscPercentNum || wholeDiscPercentNum === 0
+                          : wholeDiscPercentNum === pct;
+                      return (
+                        <button
+                          key={pct}
+                          type="button"
+                          className={`discount-pill-btn ${isActive ? "active" : ""}`}
+                          onClick={() =>
+                            handleBillDiscountChange(pct, "percent")
+                          }
+                          title={
+                            pct === 0 ? "No discount" : `Apply ${pct}% discount`
+                          }
+                        >
+                          {pct === 0 ? "None (0%)" : `${pct}%`}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex-between w-100 mt-1">
+                    <span className="text-xxs text-muted font-weight-600">
+                      Custom Discount %:
+                    </span>
+                    <div className="discount-input-field">
+                      <Percent size={12} className="text-muted" />
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={wholeSaleDiscountPercent || ""}
+                        onChange={(e) =>
+                          handleBillDiscountChange(e.target.value, "percent")
+                        }
+                        placeholder="0"
+                        className="font-mono font-weight-700 text-xs"
+                        aria-label="Custom Discount Percent"
+                      />
+                      <span className="font-weight-700 text-subtle text-xs">
+                        %
+                      </span>
+                    </div>
+                  </div>
                 </>
               ) : (
+                /* MODE 2: FLAT RUPEES MODE */
                 <>
-                  <CheckCircle2 size={19} />
-                  <span>
-                    {hasMixedCart
-                      ? "Complete Exchange"
-                      : "Save Order & Checkout"}
-                  </span>
+                  <div className="discount-pills-row">
+                    {[0, 50, 100, 200, 500, 1000].map((amt) => {
+                      const currentAmt =
+                        parseFloat(wholeSaleDiscountAmount) || 0;
+                      const isActive =
+                        amt === 0
+                          ? !currentAmt || currentAmt === 0
+                          : currentAmt === amt;
+                      return (
+                        <button
+                          key={amt}
+                          type="button"
+                          className={`discount-pill-btn ${isActive ? "active" : ""}`}
+                          onClick={() =>
+                            handleBillDiscountChange(amt, "rupees")
+                          }
+                          title={
+                            amt === 0
+                              ? "No discount"
+                              : `Apply Rs. ${amt} discount`
+                          }
+                        >
+                          {amt === 0 ? "None (Rs. 0)" : `Rs. ${amt}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex-between w-100 mt-1">
+                    <span className="text-xxs text-muted font-weight-600">
+                      Custom Discount Rs.:
+                    </span>
+                    <div className="discount-input-field">
+                      <span className="font-weight-700 text-subtle text-xxs">
+                        Rs.
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        max={cartSubtotal > 0 ? cartSubtotal : 999999}
+                        step="10"
+                        value={wholeSaleDiscountAmount || ""}
+                        onChange={(e) =>
+                          handleBillDiscountChange(e.target.value, "rupees")
+                        }
+                        placeholder="0"
+                        className="font-mono font-weight-700 text-xs"
+                        aria-label="Custom Discount Rupees"
+                      />
+                    </div>
+                  </div>
                 </>
               )}
-            </button>
+            </div>
+
+            <div className="t-row net-total-box">
+              <span>NET TOTAL</span>
+              <span className="net-total-price font-mono">
+                Rs. {cartNetTotal.toLocaleString()}
+              </span>
+            </div>
           </div>
-          {/* end checkout-panel-footer */}
+
+          {/* Payment Method Selector */}
+          <div className="payment-selector-group">
+            <label className="form-label">Payment Method</label>
+            <div className="payment-options-grid">
+              <button
+                type="button"
+                className={`payment-option-card ${paymentMethod === "Cash" ? "active" : ""}`}
+                onClick={() => setPaymentMethod("Cash")}
+              >
+                <Banknote size={16} />
+                <span>Cash</span>
+                {paymentMethod === "Cash" && (
+                  <Check size={13} className="check-icon" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={`payment-option-card ${paymentMethod === "Card" ? "active" : ""}`}
+                onClick={() => setPaymentMethod("Card")}
+              >
+                <CreditCard size={16} />
+                <span>Card</span>
+                {paymentMethod === "Card" && (
+                  <Check size={13} className="check-icon" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={`payment-option-card ${paymentMethod === "Mobile Banking" ? "active" : ""}`}
+                onClick={() => setPaymentMethod("Mobile Banking")}
+              >
+                <Smartphone size={16} />
+                <span>Mobile Bank</span>
+                {paymentMethod === "Mobile Banking" && (
+                  <Check size={13} className="check-icon" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Payment Cash Tender Inputs */}
+          {/* MODE A: Pure return — cashier enters how much cash to give back */}
+          {isAllReturns ? (
+            <div className="cash-tender-spacious-panel mb-2">
+              <div className="refund-mode-banner mb-2">
+                <RotateCcw size={15} />
+                <span>Cash Refund Mode — No new sale items in cart</span>
+              </div>
+              <div className="tender-input-block mb-2">
+                <label className="form-label font-weight-700 text-xs">
+                  Cash Refund Amount (Rs.) *
+                </label>
+                <div className="tender-input-wrap">
+                  <span className="tender-prefix font-mono font-weight-700">
+                    Rs.
+                  </span>
+                  <input
+                    type="number"
+                    className="form-input font-mono tender-large-input"
+                    value={amountReceived}
+                    onChange={(e) => setAmountReceived(e.target.value)}
+                    placeholder={String(returnCreditTotal)}
+                    aria-label="Cash refund amount"
+                  />
+                </div>
+              </div>
+              <div className="text-xs text-muted font-weight-600 text-center">
+                Return credit: Rs. {returnCreditTotal.toLocaleString()} — enter
+                exact cash given back
+              </div>
+            </div>
+          ) : refundDueToCustomer > 0 ? (
+            /* MODE B: Mixed cart, returns exceed new sales — show refund due */
+            <div className="refund-due-panel mb-2">
+              <div className="refund-due-inner">
+                <RotateCcw size={20} className="refund-icon" />
+                <div>
+                  <div className="refund-due-label">Refund Due to Customer</div>
+                  <div className="refund-due-amount font-mono">
+                    Rs. {refundDueToCustomer.toLocaleString()}
+                  </div>
+                  <div className="refund-due-note">
+                    Returns exceed new purchase — give this amount back
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : isCash ? (
+            /* MODE C: Normal cash collection */
+            <div className="cash-tender-spacious-panel mb-2">
+              <div className="tender-input-block mb-2">
+                <label className="form-label font-weight-700 text-xs">
+                  Amount Received (Rs.) *
+                </label>
+                <div className="tender-input-wrap">
+                  <span className="tender-prefix font-mono font-weight-700">
+                    Rs.
+                  </span>
+                  <input
+                    type="number"
+                    className="form-input font-mono tender-large-input"
+                    value={amountReceived}
+                    onChange={(e) => setAmountReceived(e.target.value)}
+                    placeholder={
+                      cartNetTotal
+                        ? String(cartNetTotal)
+                        : "Enter cash received"
+                    }
+                    aria-label="Amount Received"
+                  />
+                </div>
+              </div>
+              <div
+                className={`change-returned-spacious-card ${changeReturned > 0 ? "has-change" : ""}`}
+              >
+                <span className="change-label">Change to Return:</span>
+                <span className="change-value font-mono">
+                  Rs. {changeReturned.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* MODE D: Digital payment */
+            <div className="digital-settlement-alert glass-card mb-2">
+              <div className="digital-settlement-inner">
+                <div className="settlement-icon-badge">
+                  <CheckCircle2 size={18} className="text-success" />
+                </div>
+                <div className="settlement-text-block">
+                  <div className="settlement-heading">
+                    Payment Mode: {paymentMethod} (Rs.{" "}
+                    {cartNetTotal.toLocaleString()})
+                  </div>
+                  <p className="settlement-note">
+                    Direct terminal transaction. Fixed price digital settlement.
+                    No cash change required.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Inline Validation Hints */}
+          {!isAllReturns &&
+            !refundDueToCustomer &&
+            isCash &&
+            (!amountReceived || parseFloat(amountReceived) <= 0) && (
+              <div
+                className="text-danger text-xxs font-weight-700 mb-1 text-center"
+                style={{ color: "#dc2626" }}
+              >
+                * Enter cash received to proceed with sale
+              </div>
+            )}
+          {!isAllReturns &&
+            !refundDueToCustomer &&
+            isCash &&
+            amountReceived &&
+            parseFloat(amountReceived) > 0 &&
+            parseFloat(amountReceived) < cartNetTotal && (
+              <div
+                className="text-danger text-xxs font-weight-700 mb-1 text-center"
+                style={{ color: "#dc2626" }}
+              >
+                * Cash received (Rs.{" "}
+                {parseFloat(amountReceived).toLocaleString()}) is less than Net
+                Total
+              </div>
+            )}
+          {isAllReturns &&
+            (!amountReceived || parseFloat(amountReceived) <= 0) && (
+              <div
+                className="text-danger text-xxs font-weight-700 mb-1 text-center"
+                style={{ color: "#dc2626" }}
+              >
+                * Enter refund amount to process return
+              </div>
+            )}
+          {/* Checkout & Print Button */}
+          <button
+            type="button"
+            className={`btn btn-checkout-primary hover-lift ${isAllReturns ? "btn-danger" : refundDueToCustomer > 0 ? "btn-warning" : "btn-primary"}`}
+            disabled={
+              cart.length === 0 ||
+              // Pure return: need a refund amount entered by cashier
+              (isAllReturns &&
+                (!amountReceived || parseFloat(amountReceived) <= 0)) ||
+              // Normal forward sale or mixed where customer pays balance:
+              // need sufficient cash received (skip this check when store
+              // owes the customer a refund — no cash needed in that case)
+              (!isAllReturns &&
+                refundDueToCustomer === 0 &&
+                isCash &&
+                (!amountReceived || parseFloat(amountReceived) < cartNetTotal))
+            }
+            onClick={handleCheckout}
+            aria-label={
+              isAllReturns
+                ? "Process Cash Refund"
+                : refundDueToCustomer > 0
+                  ? "Complete Exchange & Refund"
+                  : "Save Order & Checkout"
+            }
+          >
+            {isAllReturns ? (
+              <>
+                <RotateCcw size={19} />
+                <span>Process Cash Refund</span>
+              </>
+            ) : refundDueToCustomer > 0 ? (
+              <>
+                <RotateCcw size={19} />
+                <span>
+                  Complete Exchange &amp; Refund Rs.{" "}
+                  {refundDueToCustomer.toLocaleString()}
+                </span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={19} />
+                <span>
+                  {hasMixedCart ? "Complete Exchange" : "Save Order & Checkout"}
+                </span>
+              </>
+            )}
+          </button>
         </div>
         {/* end checkout-summary-panel */}
       </div>
