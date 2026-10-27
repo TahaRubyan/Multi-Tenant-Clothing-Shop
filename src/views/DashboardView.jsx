@@ -88,21 +88,31 @@ export const DashboardView = () => {
   const todaysForwardSales = todaysSales.filter((s) => !isPureReturn(s));
   const todaysReturnInvoices = todaysSales.filter((s) => isPureReturn(s));
 
-  // Cash refunded today (amountReceived on return invoices = actual cash given back)
-  const todaysCashRefunded = todaysReturnInvoices
-    .filter((s) => (s.paymentMethod || "Cash").toLowerCase() === "cash")
-    .reduce((acc, curr) => acc + (parseFloat(curr.amountReceived) || 0), 0);
+  // Cash refunded today — two sources:
+  // 1. Pure-return invoices (amountReceived = cash given back to customer)
+  // 2. Exchange invoices where store refunded balance (refundGiven field)
+  const todaysCashRefunded =
+    todaysReturnInvoices
+      .filter((s) => (s.paymentMethod || "Cash").toLowerCase() === "cash")
+      .reduce((acc, curr) => acc + (parseFloat(curr.amountReceived) || 0), 0) +
+    todaysForwardSales
+      .filter((s) => (parseFloat(s.refundGiven) || 0) > 0)
+      .reduce((acc, curr) => acc + (parseFloat(curr.refundGiven) || 0), 0);
 
   const totalOrders = todaysForwardSales.length;
-  // Net revenue = forward sales revenue minus cash refunds paid out
-  const todaysRevenue =
+  // Net revenue clamped to 0 — can't show negative on return-only days
+  const todaysRevenue = Math.max(
+    0,
     todaysSales.reduce((acc, curr) => acc + (curr.netTotal || 0), 0) -
-    todaysCashRefunded;
-  const todaysCashSales =
+      todaysCashRefunded,
+  );
+  const todaysCashSales = Math.max(
+    0,
     todaysForwardSales
       .filter((s) => s.paymentMethod === "Cash")
       .reduce((acc, curr) => acc + (curr.netTotal || 0), 0) -
-    todaysCashRefunded;
+      todaysCashRefunded,
+  );
   const todaysDigitalSales = todaysForwardSales
     .filter(
       (s) => s.paymentMethod === "Card" || s.paymentMethod === "Mobile Banking",

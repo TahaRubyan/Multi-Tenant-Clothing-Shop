@@ -538,11 +538,11 @@ export const MakeSaleView = () => {
       return;
     }
 
-    // MIXED CART — returns exceed new sales — store gives change back
+    // MIXED CART — returns exceed new sales — store gives cash back
     if (refundDueToCustomer > 0) {
-      // Pass refundDueToCustomer as amountReceived so the receipt shows
-      // how much the cashier gave back (negative sale = store pays customer)
-      const saleResult = completeSale(paymentMethod, 0);
+      // Pass refundDueToCustomer as the 3rd arg (refundGiven) so it is
+      // stored on the invoice and visible in dashboard/settlement/analytics.
+      const saleResult = completeSale(paymentMethod, 0, refundDueToCustomer);
       if (saleResult) {
         showToast(
           `Exchange complete — refund Rs. ${refundDueToCustomer.toLocaleString()} to customer.`,

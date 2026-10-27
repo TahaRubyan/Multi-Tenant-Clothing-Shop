@@ -204,3 +204,11 @@ WHERE storewide_discount = 0
 
 -- 4d. Index on sale_date to keep today-filter queries fast.
 CREATE INDEX IF NOT EXISTS idx_sales_orders_sale_date ON sales_orders(sale_date);
+
+-- ============================================================
+-- MIGRATION v2.2 — run once on existing Supabase project
+-- Adds refund_given column to track cash given back on
+-- exchange transactions where store owed refund to customer.
+-- ============================================================
+ALTER TABLE sales_orders
+    ADD COLUMN IF NOT EXISTS refund_given NUMERIC(12,2) NOT NULL DEFAULT 0;

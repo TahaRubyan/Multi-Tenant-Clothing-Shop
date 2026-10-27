@@ -559,6 +559,9 @@ export async function syncSaleToCloud(saleData, tenantId) {
     gross_profit: saleData.grossProfit ?? 0,
     amount_received: saleData.amountReceived || saleData.netTotal || 0,
     change_returned: saleData.changeReturned || 0,
+    // Cash given back on exchange where store owes refund.
+    // Separate from amount_received so settlement can identify it correctly.
+    refund_given: saleData.refundGiven ?? 0,
     items: saleData.items || [],
     created_at: new Date().toISOString(),
   };
@@ -835,6 +838,9 @@ export function mapCloudSaleToLocal(row) {
     netTotal: row.net_total,
     amountReceived: row.amount_received,
     changeReturned: row.change_returned,
+    // Cash given back on exchange where store owes refund.
+    // Defaults to 0 for pre-migration rows and normal sales.
+    refundGiven: row.refund_given ?? 0,
     items: row.items || [],
     dateTime,
     // Prefer the stored gross_profit column.

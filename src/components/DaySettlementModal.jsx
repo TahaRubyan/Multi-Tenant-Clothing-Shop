@@ -107,13 +107,18 @@ export const DaySettlementModal = () => {
     .filter((s) => s.paymentMethod === "Mobile Banking")
     .reduce((sum, s) => sum + s.netTotal, 0);
 
-  // Total value of items returned today.
-  // Use amountReceived from the return invoice — that's the actual cash
-  // the cashier handed back to the customer, which directly reduces the
-  // expected cash in the drawer.
-  const totalCashRefundedToday = returnInvoices
-    .filter((s) => s.paymentMethod === "Cash" || !s.paymentMethod)
-    .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0);
+  // Total cash refunded today — two sources:
+  // 1. Pure-return invoices: amountReceived = cash the cashier gave back
+  // 2. Exchange invoices where store owed refund: refundGiven field
+  const totalCashRefundedToday =
+    // Pure returns (all items are return items)
+    returnInvoices
+      .filter((s) => s.paymentMethod === "Cash" || !s.paymentMethod)
+      .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0) +
+    // Mixed-cart exchanges where store refunded cash back
+    forwardSales
+      .filter((s) => (parseFloat(s.refundGiven) || 0) > 0)
+      .reduce((sum, s) => sum + (parseFloat(s.refundGiven) || 0), 0);
 
   // Also compute the item-level return value for display purposes
   const totalReturnsToday = returnInvoices.reduce(
@@ -126,9 +131,10 @@ export const DaySettlementModal = () => {
     0,
   );
 
-  // Net expected cash = forward cash sales minus cash refunds given back
+  // Net expected cash = forward cash sales minus all cash refunds given back.
+  // Clamped to 0 — expected cash can never be negative in the physical drawer.
   const totalSalesToday = cashSales + cardSales + mobileBankSales;
-  const netCashExpected = cashSales - totalCashRefundedToday;
+  const netCashExpected = Math.max(0, cashSales - totalCashRefundedToday);
   const totalOrdersToday = forwardSales.length;
 
   const actualCashNum = parseFloat(actualCashInput) || 0;

@@ -2164,7 +2164,11 @@ export const POSProvider = ({ children }) => {
     showToast(`Added ${cleanName} as exchange return`, "warning");
   };
 
-  const completeSale = (paymentMethod, amountReceivedInput = null) => {
+  const completeSale = (
+    paymentMethod,
+    amountReceivedInput = null,
+    refundGiven = 0,
+  ) => {
     if (cart.length === 0) return null;
 
     let subtotal = 0;
@@ -2253,6 +2257,11 @@ export const POSProvider = ({ children }) => {
       grossProfit,
       amountReceived,
       changeReturned,
+      // Cash given back to customer on exchange where store owes refund.
+      // 0 for normal sales and pure returns (amountReceived already tracks those).
+      // Only non-zero when a mixed cart has returns > new sales and the store
+      // physically hands cash back to the customer.
+      refundGiven: parseFloat(refundGiven) || 0,
       paymentMethod,
       items: cart.map((i) => ({
         barcode: i.barcode,

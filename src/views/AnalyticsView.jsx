@@ -173,19 +173,23 @@ export const AnalyticsView = () => {
     0,
   );
 
-  // Return invoices have netTotal=0 (clamped) so they don't reduce totalRevenue
-  // automatically. We need to subtract the actual credit given back to customers.
-  // amountReceived on a return invoice = cash the cashier gave back.
-  const totalReturnCredits = filteredSalesLogs
-    .filter(
-      (s) =>
-        (s.items || []).length > 0 &&
-        (s.items || []).every((it) => it.isReturn),
-    )
-    .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0);
+  // Return credits — two sources:
+  // 1. Pure-return invoices: amountReceived = cash given back
+  // 2. Exchange refund invoices: refundGiven field
+  const totalReturnCredits =
+    filteredSalesLogs
+      .filter(
+        (s) =>
+          (s.items || []).length > 0 &&
+          (s.items || []).every((it) => it.isReturn),
+      )
+      .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0) +
+    filteredSalesLogs
+      .filter((s) => (parseFloat(s.refundGiven) || 0) > 0)
+      .reduce((sum, s) => sum + (parseFloat(s.refundGiven) || 0), 0);
 
-  // Net revenue = gross forward sales revenue minus return credits paid out
-  const netTotalRevenue = totalRevenue - totalReturnCredits;
+  // Net revenue clamped to 0 — can't show negative on return-only periods
+  const netTotalRevenue = Math.max(0, totalRevenue - totalReturnCredits);
   const totalGrossProfit = filteredSalesLogs.reduce(
     (sum, s) => sum + resolveGrossProfit(s),
     0,
@@ -202,24 +206,32 @@ export const AnalyticsView = () => {
       : "0";
 
   // Cash vs Card / Digital Receipts Breakdown
-  // Subtract cash refunds given back to customers from cash received
-  const cashReturnCredits = filteredSalesLogs
-    .filter(
-      (s) =>
-        (s.paymentMethod || "Cash").toLowerCase() === "cash" &&
-        (s.items || []).length > 0 &&
-        (s.items || []).every((it) => it.isReturn),
-    )
-    .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0);
+  // Subtract all cash refunds — pure returns AND exchange refunds
+  const cashReturnCredits =
+    // Pure-return invoices
+    filteredSalesLogs
+      .filter(
+        (s) =>
+          (s.paymentMethod || "Cash").toLowerCase() === "cash" &&
+          (s.items || []).length > 0 &&
+          (s.items || []).every((it) => it.isReturn),
+      )
+      .reduce((sum, s) => sum + (parseFloat(s.amountReceived) || 0), 0) +
+    // Exchange invoices where store refunded cash
+    filteredSalesLogs
+      .filter((s) => (parseFloat(s.refundGiven) || 0) > 0)
+      .reduce((sum, s) => sum + (parseFloat(s.refundGiven) || 0), 0);
 
-  const cashReceived =
+  const cashReceived = Math.max(
+    0,
     filteredSalesLogs
       .filter(
         (s) =>
           (s.paymentMethod || "Cash").toLowerCase() === "cash" &&
           !(s.items || []).every((it) => it.isReturn),
       )
-      .reduce((sum, s) => sum + s.netTotal, 0) - cashReturnCredits;
+      .reduce((sum, s) => sum + s.netTotal, 0) - cashReturnCredits,
+  );
 
   const cardAndDigitalReceived = filteredSalesLogs
     .filter(
